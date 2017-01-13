@@ -1,5 +1,19 @@
-# files with the following extensions are not added to the version control
+#	files with the following extensions are not added to the version control
 
 *.iml
 */.idea/*
 *.MF
+
+#	milestone1-specific ignores
+m1/echoServer/bin/*
+m1/echoServer/echoServer.jar
+
+m1/echoClient/bin/*
+m1/echoClient/echoClient.jar
+
+m1/BasicStorageServer-stub/bin/*
+m1/BasicStorageServer-stub/ms1-client.jar
+m1/BasicStorageServer-stub/ms1-server.jar
+
+
+#	milestone2-specific ignores
