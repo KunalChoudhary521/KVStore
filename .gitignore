@@ -1,0 +1,5 @@
+# files with the following extensions are not added to the version control
+
+*.iml
+*/.idea/*
+*.MF
