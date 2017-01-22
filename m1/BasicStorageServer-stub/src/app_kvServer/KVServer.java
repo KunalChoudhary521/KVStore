@@ -1,5 +1,7 @@
 package app_kvServer;
 
+import logger.LogSetup;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -37,8 +39,6 @@ public class KVServer  {
 
 	public void Run(){
         isRunning = InitializeServer();
-        System.out.println("Server started successfully on " +
-                this.socket.getInetAddress().toString() + ":" + this.port);
         if(socket != null) {
             while(isRunning){
                 try {
@@ -89,6 +89,12 @@ public class KVServer  {
     public static void main(String[] args){
 	    int port = Integer.parseInt(args[0]);
 	    int cacheSize = Integer.parseInt(args[1]);
+        try {
+            new LogSetup("logs/server.log", Level.ALL);
+        } catch (Exception ex)
+        {
+            System.out.println(ex.getMessage());
+        }
 	    String strategy = args[2];
         KVServer server = new KVServer(port, cacheSize, strategy);
         server.Run();

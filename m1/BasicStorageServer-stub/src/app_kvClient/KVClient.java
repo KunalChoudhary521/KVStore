@@ -2,12 +2,11 @@ package app_kvClient;
 
 
 import client.KVCommInterface;
+import client.KVStore;
 import common.messages.KVMessage;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.sql.Time;
@@ -15,49 +14,107 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-public class KVClient implements KVCommInterface{
+public class KVClient {
 
-    private Socket clientSocket;
-    private OutputStream output;
-    private InputStream input;
-    private String address;
-    private int port;
+    private static Logger logger = Logger.getRootLogger();
+    private static final String PROMPT = "KVClient> ";
+    private BufferedReader stdin;
+    private KVStore client = null;
+    private boolean stop = false;
 
-    private Logger logger = Logger.getRootLogger();
-    private Set<ClientSocketListener> listeners;
-    private boolean running;
+    private String serverAddress;
+    private int serverPort;
 
-    public KVClient(String address, int port) {
-        this.address = address;
-        this.port = port;
-    }
+    public void run() {
+        while(!stop) {
+            stdin = new BufferedReader(new InputStreamReader(System.in));
+            System.out.print(PROMPT);
 
-    @Override
-    public void connect() throws Exception {
-        this.clientSocket = new Socket(address, port);
-        if(clientSocket.isConnected()){
-            String message = "Connection established successffully at " + new Date().toString();
-            this.logger.trace(message);
-        } else {
-            String message = "Could not connect to host " + this.address + ":"
-                    + this.port + "at " + new Date().toString();
-            this.logger.trace(message);
-            throw new Exception(message);
+            try {
+                String cmdLine = stdin.readLine();
+                this.handleCommand(cmdLine);
+            } catch (IOException e) {
+                stop = true;
+                printError("CLI does not respond - Application terminated ");
+            }
         }
     }
 
-    @Override
-    public void disconnect() {
+    private void handleCommand(String cmdLine) {
+        String[] tokens = cmdLine.split("\\s+");
 
+        if(tokens[0].equals("quit")) {
+            stop = true;
+            disconnect();
+            System.out.println(PROMPT + "Application exit!");
+
+        } else if (tokens[0].equals("connect")){
+            if(tokens.length == 3) {
+                try {
+                    serverAddress = tokens[1];
+                    serverPort = Integer.parseInt(tokens[2]);
+                    client = new KVStore(serverAddress, serverPort);
+                    client.connect();
+                    println("Connected to server successfully");
+                } catch (Exception ex) {
+                    printError("Could not establish connection!");
+                    logger.warn("Could not establish connection!", ex);
+                }
+            } else {
+                printError("Invalid number of parameters!");
+            }
+        } else if(tokens[0].equals("disconnect")) {
+            disconnect();
+        } else if(tokens[0].equals("help")) {
+            printHelp();
+        } else {
+            printError("Unknown command");
+            printHelp();
+        }
     }
 
-    @Override
-    public KVMessage put(String key, String value) throws Exception {
-        return null;
+    private void printHelp() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(PROMPT).append("KVClient HELP (Usage):\n");
+        sb.append(PROMPT);
+        sb.append("::::::::::::::::::::::::::::::::");
+        sb.append("::::::::::::::::::::::::::::::::\n");
+        sb.append(PROMPT).append("connect <host> <port>");
+        sb.append("\t establishes a connection to a server\n");
+        sb.append(PROMPT).append("disconnect");
+        sb.append("\t\t\t disconnects from the server \n");
+        sb.append(PROMPT).append("quit ");
+        sb.append("\t\t\t exits the program");
+        System.out.println(sb.toString());
     }
 
-    @Override
-    public KVMessage get(String key) throws Exception {
-        return null;
+    private void printError(String error){
+        System.out.println(PROMPT + "Error! " +  error);
+    }
+
+    private void disconnect() {
+        if(client != null) {
+            try {
+                client.disconnect();
+            } catch(Exception ex){
+                println(ex.getMessage());
+            }
+            client = null;
+        }
+    }
+
+    public static void main(String args[]){
+        try {
+            KVClient app = new KVClient();
+            app.run();
+        } catch (Exception ex){
+            System.out.println("Error! Unable to initialize logger!");
+            ex.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    private static void println(String message){
+        System.out.println(message);
     }
 }
