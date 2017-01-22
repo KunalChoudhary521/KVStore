@@ -11,26 +11,35 @@ public interface KVMessage {
 		PUT_UPDATE, 	/* Put - request successful, i.e. value updated */
 		PUT_ERROR, 		/* Put - request not successful */
 		DELETE_SUCCESS, /* Delete - request successful */
-		DELETE_ERROR 	/* Delete - request successful */
+		DELETE_ERROR 	/* Delete - request not successful */
 	}
+	public String key = null;
+	public String value = null;
+	public StatisType stat = null; 
 
 	/**
 	 * @return the key that is associated with this message, 
 	 * 		null if not key is associated.
 	 */
-	public String getKey();
+	public String getKey(){
+		return this.key;	
+	}
 	
 	/**
 	 * @return the value that is associated with this message, 
 	 * 		null if not value is associated.
 	 */
-	public String getValue();
+	public String getValue(){
+		return this.value;
+	}
 	
 	/**
 	 * @return a status string that is used to identify request types, 
 	 * response types and error types associated to the message.
 	 */
-	public StatusType getStatus();
+	public StatusType getStatus(){
+		return this.stat;
+	}
 	
 }
 
