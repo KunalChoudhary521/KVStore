@@ -65,6 +65,12 @@ public class KVClient {
             }
         } else if(tokens[0].equals("disconnect")) {
             disconnect();
+        } else if(tokens[0].equals("getTest")){
+            try {
+                client.get("blah");
+            } catch(Exception ex) {
+                printError("Get failed.");
+            }
         } else if(tokens[0].equals("help")) {
             printHelp();
         } else {

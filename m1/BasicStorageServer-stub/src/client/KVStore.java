@@ -37,6 +37,14 @@ public class KVStore implements KVCommInterface {
 	@Override
 	public void connect() throws Exception {
 		this.clientSocket = new Socket(address, port);
+
+		try {
+			this.output = clientSocket.getOutputStream();
+			this.input = clientSocket.getInputStream();
+		} catch(Exception ex){
+			this.logger.trace(ex.getMessage());
+		}
+
 		if(clientSocket.isConnected()){
 			String message = "Connection established successffully at " + new Date().toString();
 			this.logger.trace(message);
@@ -60,6 +68,41 @@ public class KVStore implements KVCommInterface {
 
 	@Override
 	public KVMessage get(String key) throws Exception {
+		if(this.clientSocket != null){
+			if(this.clientSocket.isConnected())
+			{
+				byte[] message = new byte[27];
+
+				byte[] byteKey = new byte[20];
+				for(int i = 0; i < 20; i++){
+					byteKey[i] = (byte) 'K';
+				}
+
+				// fill the message with the proper command byte
+				message[0] = (byte) 'G';
+
+				// pad or align
+				message[1] = (byte) 0;
+
+				// fill the get message with a 20 byte key
+				for(int i = 0; i < 20; i++)
+				{
+					message[2+i] = byteKey[i];
+				}
+
+				// pad or align again
+				message[22] = (byte) 0;
+
+				int size = 32;
+				char[] charSize =	Integer.toString(size).toCharArray();
+
+				for(int i = 0; i < charSize.length; i++){
+					message[22+i] = (byte) charSize[i];
+				}
+				this.clientSocket.getOutputStream().write(message, 0, message.length);
+				//this.clientSocket.getOutputStream().flush();
+			}
+		}
 		return null;
 	}
 

@@ -22,8 +22,6 @@ public class KVServer  {
 	*           and "LFU".
 	*/
 
-	public static int NUMTHREADS = 8;
-
 	private int port;
 	private int cacheSize;
 	private String strategy;
@@ -87,15 +85,18 @@ public class KVServer  {
     }
 
     public static void main(String[] args){
+	    // todo validation
 	    int port = Integer.parseInt(args[0]);
 	    int cacheSize = Integer.parseInt(args[1]);
+        String strategy = args[2];
+
         try {
             new LogSetup("logs/server.log", Level.ALL);
         } catch (Exception ex)
         {
             System.out.println(ex.getMessage());
         }
-	    String strategy = args[2];
+
         KVServer server = new KVServer(port, cacheSize, strategy);
         server.Run();
     }
