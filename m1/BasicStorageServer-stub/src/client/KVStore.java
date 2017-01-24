@@ -5,7 +5,9 @@ import app_kvClient.ClientSocketListener;
 import app_kvClient.ClientSocketListener.SocketStatus;
 import app_kvClient.TextMessage;
 import common.messages.KVMessage;
+import javafx.animation.Animation;
 import org.apache.log4j.Logger;
+import client.Message;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -168,11 +170,18 @@ public class KVStore implements KVCommInterface {
 
 	//@Override
 	public KVMessage put(String key, String value) throws Exception {
-/*		KVMessage ret_val = new KVMessage();//change
-    	ret_val.key = key;
-    	rev_val.value=value;
-        try{
-	    	int kl = key.length();
+		try{
+			if(this.clientSocket == null){
+				String msg = "Put, no client socket: key = '"+key+"', value = ' "+value+"'";
+	        	logger.info(msg);
+	        	throw new Exception(msg);
+			}
+			if(!this.clientSocket.isConnected()){
+				String msg = "Put, client socket not connected: key = '"+key+"', value = ' "+value+"'";
+	        	logger.info(msg);
+	        	throw new Exception(msg);
+			}
+			int kl = key.length();
 	        int vl = value.length();
 	        if (kl>20){
 	        	String msg = "key: '" + key + "' too long, ("+kl+" bytes)";
@@ -184,62 +193,83 @@ public class KVStore implements KVCommInterface {
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	    	this.sendMessage(new TextMessage("P"));
-	        this.sendMessage(new TextMessage(key));
-	        this.sendMessage(new TextMessage("\0"));
-	        this.sendMessage(new TextMessage(Integer.toString(vl)));
-	        TextMessage stat = this.receiveMessage();
-	        if (stat.getMsg().equals("F")){
-	        	String msg = "Put, server sent F when validating key: '"+key+"'";
+	        String length = Integer.toString(vl);
+	        int ll = length.length();
+	        int ml = kl+4+ll;
+	        byte[] message = new byte[ml];
+	        byte[] byteKey = key.getBytes();
+	        byte[] length_byte = length.getBytes();
+	        TextMessage[] ret_vals = new TextMessage[4];
+	        message[0] = (byte) 'P';
+	        message[1] = (byte) 0;
+	        for (int i = 0; i<kl; i++){
+	        	message[2+i]=byteKey[i];
+	        }
+	        message[2+kl]=0;
+	        for (int i = 0; i<ll;i++){
+	        	message[3+kl+i]=length_byte[i];
+	        }
+	        message[3+kl+ll]=0;
+	        this.sendMessage(message,3+kl+ll);
+	        for (int i =0; i<3; i++){
+	        	ret_vals[i]=this.receiveMessage();
+	        }
+	        if (ret_vals[0].getMsg().equals("F")){
+	        	String msg = "Put, server sent F when validating key: '"+key+"', disconnecting";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	        TextMessage ret_key = this.receiveMessage();
-	        assert this.receiveMessage().getMsg().equals("\0");
-	        TextMessage ret_size = this.receiveMessage();
-	        if (!key.equals(ret_key.getMsg()) || vl != Integer.parseInt(ret_size.getMsg())){
-	        	this.sendMessage(new TextMessgae("F"));
+	        if (!ret_vals[1].getMsg().equals(key) || 
+	        		!ret_vals[2].getMsg().equals(length)){
+	        	byte[] failure = new byte[2];
+	        	failure[0]="F".getBytes()[0];
+	        	failure[1]=0;
+	        	this.sendMessage(failure, 2);
 	        	String msg = "Put, server responded with incorrect key or size: "
-	        			+ ret_key.getMsg() +", " + ret_size.getMsg();
+	        			+ ret_vals[1].getMsg() +", " + ret_vals[2].getMsg()+", disconnecting";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	        this.sendMessage(new TextMessage("S"));
-	        this.sendMessage(new TextMessage(value));
-	        TextMessage ret_final_stat = this.receiveMessage();
-	        if (receiveMessage().getMsg().equals("F")){
+	        message = null;
+	        byte[] message2 = new byte[vl+3];
+	        byte [] payload_bytes = value.getBytes();
+	        message2[0]="S".getBytes()[0];
+	        message2[1]=0;
+	        for (int i =0; i<vl; i++){
+	        	message2[2+i]=payload_bytes[i];
+	        }
+	        message2[2+vl]=0;
+	        this.sendMessage(message2, 3+vl);
+	        ret_vals[3]=this.receiveMessage();
+	        if (ret_vals[3].getMsg().equals("F")){
 	        	String msg = "Put, server sent F after inserting: "
-	        			+key +" : "+value;
+	        			+key +" : "+value+", disconnecting";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	        if (stat.getMsg().equals("S")){
-	        	ret_val.stat = PUT_SUCCESS;
+	        if (ret_vals[3].getMsg().equals("S")){
+	        	return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS);
 	        }
 	        else{
 	        	if (value.equals(null)){
-	        		ret_val.stat = DELETE_SUCCESS;
+	        		return new Message(key, value, KVMessage.StatusType.DELETE_SUCCESS);
 	        	}
 	        	else{
-	        		ret_val.stat = PUT_UPDATE;
+	        		return new Message(key, value, KVMessage.StatusType.PUT_UPDATE);
 	        	}
-	        	
 	        }
-	    	return ret_val;
-        }
-        catch(Exception ex){
-        	if (ex.getMessage().contains("Put, server")){
+		}
+		catch(Exception ex){
+        	if (ex.getMessage().contains(", disconnecting")){
         		this.disconnect();
         	}
         	if (value.contentEquals(null)){
-        		ret_val.stat = DELETE_ERROR;
+	        	return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
         	}
         	else{
-        		ret_val.stat = PUT_ERROR;
+	        	return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
         	}
-        	return ret_val;
-        }*/
-		return null;
+        }
 	}
 
 	//@Override
@@ -252,24 +282,21 @@ public class KVStore implements KVCommInterface {
 	
 					byte[] byteKey = key.getBytes();
 					TextMessage[] ret_vals = new TextMessage[4];
-					/*for(int i = 0; i < 20; i++){
-						byteKey[i] = (byte) 'K';
-					}*/
+
 	
 					// fill the message with the proper command byte
 					message[0] = (byte) 'G';
 	
 					// pad or align
 					message[1] = (byte) 0;
-	
 					// fill the get message with a 20 byte key
 					for(int i = 0; i < key.length(); i++)
 					{
 						message[2+i] = byteKey[i];
 					}
 					message[2+key.length()]=0;
-					message[3+key.length()]=0;
-					this.sendMessage(message,4+key.length());
+					//message[3+key.length()]=0;
+					this.sendMessage(message,3+key.length());
 					for (int i =0; i<4;i++){
 						ret_vals[i]=this.receiveMessage();
 					}
@@ -291,29 +318,17 @@ public class KVStore implements KVCommInterface {
 			        	throw new Exception(msg);
 					}
 					logger.info("payload = "+ret_vals[3].getMsg());
-	/*				// pad or align again
-					message[22] = (byte) 0;
-	
-					int size = 32;
-					char[] charSize =	Integer.toString(size).toCharArray();
-	
-					for(int i = 0; i < charSize.length; i++){
-						message[22+i] = (byte) charSize[i];
-					}
-					this.clientSocket.getOutputStream().write(message, 0, message.length);
-					//this.clientSocket.getOutputStream().flush();
-					 * 
-					 */
+
+				return new Message(key, null, KVMessage.StatusType.GET_SUCCESS);
 				}
 			}
 		}
 		catch(Exception ex){
         	this.disconnect();
         	logger.info(ex.getMessage());
-        	//set state to GET_ERROR;
+        	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
         }
-		return null;
-	}
+	return null;}
 
 	
 }

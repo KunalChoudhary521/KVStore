@@ -67,7 +67,13 @@ public class KVClient {
             disconnect();
         } else if(tokens[0].equals("getTest")){
             try {
-                client.get("blah");
+                KVMessage response = client.get(tokens[1]);
+                if(response.getStatus() == KVMessage.StatusType.GET_SUCCESS){
+                    println("Get Success-----");
+                    println("Key:\t" + response.getKey());
+                    println("Value:\t" + response.getValue());
+                    println("----------------");
+                }
             } catch(Exception ex) {
                 printError("Get failed.");
             }

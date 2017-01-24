@@ -44,17 +44,12 @@ public class ClientConnection implements Runnable {
 		try {
 			output = clientSocket.getOutputStream();
 			input = clientSocket.getInputStream();
-		
-			sendMessage(new TextMessage(
-					"Connection to MSRG Echo server established: " 
-					+ clientSocket.getLocalAddress() + " / "
-					+ clientSocket.getLocalPort()));
-			
+
 			while(isOpen) {
 				try {
-					TextMessage latestMsg = receiveMessage();
+					String latestMsg = receiveMessage();
 					sendMessage(latestMsg);
-					
+
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
 				} catch (IOException ioe) {
@@ -79,91 +74,71 @@ public class ClientConnection implements Runnable {
 			}
 		}
 	}
-	
-	/**
-	 * Method sends a TextMessage using this socket.
-	 * @param msg the message that is to be sent.
-	 * @throws IOException some I/O error regarding the output stream 
-	 */
-	public void sendMessage(TextMessage msg) throws IOException {
-		byte[] msgBytes = msg.getMsgBytes();
-		output.write(msgBytes, 0, msgBytes.length);
+
+	private void sendMessage(String msg) throws IOException {
+		int sizeOfMsg = msg.length();
+		byte[] outputByteMessage = new byte[sizeOfMsg];
+		for(int i = 0; i < sizeOfMsg; i++){
+			outputByteMessage[i] = (byte)msg.charAt(i);
+		}
+
+		output.write(outputByteMessage);
 		output.flush();
-		logger.info("SEND \t<" 
-				+ clientSocket.getInetAddress().getHostAddress() + ":" 
-				+ clientSocket.getPort() + ">: '" 
-				+ msg.getMsg() +"'");
-    }
-	
-	
-	private TextMessage receiveMessage() throws IOException {
-		
+	}
+
+	private String receiveMessage() throws IOException {
 		int index = 0;
 		byte[] msgBytes = null, tmp = null;
 		byte[] bufferBytes = new byte[BUFFER_SIZE];
-		
-		/* read first char from stream */
-		byte read = (byte) input.read();	
-		boolean reading = true;
-		
-//		logger.info("First Char: " + read);
-//		Check if stream is closed (read returns -1)
-//		if (read == -1){
-//			TextMessage msg = new TextMessage("");
-//			return msg;
-//		}
+		byte firstByte = 0;
 
-		while(/*read != 13  && */ read != 10 && read !=-1 && reading) {/* CR, LF, error */
-			/* if buffer filled, copy to msg array */
-			if(index == BUFFER_SIZE) {
-				if(msgBytes == null){
-					tmp = new byte[BUFFER_SIZE];
-					System.arraycopy(bufferBytes, 0, tmp, 0, BUFFER_SIZE);
-				} else {
-					tmp = new byte[msgBytes.length + BUFFER_SIZE];
-					System.arraycopy(msgBytes, 0, tmp, 0, msgBytes.length);
-					System.arraycopy(bufferBytes, 0, tmp, msgBytes.length,
-							BUFFER_SIZE);
-				}
+		int size = input.available();
 
-				msgBytes = tmp;
-				bufferBytes = new byte[BUFFER_SIZE];
-				index = 0;
-			} 
-			
-			/* only read valid characters, i.e. letters and constants */
-			bufferBytes[index] = read;
+		// if there is nothing to read block the thread until something becomes available
+		if(size <= 0){
+			firstByte = (byte)input.read(); // blocking call
+			size = input.available();
+			msgBytes = new byte[size+1];
+			msgBytes[index] = firstByte;
 			index++;
-			
-			/* stop reading is DROP_SIZE is reached */
-			if(msgBytes != null && msgBytes.length + index >= DROP_SIZE) {
-				reading = false;
-			}
-			
-			/* read next char from stream */
-			read = (byte) input.read();
 		}
-		
-		if(msgBytes == null){
-			tmp = new byte[index];
-			System.arraycopy(bufferBytes, 0, tmp, 0, index);
+
+		while(size > 0) {
+			msgBytes[index] = (byte) input.read();
+			index++;
+			size = input.available();
+		}
+
+
+		// from this point onwards we have the entire byte array for the message
+		// TODO: need to reconstruct fragmented packets since buffer is fixed size
+		// TODO: need to discuss how we will fragment packets
+
+		String command = getCommandFromByte(msgBytes[0]);
+		String msg = null;
+
+		if(command == "GET"){
+			msg = "Get was successful: message from client was, " + new String(msgBytes);
+		} else if (command == "PUT"){
+			msg = "Put was successful";
 		} else {
-			tmp = new byte[msgBytes.length + index];
-			System.arraycopy(msgBytes, 0, tmp, 0, msgBytes.length);
-			System.arraycopy(bufferBytes, 0, tmp, msgBytes.length, index);
+			msg = "Invalid Command";
 		}
-		
-		msgBytes = tmp;
-		
-		/* build final String */
-		TextMessage msg = new TextMessage(msgBytes);
-		logger.info("RECEIVE \t<" 
-				+ clientSocket.getInetAddress().getHostAddress() + ":" 
-				+ clientSocket.getPort() + ">: '" 
-				+ msg.getMsg().trim() + "'");
+		index = 0; //reset the index for the next message from client
+
 		return msg;
     }
-	
 
+	String getCommandFromByte(byte firstByte){
+		String command = null;
+
+		if((char)firstByte == 'G' ){
+			return "GET";
+		} else if ((char) firstByte == 'P'){
+			return "PUT";
+		}
+
+		return command;
+	}
 	
 }
