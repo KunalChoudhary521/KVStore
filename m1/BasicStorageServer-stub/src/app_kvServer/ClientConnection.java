@@ -19,7 +19,7 @@ import java.io.*;//remove me later
  */
 public class ClientConnection implements Runnable {
 
-	private static Logger logger = Logger.getRootLogger();
+	private static Logger  logger = Logger.getRootLogger();
 	
 	private boolean isOpen;
 	private static final int BUFFER_SIZE = 1024;
@@ -61,7 +61,7 @@ public class ClientConnection implements Runnable {
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
 				} catch (IOException ioe) {
-					logger.error("Error! Connection lost!");
+					logger.info("Error! Connection lost!");
 					isOpen = false;
 				}catch (Exception ex){
 					logger.info(ex.getMessage());
@@ -89,6 +89,9 @@ public class ClientConnection implements Runnable {
 		String key = receiveMessage().getMsg();
 		logger.info("Client tried to get key: '"+key+"'");
 		try{
+			if (key.length()>20){
+				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
+			}
 			//check if we have the key in our file
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			int got_key = 1;//change to be based on whether got the value
@@ -135,6 +138,82 @@ public class ClientConnection implements Runnable {
 		
 	}
 	public void handle_put(){
+		String [] client_msgs = new String[4];
+		
+		try{
+			for (int i =0; i<2; i++){
+				client_msgs[i] = this.receiveMessage().getMsg();
+			}
+			logger.info("Put, client wants to place "+client_msgs[1]+" bytes for key '"+client_msgs[0]+"'");
+			int kl = client_msgs[0].length();
+			int ll = client_msgs[1].length();
+			if (kl>20){
+				byte [] message = new byte [2];
+				message[0]=(byte) 'F';
+				message[1] = (byte) 0;
+				this.sendMessage(message, 2);
+				throw new Exception("Put, client sent too long of a key, key = '"+client_msgs[0]+"', length = "+kl);
+			}
+			if (Integer.parseInt(client_msgs[1])>120*1024){
+				byte [] message = new byte [2];
+				message[0]=(byte) 'F';
+				message[1] = (byte) 0;
+				this.sendMessage(message, 2);
+				throw new Exception("Put, client sent too large a size, size = "+client_msgs[1]);
+			}
+			//GET the key from the file on disk populate below variables based on file
+			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
+			int got_key = 1;//change to be based on whether got the value
+			int offset = 323; //use for quick location since will need to update value
+			byte[] message = new byte[4+kl+ll];
+			if (got_key == 1){
+				message[0] = (byte) 'U';
+			}
+			else{
+				message[0] = (byte) 'S';
+			}
+			message[1] = (byte) 0;
+			for (int i = 0; i<kl; i++){
+				message[2+i]=(byte) client_msgs[0].charAt(i);
+			}
+			message[2+kl]= (byte) 0;
+			for (int i = 0; i < ll; i++){
+				message[3+kl+i] = (byte) client_msgs[1].charAt(i);
+			}
+			message[3+kl+ll]=(byte) 0;
+			this.sendMessage(message, 4+kl+ll);
+			for (int i = 2; i<4; i++){
+				client_msgs[i] = this.receiveMessage().getMsg();
+			}
+			if (client_msgs[2].equals("F")){
+				throw new Exception("Put, client sent a failure signal");
+			}
+			if(client_msgs[3].length() != Integer.parseInt(client_msgs[1])){
+				throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
+			}
+			///overwrite the payload or whatever other file stuff her
+			System.out.println("NEED TO IMPLEMENT INSERTION IN FILE");
+			int success = 1; //change based on insertion results
+			///
+			if (success == 1){
+				byte [] ack = new byte[2];
+				ack[0] = (byte) 'S';
+				ack[1] = (byte) 0;
+				this.sendMessage(ack, 2);
+				throw new Exception("Put succeeded, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
+			}
+			else{
+				byte [] ack = new byte[2];
+				ack[0] = (byte) 'F';
+				ack[1] = (byte) 0;
+				this.sendMessage(ack, 2);
+				throw new Exception("Put failed, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
+			}
+		}
+		catch(Exception ex){
+			logger.info(ex.getMessage());
+		}
+		
 		
 	}
 	
