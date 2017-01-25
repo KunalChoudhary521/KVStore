@@ -74,6 +74,9 @@ public class KVClient {
                     println("Value:\t" + response.getValue());
                     println("----------------");
                 }
+		else if(response.getStatus() == KVMessage.StatusType.GET_ERROR){
+			println("failure");
+		}
             } catch(Exception ex) {
                 printError("Get failed.");
             }
