@@ -52,13 +52,17 @@ public class ClientConnection implements Runnable {
 			while(isOpen) {
 				try {
 					TextMessage latestMsg = receiveMessage();
-					if (latestMsg.getMsg().equals("P")){
+					System.out.println("command: "+latestMsg.getMsg()+"type:"+(latestMsg.getMsg()).getClass().getName());
+					if (latestMsg.getMsg().contains("P")){
 						handle_put();
+						
 					}
-					else if (latestMsg.getMsg().equals("G")){
+					else if (latestMsg.getMsg().contains("G")){
+						System.out.println("handling get");
 						handle_get();
 					}
 				//	sendMessage(latestMsg);
+					
 
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
@@ -89,6 +93,7 @@ public class ClientConnection implements Runnable {
 	
 	public void handle_get() throws Exception, IOException{
 		String key = receiveMessage().getMsg();
+		System.out.println("key: "+key);
 		logger.info("Client tried to get key: '"+key+"'");
 		try{
 			if (key.length()>20){
@@ -146,6 +151,8 @@ public class ClientConnection implements Runnable {
 			for (int i =0; i<2; i++){
 				client_msgs[i] = this.receiveMessage().getMsg();
 			}
+			System.out.println("key: "+client_msgs[0]);
+			System.out.println("size: "+client_msgs[1]);
 			logger.info("Put, client wants to place "+client_msgs[1]+" bytes for key '"+client_msgs[0]+"'");
 			int kl = client_msgs[0].length();
 			int ll = client_msgs[1].length();
@@ -187,6 +194,8 @@ public class ClientConnection implements Runnable {
 			for (int i = 2; i<4; i++){
 				client_msgs[i] = this.receiveMessage().getMsg();
 			}
+			System.out.println("flag: "+client_msgs[2]);
+			System.out.println("payload: "+client_msgs[3]);
 			if (client_msgs[2].equals("F")){
 				throw new Exception("Put, client sent a failure signal");
 			}
@@ -354,7 +363,7 @@ public class ClientConnection implements Runnable {
 		return command;
 	}
 
-	private void handleGet(String k)
+	/*private void handleGet(String k)
 	{
 		try {
 			String val = this.server.findInCache(k);
@@ -376,7 +385,7 @@ public class ClientConnection implements Runnable {
 		}catch(Exception ex){
 			logger.trace(ex.getMessage());
 		}
-	}
+	}*/
 
 	private String getKeyFromBytes(byte[] bts, int idx)
 	{
@@ -398,7 +407,7 @@ public class ClientConnection implements Runnable {
 		return new String(byteValue);
 	}
 
-	private void handlePut(String k, String v)
+	/*private void handlePut(String k, String v)
 	{
 		this.server.addToCache(k,v);
 
@@ -411,6 +420,6 @@ public class ClientConnection implements Runnable {
 		}
 
 		//add logic that adds k,v to the file
-	}
+	}*/
 }
 
