@@ -197,8 +197,17 @@ public class KVStore implements KVCommInterface {
 	        int ll = length.length();
 	        int ml = kl+4+ll;
 	        byte[] message = new byte[ml];
-	        byte[] byteKey = key.getBytes();
-	        byte[] length_byte = length.getBytes();
+	        //byte[] byteKey = key.getBytes();//removed per piazza
+	        
+			byte[] byteKey = new byte[kl];
+			for(int i =0; i < kl; i++){
+				byteKey[i]=(byte)key.charAt(i);
+			}
+	        //byte[] length_byte = length.getBytes();//removed per piazza
+			byte[] length_byte = new byte[ll];
+			for(int i =0; i < ll; i++){
+				length_byte[i]=(byte)length.charAt(i);
+			}
 	        TextMessage[] ret_vals = new TextMessage[4];
 	        message[0] = (byte) 'P';
 	        message[1] = (byte) 0;
@@ -222,7 +231,7 @@ public class KVStore implements KVCommInterface {
 	        if (!ret_vals[1].getMsg().equals(key) || 
 	        		!ret_vals[2].getMsg().equals(length)){
 	        	byte[] failure = new byte[2];
-	        	failure[0]="F".getBytes()[0];
+	        	failure[0]=(byte) 'F';
 	        	failure[1]=0;
 	        	this.sendMessage(failure, 2);
 	        	String msg = "Put, server responded with incorrect key or size: "
@@ -232,8 +241,12 @@ public class KVStore implements KVCommInterface {
 	        }
 	        message = null;
 	        byte[] message2 = new byte[vl+3];
-	        byte [] payload_bytes = value.getBytes();
-	        message2[0]="S".getBytes()[0];
+	        //byte [] payload_bytes = value.getBytes();//removed per piazza
+			byte[] payload_bytes = new byte[vl];
+			for(int i =0; i < vl; i++){
+				payload_bytes[i]=(byte) value.charAt(i);
+			}
+	        message2[0]=(byte) 'S';
 	        message2[1]=0;
 	        for (int i =0; i<vl; i++){
 	        	message2[2+i]=payload_bytes[i];
@@ -279,8 +292,12 @@ public class KVStore implements KVCommInterface {
 				if(this.clientSocket.isConnected())
 				{
 					byte[] message = new byte[27];
-	
-					byte[] byteKey = key.getBytes();
+					int kl = key.length();
+					byte[] byteKey = new byte[kl];
+					for(int i =0; i < kl; i++){
+						byteKey[i]=(byte)key.charAt(i);
+					}
+//					byte[] byteKey = key.getBytes();//removed per piaza
 					TextMessage[] ret_vals = new TextMessage[4];
 
 	
