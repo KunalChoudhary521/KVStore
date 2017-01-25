@@ -100,9 +100,10 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
 			}
 			//check if we have the key in our file
+			String payload = this.server.findInCache(key);
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			int got_key = 1;//change to be based on whether got the value
-			String payload = "IMPLEMENT ME";
+//			String payload = "IMPLEMENT ME";
 			int length = 11;//get me from file
 			String length_str = Integer.toString(length);
 			//
@@ -204,6 +205,7 @@ public class ClientConnection implements Runnable {
 			}
 			///overwrite the payload or whatever other file stuff her
 			System.out.println("NEED TO IMPLEMENT INSERTION IN FILE");
+			this.server.addToCache(client_msgs[0],client_msgs[3]);
 			int success = 1; //change based on insertion results
 			///
 			if (success == 1){
