@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import java.io.*;//remove me later
+
 
 /**
  * Represents a connection end point for a particular client that is 
@@ -47,15 +49,23 @@ public class ClientConnection implements Runnable {
 
 			while(isOpen) {
 				try {
-					String latestMsg = receiveMessage();
-					sendMessage(latestMsg);
+					TextMessage latestMsg = receiveMessage();
+					if (latestMsg.getMsg().equals("P")){
+						handle_put();
+					}
+					else if (latestMsg.getMsg().equals("G")){
+						handle_get();
+					}
+				//	sendMessage(latestMsg);
 
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
 				} catch (IOException ioe) {
 					logger.error("Error! Connection lost!");
 					isOpen = false;
-				}				
+				}catch (Exception ex){
+					logger.info(ex.getMessage());
+				}
 			}
 			
 		} catch (IOException ioe) {
@@ -74,8 +84,127 @@ public class ClientConnection implements Runnable {
 			}
 		}
 	}
+	
+	public void handle_get() throws Exception, IOException{
+		String key = receiveMessage().getMsg();
+		logger.info("Client tried to get key: '"+key+"'");
+		try{
+			//check if we have the key in our file
+			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
+			int got_key = 1;//change to be based on whether got the value
+			String payload = "IMPLEMENT ME";
+			int length = 11;//get me from file
+			String length_str = Integer.toString(length);
+			//
+			
+			if (got_key == 1){
+				int kl = key.length();
+				int ll = length_str.length();
+				byte[] message = new byte[5+kl+ll+length];
+				message[0]=(byte) 'S';
+				message[1]=(byte) 0;
+				for (int i = 0; i < kl; i++){
+					message[2+i] =(byte) key.charAt(i);
+				}
+				message[2+kl]= (byte) 0;
+				for (int i = 0; i <ll; i++){
+					message[3+kl]=(byte) length_str.charAt(i);
+				}
+				message[3+kl+ll] = (byte) 0;
+				for (int i = 0; i < length; i ++){
+					message[4+kl+ll+i] = (byte) payload.charAt(i);
+				}
+				message[4+kl+ll+length]=(byte)0;
+				this.sendMessage(message, 5+kl+ll+length);
+			}
+			else{
+				byte[] message = new byte[2];
+				message[0]=(byte) 'F';
+				message[1]=(byte) 0;
+				this.sendMessage(message, 2);
+				String msg = "Get, client sent non-existent key, key = '"+key+"'";
+	        	logger.info(msg);
+	        	throw new Exception(msg);
+			}
+		}
+		catch(Exception ex){
+			logger.info(ex.getMessage());
+		}
+	
+		
+		
+	}
+	public void handle_put(){
+		
+	}
+	
+    public void sendMessage(byte[] msg, int len) throws IOException {
+		output.write(msg, 0, len);
+		output.flush();
+		String message = new String(msg,0,len);
+		logger.info("Send message:\t '" + message + "'");
+    }
+    private TextMessage receiveMessage() throws IOException {
+		
+		int index = 0;
+		byte[] msgBytes = null, tmp = null;
+		byte[] bufferBytes = new byte[BUFFER_SIZE];//need to add in BUFFER_SIZE constant
+		
+		/* read first char from stream */
+		byte read = (byte) input.read();	
+		boolean reading = true;
+		
+		while(read != 0 && reading) {/* carriage return */
+			/* if buffer filled, copy to msg array */
+			if(index == BUFFER_SIZE) {
+				if(msgBytes == null){
+					tmp = new byte[BUFFER_SIZE];
+					System.arraycopy(bufferBytes, 0, tmp, 0, BUFFER_SIZE);
+				} else {
+					tmp = new byte[msgBytes.length + BUFFER_SIZE];
+					System.arraycopy(msgBytes, 0, tmp, 0, msgBytes.length);
+					System.arraycopy(bufferBytes, 0, tmp, msgBytes.length,
+							BUFFER_SIZE);
+				}
 
-	private void sendMessage(String msg) throws IOException {
+				msgBytes = tmp;
+				bufferBytes = new byte[BUFFER_SIZE];
+				index = 0;
+			} 
+			
+			/* only read valid characters, i.e. letters and numbers */
+			if((read > 31 && read < 127)) {
+				bufferBytes[index] = read;
+				index++;
+			}
+			
+			/* stop reading is DROP_SIZE is reached */
+			if(msgBytes != null && msgBytes.length + index >= DROP_SIZE) {
+				reading = false;
+			}
+			
+			/* read next char from stream */
+			read = (byte) input.read();
+		}
+		
+		if(msgBytes == null){
+			tmp = new byte[index];
+			System.arraycopy(bufferBytes, 0, tmp, 0, index);
+		} else {
+			tmp = new byte[msgBytes.length + index];
+			System.arraycopy(msgBytes, 0, tmp, 0, msgBytes.length);
+			System.arraycopy(bufferBytes, 0, tmp, msgBytes.length, index);
+		}
+		
+		msgBytes = tmp;
+		
+		/* build final String */
+		TextMessage msg = new TextMessage(msgBytes);
+		logger.info("Receive message:\t '" + msg.getMsg() + "'");
+		return msg;
+    }
+   
+	/*private void sendMessage(String msg) throws IOException {
 		int sizeOfMsg = msg.length();
 		byte[] outputByteMessage = new byte[sizeOfMsg];
 		for(int i = 0; i < sizeOfMsg; i++){
@@ -127,7 +256,7 @@ public class ClientConnection implements Runnable {
 		index = 0; //reset the index for the next message from client
 
 		return msg;
-    }
+    }*/
 
 	String getCommandFromByte(byte firstByte){
 		String command = null;
