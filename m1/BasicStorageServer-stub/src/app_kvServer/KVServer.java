@@ -1,5 +1,6 @@
 package app_kvServer;
 
+import cache.LRUCache;
 import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -29,10 +30,13 @@ public class KVServer  {
 	private ServerSocket socket;
     private static Logger logger = Logger.getRootLogger();
 
+    private LRUCache cache;
+
 	public KVServer(int port, int cacheSize, String strategy) {
 		this.port = port;
 		this.cacheSize = cacheSize;
 		this.strategy = strategy;
+		this.cache = new LRUCache(100);
 	}
 
 	public void Run(){
@@ -42,7 +46,7 @@ public class KVServer  {
                 try {
                     Socket client = socket.accept();
                     ClientConnection connection =
-                            new ClientConnection(client);
+                            new ClientConnection(client,this);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -99,5 +103,16 @@ public class KVServer  {
 
         KVServer server = new KVServer(port, cacheSize, strategy);
         server.Run();
+    }
+
+    public void addToCache(String k, String v)
+    {
+        this.cache.insertInCache(k,v);
+    }
+
+    public String findInCache(String k)
+    {
+        String val = this.cache.checkCache(k);
+        return val;
     }
 }

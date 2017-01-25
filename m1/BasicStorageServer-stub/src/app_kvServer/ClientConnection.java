@@ -28,14 +28,16 @@ public class ClientConnection implements Runnable {
 	private Socket clientSocket;
 	private InputStream input;
 	private OutputStream output;
+	private KVServer server;
 	
 	/**
 	 * Constructs a new CientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket) {
+	public ClientConnection(Socket clientSocket, KVServer server) {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
+		this.server = server;
 	}
 	
 	/**
@@ -247,9 +249,12 @@ public class ClientConnection implements Runnable {
 		String msg = null;
 
 		if(command == "GET"){
-			msg = "Get was successful: message from client was, " + new String(msgBytes);
+
+			handleGet(getKeyFromBytes(msgBytes, 2));
 		} else if (command == "PUT"){
-			msg = "Put was successful";
+			String k = getKeyFromBytes(msgBytes, 2);
+			String v = getValueFromBytes(msgBytes, 22);
+			handlePut(k, v);
 		} else {
 			msg = "Invalid Command";
 		}
@@ -269,5 +274,64 @@ public class ClientConnection implements Runnable {
 
 		return command;
 	}
-	
+
+	private void handleGet(String k)
+	{
+		try {
+			String val = this.server.findInCache(k);
+			String msg;
+
+			//search in cache
+			if (val != null) {
+				msg = "Get was successful: " + "(" + k + ", " + val + ")";
+			} else {
+				//add logic to search from file
+				msg = "Key: " + k + " not found";
+			}
+
+			try {
+				this.sendMessage(msg);
+			} catch (Exception ex) {
+				logger.trace(ex.getMessage());
+			}
+		}catch(Exception ex){
+			logger.trace(ex.getMessage());
+		}
+	}
+
+	private String getKeyFromBytes(byte[] bts, int idx)
+	{
+		char[] byteKey = new char[20];
+		for(int i =0; i < 20; i++)
+		{
+			byteKey[i] = (char)bts[i];
+		}
+		return new String(byteKey);
+	}
+
+	private String getValueFromBytes(byte[] bts, int idx)
+	{
+		char[] byteValue = new char[120000];
+		for(int i =0; i < bts.length - 22; i++)
+		{
+			byteValue[i] = (char)bts[i];
+		}
+		return new String(byteValue);
+	}
+
+	private void handlePut(String k, String v)
+	{
+		this.server.addToCache(k,v);
+
+		String msg = "Put success, Key:" + k + ", Value: " + v;
+
+		try {
+			this.sendMessage(msg);
+		} catch (Exception ex) {
+			logger.trace(ex.getMessage());
+		}
+
+		//add logic that adds k,v to the file
+	}
 }
+

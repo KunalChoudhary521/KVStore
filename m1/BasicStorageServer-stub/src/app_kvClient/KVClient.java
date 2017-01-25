@@ -14,6 +14,8 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import static javax.swing.text.html.HTML.Tag.HEAD;
+
 public class KVClient {
 
     private static Logger logger = Logger.getRootLogger();
@@ -65,21 +67,34 @@ public class KVClient {
             }
         } else if(tokens[0].equals("disconnect")) {
             disconnect();
-        } else if(tokens[0].equals("getTest")){
+        } else if(tokens[0].equals("getTest")) {
             try {
                 KVMessage response = client.getTest(tokens[1]);
-                if(response.getStatus() == KVMessage.StatusType.GET_SUCCESS){
+                if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS) {
                     println("Get Success-----");
                     println("Key:\t" + response.getKey());
                     println("Value:\t" + response.getValue());
                     println("----------------");
                 }
-		else if(response.getStatus() == KVMessage.StatusType.GET_ERROR){
-			println("failure");
-		}
-            } catch(Exception ex) {
+
+            }
+            catch(Exception ex) {
                 printError("Get failed.");
             }
+        } else if(tokens[0].equals("put")){
+            try{
+                KVMessage response = client.putTest(tokens[1], tokens[2]);
+                if (response.getStatus() == KVMessage.StatusType.PUT_SUCCESS) {
+                    println("Put Success-----");
+                    println("Key:\t" + response.getKey());
+                    println("Value:\t" + response.getValue());
+                    println("----------------");
+                }
+
+            } catch (Exception ex) {
+                printError("Put failed.");
+            }
+
         } else if(tokens[0].equals("help")) {
             printHelp();
         } else {

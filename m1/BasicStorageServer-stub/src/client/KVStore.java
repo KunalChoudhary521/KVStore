@@ -380,7 +380,7 @@ public class KVStore implements KVCommInterface {
 				char[] charSize =	Integer.toString(size).toCharArray();
 
 				for(int i = 0; i < charSize.length; i++){
-					message[22+i] = (byte) charSize[i];
+					message[22+i+1] = (byte) charSize[i];
 				}
 				this.output.write(message, 0, message.length);
 				this.output.flush();
@@ -395,6 +395,70 @@ public class KVStore implements KVCommInterface {
 					responseMessage = new Message(serverReply, serverReply, KVMessage.StatusType.GET_SUCCESS);
 				} else {
 					responseMessage = new Message(null, null, KVMessage.StatusType.GET_ERROR);
+				}
+
+				return responseMessage;
+			}
+		}
+		return null;
+	}
+
+	public KVMessage putTest(String key, String value) throws Exception {
+		if(this.clientSocket != null){
+			if(this.clientSocket.isConnected())
+			{
+				byte[] message = new byte[27+120000];
+
+				byte[] byteKey = new byte[key.length()];
+				for(int i = 0; i < key.length(); i++){
+					byteKey[i] = (byte) key.charAt(i);
+				}
+
+				byte[] byteValue = new byte[value.length()];
+				for(int i = 0; i < value.length(); i++){
+					byteValue[i] = (byte) value.charAt(i);
+				}
+
+				// fill the message with the proper command byte
+				message[0] = (byte) 'P';
+
+				// pad or align
+				message[1] = (byte) 0;
+
+				// fill the get message with a 20 byte key
+				for(int i = 0; i < byteKey.length; i++)
+				{
+					message[2+i] = byteKey[i];
+				}
+
+				// pad or align again
+				message[22] = (byte) 0;
+
+				for(int i = 0; i < byteValue.length; i++)
+				{
+					message[22+i] = byteValue[i];
+				}
+				message[22+byteValue.length] = (byte) 0;
+
+				int size = 32;
+				char[] charSize = Integer.toString(size).toCharArray();
+
+				for(int i = 0; i < charSize.length; i++){
+					message[22+byteValue.length+i+1] = (byte) charSize[i];
+				}
+				this.output.write(message, 0, message.length);
+				this.output.flush();
+
+				// client blocks until a response from the server is received
+				String serverReply = getResponse();
+
+				Message responseMessage;
+
+				//TODO construct KVMessage correctly
+				if(serverReply != null){
+					responseMessage = new Message(serverReply, serverReply, KVMessage.StatusType.PUT_SUCCESS);
+				} else {
+					responseMessage = new Message(null, null, KVMessage.StatusType.PUT_ERROR);
 				}
 
 				return responseMessage;
