@@ -273,16 +273,18 @@ public class KVStore implements KVCommInterface {
 	        }
 		}
 		catch(Exception ex){
-        	if (ex.getMessage().contains(", disconnecting")){
-        		this.disconnect();
+        		logger.info(ex.getMessage());
+			if (ex.getMessage().contains(", disconnecting")){
+        			this.disconnect();
+	        	}
+		
+        		if (value.contentEquals(null)){
+	        		return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
+	        	}
+        		else{
+	        		return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
+	        	}
         	}
-        	if (value.contentEquals(null)){
-	        	return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
-        	}
-        	else{
-	        	return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
-        	}
-        }
 	}
 
 	//@Override
