@@ -276,9 +276,9 @@ public class KVStore implements KVCommInterface {
 	        	return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS);
 	        }
 	        else{
-	        	if (value.equals(null)){
+	        	if (value.equals("null")){
 	        		System.out.println("delete_success");
-	        		return new Message(key, null, KVMessage.StatusType.DELETE_SUCCESS);
+	        		return new Message(key, "null", KVMessage.StatusType.DELETE_SUCCESS);
 	        	}
 	        	else{
 	        		System.out.println("updated");
@@ -292,7 +292,7 @@ public class KVStore implements KVCommInterface {
         			this.disconnect();
 	        	}
 		
-        		if (value.equals(null)){
+        		if (value.equals("null")){
 	        		return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
 	        	}
         		else{
