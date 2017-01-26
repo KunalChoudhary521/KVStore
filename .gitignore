@@ -3,6 +3,8 @@
 *.iml
 */.idea/*
 *.MF
+*/out/*
+*/logs/*
 
 #	milestone1-specific ignores
 m1/echoServer/bin/*
