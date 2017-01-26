@@ -83,13 +83,51 @@ public class KVClient {
             }
         } else if(tokens[0].equals("put")){
             try{
+		    /*next lines to replace putTest*/
+		    println("tokens: "+ tokens.length);
+		    KVMessage response = client.put(tokens[1], tokens[2]);
+		     if(response.getStatus() == KVMessage.StatusType.PUT_SUCCESS){
+ 			println("Put Success-----");
+                   	println("Key:\t" + response.getKey());
+	                println("Value:\t" + response.getValue());
+         	        println("----------------");
+		     }else if(response.getStatus() == KVMessage.StatusType.PUT_UPDATE){
+			println("Update completed successfully");
+                   	println("Key:\t" + response.getKey());
+	                println("Value:\t" + response.getValue());
+         	        println("----------------");
+		     }else if(response.getStatus() == KVMessage.StatusType.DELETE_SUCCESS){
+			println("Delete completed successfully");
+                   	println("Key:\t" + response.getKey());
+         	        println("----------------");
+		     }else if(response.getStatus() == KVMessage.StatusType.PUT_ERROR){
+			println("Put failed please try again");
+			if(tokens[1].length()>20)
+				println("Your key was too long, maximum length is 20 characters");
+			else if (tokens[2].length()>120*1024){
+				println("your payload was too long, maximum length is 122880 characters");
+			}
+                   	println("Attempted Key:\t" + response.getKey());
+	                println("Attempted Value:\t" + response.getValue());
+         	        println("----------------");
+		     }else if (response.getStatus() == KVMessage.StatusType.DELETE_ERROR){
+			println("Delete failed please try again");
+			if(tokens[1].length()>20)
+				println("Your key was too long, maximum length is 20 characters");
+                   	println("Attempted Key:\t" + response.getKey());
+         	        println("----------------");
+
+		     }
+
+
+		   /*  
                 KVMessage response = client.putTest(tokens[1], tokens[2]);
                 if (response.getStatus() == KVMessage.StatusType.PUT_SUCCESS) {
                     println("Put Success-----");
                     println("Key:\t" + response.getKey());
                     println("Value:\t" + response.getValue());
                     println("----------------");
-                }
+                }*/
 
             } catch (Exception ex) {
                 printError("Put failed.");
@@ -97,6 +135,28 @@ public class KVClient {
 
         } else if(tokens[0].equals("help")) {
             printHelp();
+	}else if (tokens[0].equals("get")){
+		try{
+			KVMessage response = client.get(tokens[1]);
+			if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS) {
+				println("Get Success-----");
+				println("Key:\t" + response.getKey());
+				println("Value:\t" + response.getValue());
+				println("----------------");
+	                }else if(response.getStatus() == KVMessage.StatusType.GET_ERROR){
+				println("Get Failure------");
+				if (response.getKey().length()<=20)
+					println("Key:\t" +response.getKey() + "not found, please"+
+					    "check the key and try again");
+				else
+					println("Key:\t" +response.getKey() + "too long, please"+
+					    "check the key and try again. Maximum key"+
+					    " length is 20 characters.");
+			}
+		}
+		catch(Exception ex){
+			println("get failed. "+ex.getMessage());
+		}
         } else {
             printError("Unknown command");
             printHelp();
@@ -112,9 +172,20 @@ public class KVClient {
         sb.append(PROMPT).append("connect <host> <port>");
         sb.append("\t establishes a connection to a server\n");
         sb.append(PROMPT).append("disconnect");
-        sb.append("\t\t\t disconnects from the server \n");
+        sb.append("\t disconnects from the server \n");
         sb.append(PROMPT).append("quit ");
-        sb.append("\t\t\t exits the program");
+        sb.append("\t exits the program\n");
+	sb.append(PROMPT).append("put <key> <value>");
+	sb.append("\t places a key value pair on the server.");
+	sb.append(" If the key is already on the server, replaces");
+	sb.append(" the old value with the new value. If the value is null");
+	sb.append(", removes the key-value pair from the server. Maximum key length");
+	sb.append(" is 20 characters. Maximum value lenth is 122880 characters\n");
+	sb.append(PROMPT).append("get <key>");
+	sb.append("\t retrieves a key value pair from the server. Maximum key");
+	sb.append("length is 20 characters.\n");
+
+
         System.out.println(sb.toString());
     }
 

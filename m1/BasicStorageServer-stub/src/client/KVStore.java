@@ -16,6 +16,8 @@ import java.net.Socket;
 import java.util.Date;
 import java.util.Set;
 
+import java.io.*;//remove me later
+
 public class KVStore implements KVCommInterface {
 
 	
@@ -164,7 +166,7 @@ public class KVStore implements KVCommInterface {
 		
 		/* build final String */
 		TextMessage msg = new TextMessage(msgBytes);
-		logger.info("Receive message:\t '" + msg.getMsg() + "'");
+		logger.info("Receive message:\t '" + msg.getMsg().trim() + "'");
 		return msg;
     }
 
@@ -182,7 +184,11 @@ public class KVStore implements KVCommInterface {
 	        	throw new Exception(msg);
 			}
 			int kl = key.length();
-	        int vl = value.length();
+			int vl;
+			if (value != null)
+				vl = value.length();
+			else
+				vl = 0;
 	        if (kl>20){
 	        	String msg = "key: '" + key + "' too long, ("+kl+" bytes)";
 	        	logger.info(msg);
@@ -216,26 +222,31 @@ public class KVStore implements KVCommInterface {
 	        }
 	        message[2+kl]=0;
 	        for (int i = 0; i<ll;i++){
+	        	System.out.println("adding"+length_byte[i]);
 	        	message[3+kl+i]=length_byte[i];
 	        }
-	        message[3+kl+ll]=0;
-	        this.sendMessage(message,3+kl+ll);
+	        message[3+kl+ll]= (byte)0;
+	        this.sendMessage(message,4+kl+ll);
+	        System.out.println("sent");
 	        for (int i =0; i<3; i++){
 	        	ret_vals[i]=this.receiveMessage();
 	        }
-	        if (ret_vals[0].getMsg().equals("F")){
+	        System.out.println("flag: "+ret_vals[0].getMsg().trim());
+	        System.out.println("key: "+ret_vals[1].getMsg().trim());
+	        System.out.println("size: "+ret_vals[2].getMsg().trim());
+	        if (ret_vals[0].getMsg().trim().contains("F")){
 	        	String msg = "Put, server sent F when validating key: '"+key+"', disconnecting";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	        if (!ret_vals[1].getMsg().equals(key) || 
-	        		!ret_vals[2].getMsg().equals(length)){
+	        if (!ret_vals[1].getMsg().trim().equals(key) || 
+	        		!ret_vals[2].getMsg().trim().equals(length)){
 	        	byte[] failure = new byte[2];
 	        	failure[0]=(byte) 'F';
 	        	failure[1]=0;
 	        	this.sendMessage(failure, 2);
 	        	String msg = "Put, server responded with incorrect key or size: "
-	        			+ ret_vals[1].getMsg() +", " + ret_vals[2].getMsg()+", disconnecting";
+	        			+ ret_vals[1].getMsg().trim() +", " + ret_vals[2].getMsg().trim()+", disconnecting";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
@@ -254,20 +265,23 @@ public class KVStore implements KVCommInterface {
 	        message2[2+vl]=0;
 	        this.sendMessage(message2, 3+vl);
 	        ret_vals[3]=this.receiveMessage();
-	        if (ret_vals[3].getMsg().equals("F")){
+	        System.out.println("ack: "+ret_vals[3].getMsg().trim());
+	        if (ret_vals[3].getMsg().trim().contains("F")){
 	        	String msg = "Put, server sent F after inserting: "
 	        			+key +" : "+value+", disconnecting";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	        if (ret_vals[3].getMsg().equals("S")){
+	        if (ret_vals[1].getMsg().trim().contains("S")){
 	        	return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS);
 	        }
 	        else{
 	        	if (value.equals(null)){
-	        		return new Message(key, value, KVMessage.StatusType.DELETE_SUCCESS);
+	        		System.out.println("delete_success");
+	        		return new Message(key, null, KVMessage.StatusType.DELETE_SUCCESS);
 	        	}
 	        	else{
+	        		System.out.println("updated");
 	        		return new Message(key, value, KVMessage.StatusType.PUT_UPDATE);
 	        	}
 	        }
@@ -278,7 +292,7 @@ public class KVStore implements KVCommInterface {
         			this.disconnect();
 	        	}
 		
-        		if (value.contentEquals(null)){
+        		if (value.equals(null)){
 	        		return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
 	        	}
         		else{
@@ -319,26 +333,30 @@ public class KVStore implements KVCommInterface {
 					for (int i =0; i<4;i++){
 						ret_vals[i]=this.receiveMessage();
 					}
-					if (ret_vals[0].getMsg().equals("F")){
+					System.out.println("flag: "+ret_vals[0].getMsg().trim());
+					System.out.println("key: "+ret_vals[1].getMsg().trim());
+					System.out.println("size: "+ret_vals[2].getMsg().trim());
+					System.out.println("payload: "+ret_vals[3].getMsg().trim());
+					if (ret_vals[0].getMsg().trim().contains("F")){
 						String msg = "Get, server sent F when validating key: '"+key+"'";
 			        	logger.info(msg);
 			        	throw new Exception(msg);
 					}
-					else if(!ret_vals[1].getMsg().equals(key)){
+					else if(!ret_vals[1].getMsg().trim().equals(key)){
 						String msg = "Get, server sent incorrect key: key="
-			        			+ key + "returned key = " + ret_vals[1].getMsg();
+			        			+ key + "returned key = " + ret_vals[1].getMsg().trim();
 			        	logger.info(msg);
 			        	throw new Exception(msg);
 					}
-					else if(Integer.parseInt(ret_vals[2].getMsg())!=ret_vals[3].getMsg().length()){
+					else if(Integer.parseInt(ret_vals[2].getMsg().trim())!=ret_vals[3].getMsg().trim().length()){
 						String msg = "Get, server sent either incorrect payload of incorrect size: payload="
-			        			+ret_vals[3].getMsg()+", size="+ret_vals[2].getMsg();
+			        			+ret_vals[3].getMsg().trim()+", size="+ret_vals[2].getMsg().trim();
 			        	logger.info(msg);
 			        	throw new Exception(msg);
 					}
-					logger.info("payload = "+ret_vals[3].getMsg());
+					logger.info("payload = "+ret_vals[3].getMsg().trim());
 
-				return new Message(key, null, KVMessage.StatusType.GET_SUCCESS);
+				return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
 				}
 			}
 		}

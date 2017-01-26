@@ -52,12 +52,14 @@ public class ClientConnection implements Runnable {
 			while(isOpen) {
 				try {
 					TextMessage latestMsg = receiveMessage();
-					System.out.println("command: "+latestMsg.getMsg()+"type:"+(latestMsg.getMsg()).getClass().getName());
-					if (latestMsg.getMsg().contains("P")){
+					System.out.println("command: "+latestMsg.getMsg().trim()+"type:"+(latestMsg.getMsg().trim()).getClass().getName());
+					if (latestMsg.getMsg().trim().contains("P")){
+						System.out.println("handling put");
 						handle_put();
 						
 					}
-					else if (latestMsg.getMsg().contains("G")){
+					else if (latestMsg.getMsg().trim().contains("G")){
+						
 						System.out.println("handling get");
 						handle_get();
 					}
@@ -92,7 +94,7 @@ public class ClientConnection implements Runnable {
 	}
 	
 	public void handle_get() throws Exception, IOException{
-		String key = receiveMessage().getMsg();
+		String key = receiveMessage().getMsg().trim();
 		System.out.println("key: "+key);
 		logger.info("Client tried to get key: '"+key+"'");
 		try{
@@ -100,11 +102,11 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
 			}
 			//check if we have the key in our file
-			String payload = this.server.findInCache(key);
+//			String payload = this.server.findInCache(key);
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			int got_key = 1;//change to be based on whether got the value
-//			String payload = "IMPLEMENT ME";
-			int length = 11;//get me from file
+			String payload = "IMPLEMENT ME";
+			int length = 12;//get me from file
 			String length_str = Integer.toString(length);
 			//
 			
@@ -119,14 +121,17 @@ public class ClientConnection implements Runnable {
 				}
 				message[2+kl]= (byte) 0;
 				for (int i = 0; i <ll; i++){
-					message[3+kl]=(byte) length_str.charAt(i);
+					System.out.println("adding "+length_str.charAt(i));
+					message[3+kl+i]=(byte) length_str.charAt(i);
 				}
 				message[3+kl+ll] = (byte) 0;
 				for (int i = 0; i < length; i ++){
 					message[4+kl+ll+i] = (byte) payload.charAt(i);
 				}
 				message[4+kl+ll+length]=(byte)0;
+				System.out.println("sending");
 				this.sendMessage(message, 5+kl+ll+length);
+				System.out.println("sent");
 			}
 			else{
 				byte[] message = new byte[2];
@@ -150,21 +155,27 @@ public class ClientConnection implements Runnable {
 		
 		try{
 			for (int i =0; i<2; i++){
-				client_msgs[i] = this.receiveMessage().getMsg();
+				client_msgs[i] = this.receiveMessage().getMsg().trim();
+				System.out.println("recieved "+client_msgs[i]);
 			}
 			System.out.println("key: "+client_msgs[0]);
 			System.out.println("size: "+client_msgs[1]);
 			logger.info("Put, client wants to place "+client_msgs[1]+" bytes for key '"+client_msgs[0]+"'");
 			int kl = client_msgs[0].length();
 			int ll = client_msgs[1].length();
+			System.out.println("validating lengths");
 			if (kl>20){
+				System.out.println("long key");
 				byte [] message = new byte [2];
 				message[0]=(byte) 'F';
 				message[1] = (byte) 0;
 				this.sendMessage(message, 2);
 				throw new Exception("Put, client sent too long of a key, key = '"+client_msgs[0]+"', length = "+kl);
 			}
-			if (Integer.parseInt(client_msgs[1])>120*1024){
+			System.out.println("key not too long");
+			System.out.println(Integer.valueOf(client_msgs[1].trim()));
+			if (Integer.valueOf(client_msgs[1].trim())>(120*1024)){
+				System.out.println("long message");
 				byte [] message = new byte [2];
 				message[0]=(byte) 'F';
 				message[1] = (byte) 0;
@@ -193,19 +204,21 @@ public class ClientConnection implements Runnable {
 			message[3+kl+ll]=(byte) 0;
 			this.sendMessage(message, 4+kl+ll);
 			for (int i = 2; i<4; i++){
-				client_msgs[i] = this.receiveMessage().getMsg();
+				client_msgs[i] = this.receiveMessage().getMsg().trim();
+				System.out.println("recieved" + client_msgs[i]);
 			}
 			System.out.println("flag: "+client_msgs[2]);
 			System.out.println("payload: "+client_msgs[3]);
-			if (client_msgs[2].equals("F")){
+			if (client_msgs[2].contains("F")){
 				throw new Exception("Put, client sent a failure signal");
 			}
-			if(client_msgs[3].length() != Integer.parseInt(client_msgs[1])){
+			if(client_msgs[3].length() != Integer.parseInt(client_msgs[1].trim())){
 				throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
 			}
 			///overwrite the payload or whatever other file stuff her
 			System.out.println("NEED TO IMPLEMENT INSERTION IN FILE");
 			this.server.addToCache(client_msgs[0],client_msgs[3]);
+			System.out.println("cached");
 			int success = 1; //change based on insertion results
 			///
 			if (success == 1){
