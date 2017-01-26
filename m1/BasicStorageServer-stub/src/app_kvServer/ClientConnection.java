@@ -106,18 +106,16 @@ public class ClientConnection implements Runnable {
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 
 			int got_key = 0;
-
+			int length =0;
 			if(payload == null)
             {
                 // was not found in cache find in file
                 got_key = 0;
-                payload = "IMPLEMENT ME";
             } else {
 			    // was found in cache
                 got_key = 1;
+				length = payload.length();//get me from file
             }
-
-			int length = payload.length();//get me from file
 			String length_str = Integer.toString(length);
 			//
 			
@@ -148,6 +146,7 @@ public class ClientConnection implements Runnable {
 				byte[] message = new byte[2];
 				message[0]=(byte) 'F';
 				message[1]=(byte) 0;
+
 				this.sendMessage(message, 2);
 				String msg = "Get, client sent non-existent key, key = '"+key+"'";
 	        	logger.info(msg);
@@ -191,7 +190,10 @@ public class ClientConnection implements Runnable {
 			}
 			//GET the key from the file on disk populate below variables based on file
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
-			int got_key = 1;//change to be based on whether got the value
+			int got_key = 0;
+			if(this.server.findInCache(client_msgs[0])!=null) {//change to be based on whether got the value in file as wel
+				got_key = 1;
+			}
 			int offset = 323; //use for quick location since will need to update value
 			byte[] message = new byte[4+kl+ll];
 			if (got_key == 1){
@@ -225,6 +227,7 @@ public class ClientConnection implements Runnable {
 			///overwrite the payload or whatever other file stuff her
 			System.out.println("NEED TO IMPLEMENT INSERTION, UPDATE and Deletion IN FILE");
 			this.server.addToCache(client_msgs[0],client_msgs[3]);
+
 			System.out.println("cached");
 			int success = 1; //change based on insertion results
 			///

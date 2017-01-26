@@ -230,6 +230,8 @@ public class KVStore implements KVCommInterface {
 	        System.out.println("sent");
 	        for (int i =0; i<3; i++){
 	        	ret_vals[i]=this.receiveMessage();
+	        	if (ret_vals[0].getMsg().trim().contains("F"))
+	        		break;
 	        }
 	        System.out.println("flag: "+ret_vals[0].getMsg().trim());
 	        System.out.println("key: "+ret_vals[1].getMsg().trim());
@@ -239,6 +241,7 @@ public class KVStore implements KVCommInterface {
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
+			System.out.println("server did not send F");
 	        if (!ret_vals[1].getMsg().trim().equals(key) || 
 	        		!ret_vals[2].getMsg().trim().equals(length)){
 	        	byte[] failure = new byte[2];
@@ -250,6 +253,7 @@ public class KVStore implements KVCommInterface {
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
+			System.out.println("server sent correct key and size");
 	        message = null;
 	        byte[] message2 = new byte[vl+3];
 	        //byte [] payload_bytes = value.getBytes();//removed per piazza
@@ -263,7 +267,9 @@ public class KVStore implements KVCommInterface {
 	        	message2[2+i]=payload_bytes[i];
 	        }
 	        message2[2+vl]=0;
+			System.out.println("sending payload");
 	        this.sendMessage(message2, 3+vl);
+			System.out.println("awaiting ack");
 	        ret_vals[3]=this.receiveMessage();
 	        System.out.println("ack: "+ret_vals[3].getMsg().trim());
 	        if (ret_vals[3].getMsg().trim().contains("F")){
@@ -272,7 +278,7 @@ public class KVStore implements KVCommInterface {
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-	        if (ret_vals[1].getMsg().trim().contains("S")){
+	        if (ret_vals[0].getMsg().trim().contains("S")){
 	        	return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS);
 	        }
 	        else{
@@ -332,6 +338,8 @@ public class KVStore implements KVCommInterface {
 					this.sendMessage(message,3+key.length());
 					for (int i =0; i<4;i++){
 						ret_vals[i]=this.receiveMessage();
+						if (ret_vals[i].getMsg().trim().contains("F"))
+							break;
 					}
 					System.out.println("flag: "+ret_vals[0].getMsg().trim());
 					System.out.println("key: "+ret_vals[1].getMsg().trim());
