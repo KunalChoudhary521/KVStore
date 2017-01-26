@@ -67,20 +67,6 @@ public class KVClient {
             }
         } else if(tokens[0].equals("disconnect")) {
             disconnect();
-        } else if(tokens[0].equals("getTest")) {
-            try {
-                KVMessage response = client.getTest(tokens[1]);
-                if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS) {
-                    println("Get Success-----");
-                    println("Key:\t" + response.getKey());
-                    println("Value:\t" + response.getValue());
-                    println("----------------");
-                }
-
-            }
-            catch(Exception ex) {
-                printError("Get failed.");
-            }
         } else if(tokens[0].equals("put")){
             try{
 		    /*next lines to replace putTest*/
@@ -137,7 +123,18 @@ public class KVClient {
             printHelp();
 	}else if (tokens[0].equals("get")){
 		try{
-			KVMessage response = client.get(tokens[1]);
+		    String fullKey = "";
+		    if(tokens.length > 2) {
+		        for(int i = 1; i < tokens.length; i++){
+		            fullKey = fullKey + tokens[i];
+		            if(i != tokens.length - 1){
+		                fullKey += " ";
+                    }
+                }
+            } else {
+		        fullKey = tokens[1];
+            }
+			KVMessage response = client.get(fullKey);
 			if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS) {
 				println("Get Success-----");
 				println("Key:\t" + response.getKey());

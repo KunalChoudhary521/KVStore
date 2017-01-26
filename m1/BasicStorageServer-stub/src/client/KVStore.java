@@ -340,19 +340,19 @@ public class KVStore implements KVCommInterface {
 					if (ret_vals[0].getMsg().trim().contains("F")){
 						String msg = "Get, server sent F when validating key: '"+key+"'";
 			        	logger.info(msg);
-			        	throw new Exception(msg);
+			        	return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
 					}
 					else if(!ret_vals[1].getMsg().trim().equals(key)){
 						String msg = "Get, server sent incorrect key: key="
 			        			+ key + "returned key = " + ret_vals[1].getMsg().trim();
-			        	logger.info(msg);
-			        	throw new Exception(msg);
+						logger.info(msg);
+						return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
 					}
 					else if(Integer.parseInt(ret_vals[2].getMsg().trim())!=ret_vals[3].getMsg().trim().length()){
 						String msg = "Get, server sent either incorrect payload of incorrect size: payload="
 			        			+ret_vals[3].getMsg().trim()+", size="+ret_vals[2].getMsg().trim();
-			        	logger.info(msg);
-			        	throw new Exception(msg);
+						logger.info(msg);
+						return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
 					}
 					logger.info("payload = "+ret_vals[3].getMsg().trim());
 
@@ -366,164 +366,4 @@ public class KVStore implements KVCommInterface {
         	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
         }
 	return null;}
-
-
-	// Do not remove these, they are for reference and for testing (Zabeeh)
-
-	public KVMessage getTest(String key) throws Exception {
-		if(this.clientSocket != null){
-			if(this.clientSocket.isConnected())
-			{
-				byte[] message = new byte[27];
-
-				byte[] byteKey = new byte[key.length()];
-				for(int i = 0; i < key.length(); i++){
-					byteKey[i] = (byte) key.charAt(i);
-				}
-
-				// fill the message with the proper command byte
-				message[0] = (byte) 'G';
-
-				// pad or align
-				message[1] = (byte) 0;
-
-				// fill the get message with a 20 byte key
-				for(int i = 0; i < byteKey.length; i++)
-				{
-					message[2+i] = byteKey[i];
-				}
-
-				// pad or align again
-				message[22] = (byte) 0;
-
-				int size = 32;
-				char[] charSize =	Integer.toString(size).toCharArray();
-
-				for(int i = 0; i < charSize.length; i++){
-					message[22+i+1] = (byte) charSize[i];
-				}
-				this.output.write(message, 0, message.length);
-				this.output.flush();
-
-				// client blocks until a response from the server is received
-				String serverReply = getResponse();
-
-				Message responseMessage;
-
-				//TODO construct KVMessage correctly
-				if(serverReply != null){
-					responseMessage = new Message(serverReply, serverReply, KVMessage.StatusType.GET_SUCCESS);
-				} else {
-					responseMessage = new Message(null, null, KVMessage.StatusType.GET_ERROR);
-				}
-
-				return responseMessage;
-			}
-		}
-		return null;
-	}
-
-	public KVMessage putTest(String key, String value) throws Exception {
-		if(this.clientSocket != null){
-			if(this.clientSocket.isConnected())
-			{
-				byte[] message = new byte[27+120000];
-
-				byte[] byteKey = new byte[key.length()];
-				for(int i = 0; i < key.length(); i++){
-					byteKey[i] = (byte) key.charAt(i);
-				}
-
-				byte[] byteValue = new byte[value.length()];
-				for(int i = 0; i < value.length(); i++){
-					byteValue[i] = (byte) value.charAt(i);
-				}
-
-				// fill the message with the proper command byte
-				message[0] = (byte) 'P';
-
-				// pad or align
-				message[1] = (byte) 0;
-
-				// fill the get message with a 20 byte key
-				for(int i = 0; i < byteKey.length; i++)
-				{
-					message[2+i] = byteKey[i];
-				}
-
-				// pad or align again
-				message[22] = (byte) 0;
-
-				for(int i = 0; i < byteValue.length; i++)
-				{
-					message[22+i] = byteValue[i];
-				}
-				message[22+byteValue.length] = (byte) 0;
-
-				int size = 32;
-				char[] charSize = Integer.toString(size).toCharArray();
-
-				for(int i = 0; i < charSize.length; i++){
-					message[22+byteValue.length+i+1] = (byte) charSize[i];
-				}
-				this.output.write(message, 0, message.length);
-				this.output.flush();
-
-				// client blocks until a response from the server is received
-				String serverReply = getResponse();
-
-				Message responseMessage;
-
-				//TODO construct KVMessage correctly
-				if(serverReply != null){
-					responseMessage = new Message(serverReply, serverReply, KVMessage.StatusType.PUT_SUCCESS);
-				} else {
-					responseMessage = new Message(null, null, KVMessage.StatusType.PUT_ERROR);
-				}
-
-				return responseMessage;
-			}
-		}
-		return null;
-	}
-
-	private String getResponse(){
-		try {
-			byte firstByte = 0;
-			int responseSize = this.input.available();
-			byte[] msgBytes = null;
-			int index = 0;
-
-			// if there is nothing to read block the thread until something becomes available
-			if (responseSize <= 0) {
-				firstByte = (byte) input.read(); // blocking call
-				responseSize = input.available();
-				msgBytes = new byte[responseSize + 1];
-				msgBytes[index] = firstByte;
-				index++;
-			} else {
-				msgBytes = new byte[responseSize];
-			}
-
-			while (responseSize > 0) {
-				msgBytes[index] = (byte) input.read();
-				index++;
-				responseSize = input.available();
-			}
-
-			char[] charMsg = new char[msgBytes.length];
-			for(int i = 0; i < msgBytes.length; i++){
-				charMsg[i] = (char) msgBytes[i];
-			}
-
-			return new String(charMsg);
-
-		}
-		catch(Exception ex){
-			return null;
-		}
-	}
-
-	// end of code that I want as a reference (Zabeeh)
-	
 }

@@ -32,8 +32,8 @@ public class LRUCache
             {
                 cQueue.remove(valNode);
                 cQueue.insertToFront(valNode);
-                return valNode.getValue();
             }
+            return valNode.getValue(); // return the value regardless
         }
         return null;
     }

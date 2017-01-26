@@ -102,11 +102,22 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
 			}
 			//check if we have the key in our file
-//			String payload = this.server.findInCache(key);
+			String payload = this.server.findInCache(key);
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
-			int got_key = 1;//change to be based on whether got the value
-			String payload = "IMPLEMENT ME";
-			int length = 12;//get me from file
+
+			int got_key = 0;
+
+			if(payload == null)
+            {
+                // was not found in cache find in file
+                got_key = 0;
+                payload = "IMPLEMENT ME";
+            } else {
+			    // was found in cache
+                got_key = 1;
+            }
+
+			int length = payload.length();//get me from file
 			String length_str = Integer.toString(length);
 			//
 			
@@ -140,15 +151,11 @@ public class ClientConnection implements Runnable {
 				this.sendMessage(message, 2);
 				String msg = "Get, client sent non-existent key, key = '"+key+"'";
 	        	logger.info(msg);
-	        	throw new Exception(msg);
 			}
 		}
-		catch(Exception ex){
-			logger.info(ex.getMessage());
-		}
-	
-		
-		
+		catch(Exception ex) {
+            logger.info(ex.getMessage());
+        }
 	}
 	public void handle_put(){
 		String [] client_msgs = new String[4];
@@ -236,11 +243,9 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Put failed, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
 			}
 		}
-		catch(Exception ex){
-			logger.info(ex.getMessage());
-		}
-		
-		
+		catch(Exception ex) {
+            logger.info(ex.getMessage());
+        }
 	}
 	
     public void sendMessage(byte[] msg, int len) throws IOException {
@@ -308,133 +313,5 @@ public class ClientConnection implements Runnable {
 		logger.info("Receive message:\t '" + msg.getMsg() + "'");
 		return msg;
     }
-   
-	/*private void sendMessage(String msg) throws IOException {
-		int sizeOfMsg = msg.length();
-		byte[] outputByteMessage = new byte[sizeOfMsg];
-		for(int i = 0; i < sizeOfMsg; i++){
-			outputByteMessage[i] = (byte)msg.charAt(i);
-		}
-
-		output.write(outputByteMessage);
-		output.flush();
-	}
-
-	private String receiveMessage() throws IOException {
-		int index = 0;
-		byte[] msgBytes = null, tmp = null;
-		byte[] bufferBytes = new byte[BUFFER_SIZE];
-		byte firstByte = 0;
-
-		int size = input.available();
-
-		// if there is nothing to read block the thread until something becomes available
-		if(size <= 0){
-			firstByte = (byte)input.read(); // blocking call
-			size = input.available();
-			msgBytes = new byte[size+1];
-			msgBytes[index] = firstByte;
-			index++;
-		}
-
-		while(size > 0) {
-			msgBytes[index] = (byte) input.read();
-			index++;
-			size = input.available();
-		}
-
-
-		// from this point onwards we have the entire byte array for the message
-		// TODO: need to reconstruct fragmented packets since buffer is fixed size
-		// TODO: need to discuss how we will fragment packets
-
-		String command = getCommandFromByte(msgBytes[0]);
-		String msg = null;
-
-		if(command == "GET"){
-
-			handleGet(getKeyFromBytes(msgBytes, 2));
-		} else if (command == "PUT"){
-			String k = getKeyFromBytes(msgBytes, 2);
-			String v = getValueFromBytes(msgBytes, 22);
-			handlePut(k, v);
-		} else {
-			msg = "Invalid Command";
-		}
-		index = 0; //reset the index for the next message from client
-
-		return msg;
-    }*/
-
-	String getCommandFromByte(byte firstByte){
-		String command = null;
-
-		if((char)firstByte == 'G' ){
-			return "GET";
-		} else if ((char) firstByte == 'P'){
-			return "PUT";
-		}
-
-		return command;
-	}
-
-	/*private void handleGet(String k)
-	{
-		try {
-			String val = this.server.findInCache(k);
-			String msg;
-
-			//search in cache
-			if (val != null) {
-				msg = "Get was successful: " + "(" + k + ", " + val + ")";
-			} else {
-				//add logic to search from file
-				msg = "Key: " + k + " not found";
-			}
-
-			try {
-				this.sendMessage(msg);
-			} catch (Exception ex) {
-				logger.trace(ex.getMessage());
-			}
-		}catch(Exception ex){
-			logger.trace(ex.getMessage());
-		}
-	}*/
-
-	private String getKeyFromBytes(byte[] bts, int idx)
-	{
-		char[] byteKey = new char[20];
-		for(int i =0; i < 20; i++)
-		{
-			byteKey[i] = (char)bts[i];
-		}
-		return new String(byteKey);
-	}
-
-	private String getValueFromBytes(byte[] bts, int idx)
-	{
-		char[] byteValue = new char[120000];
-		for(int i =0; i < bts.length - 22; i++)
-		{
-			byteValue[i] = (char)bts[i];
-		}
-		return new String(byteValue);
-	}
-
-	/*private void handlePut(String k, String v)
-	{
-		this.server.addToCache(k,v);
-
-		String msg = "Put success, Key:" + k + ", Value: " + v;
-
-		try {
-			this.sendMessage(msg);
-		} catch (Exception ex) {
-			logger.trace(ex.getMessage());
-		}
-
-		//add logic that adds k,v to the file
-	}*/
 }
 
