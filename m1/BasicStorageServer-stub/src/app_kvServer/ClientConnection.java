@@ -29,15 +29,17 @@ public class ClientConnection implements Runnable {
 	private InputStream input;
 	private OutputStream output;
 	private KVServer server;
+	private FileStoreHelper fileStoreHelper;
 	
 	/**
 	 * Constructs a new CientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, KVServer server) {
+	public ClientConnection(Socket clientSocket, KVServer server, String KVFileName) {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.server = server;
+		this.fileStoreHelper = new FileStoreHelper(KVFileName);
 	}
 	
 	/**
