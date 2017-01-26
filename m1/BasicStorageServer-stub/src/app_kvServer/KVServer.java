@@ -29,14 +29,16 @@ public class KVServer  {
 	private boolean isRunning;
 	private ServerSocket socket;
     private static Logger logger = Logger.getRootLogger();
+    private String KVFileName;
 
     private LRUCache cache;
 
-	public KVServer(int port, int cacheSize, String strategy) {
+	public KVServer(int port, int cacheSize, String strategy, String KVFileName) {
 		this.port = port;
 		this.cacheSize = cacheSize;
 		this.strategy = strategy;
 		this.cache = new LRUCache(100);
+		this.KVFileName = KVFileName;
 	}
 
 	public void Run(){
@@ -46,7 +48,7 @@ public class KVServer  {
                 try {
                     Socket client = socket.accept();
                     ClientConnection connection =
-                            new ClientConnection(client,this);
+                            new ClientConnection(client,this, this.KVFileName);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -93,6 +95,7 @@ public class KVServer  {
 	    int port = Integer.parseInt(args[0]);
 	    int cacheSize = Integer.parseInt(args[1]);
         String strategy = args[2];
+        String KVFileName = args[3];
 
         try {
             new LogSetup("logs/server.log", Level.ALL);
@@ -101,7 +104,7 @@ public class KVServer  {
             System.out.println(ex.getMessage());
         }
 
-        KVServer server = new KVServer(port, cacheSize, strategy);
+        KVServer server = new KVServer(port, cacheSize, strategy, KVFileName);
         server.Run();
     }
 
