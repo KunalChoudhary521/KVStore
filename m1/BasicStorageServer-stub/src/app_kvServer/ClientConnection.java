@@ -29,19 +29,15 @@ public class ClientConnection implements Runnable {
 	private InputStream input;
 	private OutputStream output;
 	private KVServer server;
-	private String KVFileName;
-	private FileStoreHelper fileStoreHelper;
 	
 	/**
 	 * Constructs a new CientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, KVServer server, String KVFileName) {
+	public ClientConnection(Socket clientSocket, KVServer server) {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.server = server;
-		this.KVFileName = KVFileName;
-		this.fileStoreHelper = new FileStoreHelper(this.KVFileName);
 	}
 	
 	/**
@@ -117,9 +113,9 @@ public class ClientConnection implements Runnable {
                 got_key = 0;
                 String result = fileStoreHelper.FindFromFile(key);
                 if(result != null){
-                	got_key = 1;
-                	payload = result;
-				}
+                    got_key = 1;
+                    payload = result;
+                }
             } else {
 			    // was found in cache
                 got_key = 1;
@@ -165,7 +161,6 @@ public class ClientConnection implements Runnable {
             logger.info(ex.getMessage());
         }
 	}
-
 	public void handle_put(){
 		String [] client_msgs = new String[4];
 		

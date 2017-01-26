@@ -42,14 +42,28 @@ public class LRUCache
     {
         if(this.keyMap.containsKey(k))//if key already exists in the cache
         {
-            Node oldNode = this.keyMap.get(k);
-            oldNode.setValue(v);//update oldNode value
+            if(v.trim().equals("null")){
+                System.out.println("deleting");
+                Node oldNode = this.keyMap.get(k);
+                if (cQueue.getHead() != oldNode) {
+                    cQueue.remove(oldNode);
+                }
+            }else {
+                Node oldNode = this.keyMap.get(k);
+                oldNode.setValue(v);//update oldNode value
+                if (cQueue.getHead() != oldNode) {
+                    cQueue.remove(oldNode);
+                    cQueue.insertToFront(oldNode);//move old node to the front
+                }
+            }
 
-            cQueue.remove(oldNode);
-            cQueue.insertToFront(oldNode);//move old node to the front
+
         }
         else//key not in cache
         {
+            if (v.equals("null")){
+                return;
+            }
             Node newValNode = new Node(k,v);
             if(this.keyMap.size() >= this.maxCacheSize)//cache is full
             {
