@@ -199,7 +199,7 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Put, client sent too large a size, size = "+client_msgs[1]);
 			}
 			//GET the key from the file on disk populate below variables based on file
-			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
+			//System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			int got_key = 0;
 			if ((this.server.findInCache(client_msgs[0])!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
 				got_key = 1;
@@ -237,10 +237,38 @@ public class ClientConnection implements Runnable {
 			///overwrite the payload or whatever other file stuff her
 			System.out.println("NEED TO IMPLEMENT INSERTION, UPDATE and Deletion IN FILE");
 			this.server.addToCache(client_msgs[0],client_msgs[3]);
-			System.out.println("cached");
-			int success = 1; //change based on insertion results
+
+            System.out.println("cached");
+            int cacheSuccess = 1; //change based on insertion results
+            int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
+
+			if(got_key == 0) {
+                // PUT
+                FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
+                if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
+                {
+                    fileSuccess = 1;
+                }
+            } else {
+			    // UPDATE OR DELETE
+                if(client_msgs[3].equals("null")){
+                    // DELETE
+                    FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(client_msgs[0]);
+                    if(result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS){
+                        fileSuccess = 1;
+                    }
+                } else {
+                    // UPDATE
+                    FileStoreHelper.FileStoreStatusType result = fileStoreHelper.UpsertInFile(client_msgs[0], client_msgs[3]);
+                    if(result == FileStoreHelper.FileStoreStatusType.UPSERT_SUCCESS){
+                        fileSuccess = 1;
+                    }
+                }
+            }
+
+
 			///
-			if (success == 1){
+			if (fileSuccess == 1){
 				byte [] ack = new byte[2];
 				ack[0] = (byte) 'S';
 				ack[1] = (byte) 0;
