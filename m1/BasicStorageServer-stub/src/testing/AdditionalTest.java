@@ -165,6 +165,7 @@ public class AdditionalTest extends TestCase {
 			try {
 				kvClient.put(key, value);
 				response = kvClient.get(key);
+				System.out.println(response.getValue());
 			} catch (Exception e) {
 				ex = e;
 			}

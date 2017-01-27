@@ -25,6 +25,7 @@ public class KVStore implements KVCommInterface {
 	public KVStore(String address, int port) {
 		this.address = address;
 		this.port = port;
+
 	}
 
 	private Socket clientSocket;
@@ -32,7 +33,6 @@ public class KVStore implements KVCommInterface {
 	private InputStream input;
 	private String address;
 	private int port;
-
 	private Logger logger = Logger.getRootLogger();
 	private Set<ClientSocketListener> listeners;
 	private boolean running;

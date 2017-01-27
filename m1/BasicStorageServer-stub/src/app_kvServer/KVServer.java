@@ -30,6 +30,7 @@ public class KVServer  {
 	private boolean isRunning;
 	private ServerSocket socket;
     private static Logger logger = Logger.getRootLogger();
+
     private String KVFileName;
 
     private LRUCache cache;
@@ -40,10 +41,12 @@ public class KVServer  {
 		this.strategy = strategy;
 		this.cache = new LRUCache(100);
 		this.KVFileName = KVFileName;
+
 	}
 
 	public void Run(){
-        isRunning = InitializeServer();
+
+	    isRunning = InitializeServer();
         if(socket != null) {
             while(isRunning){
                 try {
@@ -99,7 +102,7 @@ public class KVServer  {
         String KVFileName = args[3];
 
         try {
-            new LogSetup("logs/server.log", Level.ALL);
+            new LogSetup("/m1/BasicStorageServer-stub/logs/server.log", Level.ALL);
         } catch (Exception ex)
         {
             System.out.println(ex.getMessage());
