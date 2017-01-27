@@ -49,7 +49,13 @@ public class FileStoreHelper {
                 if(currKey.equals(key)){
                     // get the value of the xml entry
                     reader.close();
-                    return key;
+                    String value = "";
+                    int to_start = ++keyIndex;
+                    keyIndex++;
+                    do{
+                            keyIndex++;
+                    }while(!line.substring(keyIndex,keyIndex+8).equals("</entry>"));
+                    return line.substring(to_start,keyIndex);
                 }
             }
 

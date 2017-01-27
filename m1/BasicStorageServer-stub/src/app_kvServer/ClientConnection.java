@@ -205,7 +205,7 @@ public class ClientConnection implements Runnable {
 			if ((this.server.findInCache(client_msgs[0])!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
 				got_key = 1;
 			}
-			int offset = 323; //use for quick location since will need to update value
+
 			byte[] message = new byte[4+kl+ll];
 			if (got_key == 1){
 				message[0] = (byte) 'U';
