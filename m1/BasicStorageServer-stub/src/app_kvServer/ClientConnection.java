@@ -237,14 +237,16 @@ public class ClientConnection implements Runnable {
 			}
 			///overwrite the payload or whatever other file stuff her
 			System.out.println("NEED TO IMPLEMENT INSERTION, UPDATE and Deletion IN FILE");
-			this.server.addToCache(client_msgs[0],client_msgs[3]);
 
-            System.out.println("cached");
-            int cacheSuccess = 1; //change based on insertion results
-            int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
+			int cacheSuccess =0; //change based on insertion results
+			int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
 
-			if(got_key == 0) {
+			if(got_key == 0 && !client_msgs[3].equals("null")) {
                 // PUT
+				this.server.addToCache(client_msgs[0],client_msgs[3]);
+				cacheSuccess = 1;
+				System.out.println("cached");
+
                 FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
                 if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
                 {

@@ -4,6 +4,8 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Zabeeh on 1/26/2017.
@@ -11,6 +13,9 @@ import java.nio.file.Paths;
 public class FileStoreHelper {
 
     private String file;
+
+    private ReentrantLock originalFileLock;
+    private ReentrantLock newFileLock;
 
     public enum FileStoreStatusType {
         PUT_SUCCESS,
@@ -22,11 +27,15 @@ public class FileStoreHelper {
 
     public FileStoreHelper(String fileName){
         this.file = fileName;
+        originalFileLock = new ReentrantLock();
+        newFileLock = new ReentrantLock();
     }
 
     public String FindFromFile(String key) throws Exception{
         try {
             String currPath = System.getProperty("user.dir");
+
+            originalFileLock.lock();
 
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -60,8 +69,11 @@ public class FileStoreHelper {
             }
 
             reader.close();
+
+            originalFileLock.unlock();
             return null;
         } catch (Exception ex) {
+            originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         }
     }
@@ -69,6 +81,8 @@ public class FileStoreHelper {
     public FileStoreStatusType PutInFile(String key, String value) throws Exception{
         try {
             //String currPath = System.getProperty("user.dir");
+
+            originalFileLock.lock();
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
@@ -78,14 +92,20 @@ public class FileStoreHelper {
             writer.flush();
             writer.close();
 
+            originalFileLock.unlock();
+
             return FileStoreStatusType.PUT_SUCCESS;
         } catch (Exception ex) {
+            originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         }
     }
 
     public FileStoreStatusType DeleteInFile(String key) throws Exception{
         try {
+
+
+
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
@@ -120,6 +140,10 @@ public class FileStoreHelper {
             writer.flush();
             writer.close();
 
+
+            originalFileLock.lock();
+            newFileLock.lock();
+
             File old = new File("./TestFile.txt");
             File n = new File("./newFile.txt");
 
@@ -128,22 +152,29 @@ public class FileStoreHelper {
             File another = new File("./TestFile.txt");
             n.renameTo(another);
 
+            newFileLock.unlock();
+            originalFileLock.unlock();
+
             if(success) {
                 return FileStoreStatusType.DELETE_SUCCESS;
             } else {
                 return FileStoreStatusType.DELETE_FAIL;
             }
         } catch (Exception ex) {
+            newFileLock.unlock();
+            originalFileLock.unlock();
+
             throw new Exception(ex.getMessage());
         }
     }
 
     public FileStoreStatusType UpsertInFile(String key, String value) throws Exception{
         try {
+
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
-            PrintWriter writer = new PrintWriter("./newFile.txt", "UTF-8");
+            PrintWriter writer = new PrintWriter("./newFile.txt","UTF-8");
 
             String newline = createFilEntryFromKVP(key, value);
             String line = null; //only successful if they key was found
@@ -176,6 +207,10 @@ public class FileStoreHelper {
             writer.flush();
             writer.close();
 
+
+            originalFileLock.lock();
+            newFileLock.lock();
+
             File old = new File("./TestFile.txt");
             File n = new File("./newFile.txt");
 
@@ -184,19 +219,19 @@ public class FileStoreHelper {
             File another = new File("./TestFile.txt");
             n.renameTo(another);
 
+            newFileLock.unlock();
+            originalFileLock.unlock();
+
             if(success) {
                 return FileStoreStatusType.UPSERT_SUCCESS;
             }else {
                 return FileStoreStatusType.UPSERT_FAIL;
             }
         } catch (Exception ex) {
+            newFileLock.unlock();
+            originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         }
-    }
-
-    public String storeInFile(String key, String value) {
-        String entry = createFilEntryFromKVP(key, value);
-        return null;
     }
 
     private String createFilEntryFromKVP(String key, String value){

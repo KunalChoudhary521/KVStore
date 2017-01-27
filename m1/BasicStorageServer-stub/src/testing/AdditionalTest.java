@@ -8,12 +8,12 @@ import common.messages.KVMessage.StatusType;
 import client.KVStore;
 
 public class AdditionalTest extends TestCase {
-	
+
 	// TODO add your test cases, at least 3
 	private KVStore kvClient;
 	
 	public void setUp() {
-		kvClient = new KVStore("localhost", 50000);
+		kvClient = new KVStore("localhost", 8080);
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
@@ -23,7 +23,8 @@ public class AdditionalTest extends TestCase {
 	public void tearDown() {
 		kvClient.disconnect();
 	}
-	
+
+
 	@Test
 	public void get_long_key() {
 		String key = "The Quick Brown Fox Jumped Over The Lazy Dog";
@@ -172,6 +173,43 @@ public class AdditionalTest extends TestCase {
 		
 		assertTrue(ex == null && response.getValue().equals("0b0a0r"));
 	}
+
+	@Test
+	public void test_repeated_put() {
+		String[] keys = new String[4096];
+		String[] values = new String[4096];
+		KVMessage response = null;
+		Exception ex = null;
+
+		for(int i =0; i < 4096; i++) {
+			keys[i] = "key" + (i + 1);
+			values[i] = "value" + (i + 1);
+			try {
+				response = kvClient.put(keys[i], values[i]);
+			} catch (Exception e) {
+				ex = e;
+			}
+			assertTrue(ex == null && response.getStatus() == StatusType.PUT_SUCCESS);
+		}
+	}
+
+	public void test_repeated_update() {
+		String[] keys = new String[4096];
+		String value = "updated";
+		KVMessage response = null;
+		Exception ex = null;
+
+		for(int i =0; i < 4096; i++) {
+			keys[i] = "key" + (i+1);
+			try {
+				response = kvClient.put(keys[i], value);
+			} catch (Exception e) {
+				ex = e;
+			}
+			assertTrue(ex == null && response.getStatus() == StatusType.PUT_UPDATE);
+		}
+	}
+
 	@Test//need to figure out how to implement
 	public void test_multiple_client_gets() {
 		assertTrue(true);
