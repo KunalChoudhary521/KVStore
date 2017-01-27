@@ -1,91 +1,74 @@
 package cache;
 
-import java.util.HashMap;
-import cache.Node;
-import cache.CacheQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class LRUCache
 {
-    private HashMap<String, Node> keyMap;//<String: Key, String: ValNode>
-    private CacheQueue cQueue;
+    private ConcurrentHashMap<String, LRUNode> keyMap;//<String: Key, String: ValNode>
+    private ConcurrentLinkedDeque<LRUNode> lruQueue;
     private final int maxCacheSize;
 
     public LRUCache(int maxSize)
     {
         this.maxCacheSize = maxSize;
-        this.keyMap = new HashMap<>();
-        this.cQueue = new CacheQueue();
+        this.keyMap = new ConcurrentHashMap<>();
+        this.lruQueue = new ConcurrentLinkedDeque<>();
     }
 
-    public HashMap<String, Node> getKeyMap() { return this.keyMap; }
-    public CacheQueue getCQueue() { return this.cQueue; }
+    public ConcurrentHashMap<String, LRUNode> getKeyMap() { return this.keyMap; }
+    public ConcurrentLinkedDeque getLruQueue() { return this.lruQueue; }
     public int getMaxCacheSize() { return this.maxCacheSize; }
 
     public String checkCache(String k)
     {
-        if(keyMap.containsKey(k))
+        if((!this.keyMap.isEmpty()) && this.keyMap.containsKey(k))
         {
-            Node valNode = keyMap.get(k);
+            LRUNode valNode = keyMap.get(k);
+            updateLruQueue(valNode);
 
-            //if valNode is not at the front, then move it to the front of cQueue
-            if(!valNode.equals(cQueue.getHead()))
-            {
-                cQueue.remove(valNode);
-                cQueue.insertToFront(valNode);
-            }
-            return valNode.getValue(); // return the value regardless
+            return valNode.getValue();
         }
         return null;
     }
 
     public void insertInCache(String k, String v)
     {
-        if(this.keyMap.containsKey(k))//if key already exists in the cache
+        if((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k)))//if key already exists in the cache
         {
-            if(v.trim().equals("null")){
-                System.out.println("deleting");
-                Node oldNode = this.keyMap.get(k);
-                if (cQueue.getHead() != oldNode) {
-                    cQueue.remove(oldNode);
-                }
-            }else {
-                Node oldNode = this.keyMap.get(k);
-                oldNode.setValue(v);//update oldNode value
-                if (cQueue.getHead() != oldNode) {
-                    cQueue.remove(oldNode);
-                    cQueue.insertToFront(oldNode);//move old node to the front
-                }
-            }
-
-
+            LRUNode oldNode = this.keyMap.get(k);
+            oldNode.setValue(v);//update oldNode value
+            updateLruQueue(oldNode);
         }
         else//key not in cache
         {
-            if (v.equals("null")){
-                return;
-            }
-            Node newValNode = new Node(k,v);
+            LRUNode newValNode = new LRUNode(k,v);
             if(this.keyMap.size() >= this.maxCacheSize)//cache is full
             {
-                System.out.println("Key: " + cQueue.getTail().getKey() +
-                        " Value: " + cQueue.getTail().getValue() + " removed\n");//printing for debugging
-
-                this.keyMap.remove(cQueue.getTail().getKey());//evict least recently used Node from keyMap
-                cQueue.remove(cQueue.getTail());//evict least recently used Node from cQueue
-
-                cQueue.insertToFront(newValNode);//insert newly created node in cQueue
+                LRUNode ndToEvict = this.lruQueue.getLast();
+                this.lruQueue.remove(ndToEvict);//evict least recently used Node from lruQueue
+                this.keyMap.remove(ndToEvict.getKey());//evict least recently used Node from keyMap
             }
-            else//cache not full
-            {
-                cQueue.insertToFront(newValNode);//insert newly created node in cQueue
-            }
-
+            this.lruQueue.addFirst(newValNode);//insert newly created node
             this.keyMap.put(k, newValNode);//insert newly created node in keyMap
+        }
+    }
+
+    public void updateLruQueue(LRUNode nd)//move nd to the front of lruQueue
+    {
+        if(!this.lruQueue.getFirst().equals(nd))
+        {
+            this.lruQueue.remove(nd);
+            this.lruQueue.addFirst(nd);
         }
     }
 
     public void printCacheState()
     {
-        this.cQueue.printList();
+        for(LRUNode itr: this.lruQueue)
+        {
+            System.out.print(itr.getKey() + ":" + itr.getValue() + "->");
+        }
+        System.out.println();
     }
 }
