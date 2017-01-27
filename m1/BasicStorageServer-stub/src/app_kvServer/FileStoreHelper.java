@@ -17,6 +17,8 @@ public class FileStoreHelper {
 
     public String FindFromFile(String key) throws Exception{
         try {
+            //String currPath = System.getProperty("user.dir");
+
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
