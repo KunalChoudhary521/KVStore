@@ -103,6 +103,7 @@ public class ClientConnection implements Runnable {
 			if (key.length()>20){
 				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
 			}
+			int length = 0;
 			//check if we have the key in our file
 			String payload = this.server.findInCache(key);
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
@@ -117,13 +118,15 @@ public class ClientConnection implements Runnable {
                 if(result != null){
                     got_key = 1;
                     payload = result;
+                    length = payload.length();
                 }
             } else {
 			    // was found in cache
                 got_key = 1;
+                length = payload.length();
             }
 
-			int length = payload.length();//get me from file
+
 			String length_str = Integer.toString(length);
 			//
 			
@@ -197,7 +200,10 @@ public class ClientConnection implements Runnable {
 			}
 			//GET the key from the file on disk populate below variables based on file
 			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
-			int got_key = 1;//change to be based on whether got the value
+			int got_key = 0;
+			if ((this.server.findInCache(client_msgs[0])!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
+				got_key = 1;
+			}
 			int offset = 323; //use for quick location since will need to update value
 			byte[] message = new byte[4+kl+ll];
 			if (got_key == 1){

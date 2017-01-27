@@ -132,6 +132,7 @@ public class AdditionalTest extends TestCase {
 
 		try {
 			kvClient.get(key);
+
 		} catch (Exception e) {
 			ex = e;
 		}

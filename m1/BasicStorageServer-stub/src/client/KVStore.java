@@ -5,9 +5,7 @@ import app_kvClient.ClientSocketListener;
 import app_kvClient.ClientSocketListener.SocketStatus;
 import app_kvClient.TextMessage;
 import common.messages.KVMessage;
-import javafx.animation.Animation;
 import org.apache.log4j.Logger;
-import client.Message;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +13,6 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Date;
 import java.util.Set;
-
-import java.io.*;//remove me later
 
 public class KVStore implements KVCommInterface {
 
@@ -294,17 +290,17 @@ public class KVStore implements KVCommInterface {
 		}
 		catch(Exception ex){
         		logger.info(ex.getMessage());
-			if (ex.getMessage().contains(", disconnecting")){
-        			this.disconnect();
-	        	}
-		
-        		if (value.equals("null")){
-	        		return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
-	        	}
-        		else{
-	        		return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
-	        	}
+			if (ex.getMessage().contains(", disconnecting")) {
+				this.disconnect();
+				if (value.equals("null")) {
+					return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
+				} else {
+					return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
+				}
+			} else
+				throw new Exception(ex.getMessage());
         	}
+
 	}
 
 	//@Override
@@ -369,6 +365,9 @@ public class KVStore implements KVCommInterface {
 			}
 		}
 		catch(Exception ex){
+			if (this.clientSocket == null || (this.clientSocket!=null && !this.clientSocket.isConnected())){
+				throw new Exception (ex.getMessage());
+			}
         	this.disconnect();
         	logger.info(ex.getMessage());
         	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
