@@ -4,7 +4,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 
-public class FIFOCache
+public class FIFOCache implements KVCache
 {
     private ConcurrentHashMap<String, FIFONode> keyMap;//<String: Key, String: ValNode>
     private ConcurrentLinkedDeque<FIFONode> fifoQueue;
@@ -53,7 +53,19 @@ public class FIFOCache
         }
     }
 
-
+    public void deleteFromCache(String k)
+    {
+        //this function does nothing if key, k, is not found
+        if((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k)))
+        {
+            FIFONode ndToDelete = this.keyMap.get(k);
+            if((!this.fifoQueue.isEmpty()) && (this.fifoQueue.contains(ndToDelete)))
+            {
+                this.fifoQueue.remove(ndToDelete);
+                this.keyMap.remove(ndToDelete.getKey());
+            }
+        }
+    }
     public void printCacheState()
     {
         for(FIFONode itr: this.fifoQueue)

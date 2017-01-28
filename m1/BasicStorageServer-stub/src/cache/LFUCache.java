@@ -3,7 +3,7 @@ package cache;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-public class LFUCache
+public class LFUCache implements KVCache
 {
     private ConcurrentHashMap<String, LFUNode> keyMap;//<String: Key, Node: ValNode>; use ConcurrentHashMap
     private ConcurrentHashMap<Integer, ConcurrentLinkedDeque<LFUNode>> freqMap;//use
@@ -86,12 +86,38 @@ public class LFUCache
 
         if(this.freqMap.get(ndFreq).isEmpty())
         {
-            //Remove the k,v where frequency, k, doesn't have any values in its queue
+            //remove a frequency (k-v pair), its list of LFUNode is empty
             this.freqMap.remove(ndFreq);
             //Now size of freqMap is the same as # of k,v pairs in the cache
         }
 
         this.freqMap.get(updateFrq).add(ndToMove);//add to higher frequency
+    }
+
+    public void deleteFromCache(String k)
+    {
+        //this function does nothing if key, k, is not found
+        if((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k)))
+        {
+            LFUNode ndToDelete = this.keyMap.get(k);
+            if((!this.freqMap.isEmpty()) && (this.freqMap.containsKey(ndToDelete.getNodeFrq())))
+            {
+                ConcurrentLinkedDeque<LFUNode> list = this.freqMap.get(ndToDelete.getNodeFrq());
+                if((!list.isEmpty()) && (list.contains(ndToDelete)))
+                {
+                    list.remove(ndToDelete);
+                    this.keyMap.remove(ndToDelete.getKey());
+
+                    /*Remove a frequency (k-v pair), its list of LFUNode is empty.
+                      This means ndToDelete was the only node with that frequency*/
+
+                    if(this.freqMap.isEmpty())
+                    {
+                        this.freqMap.remove(ndToDelete.getNodeFrq());
+                    }
+                }
+            }
+        }
     }
 
     public void printCacheState()

@@ -3,7 +3,7 @@ package cache;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-public class LRUCache
+public class LRUCache implements KVCache
 {
     private ConcurrentHashMap<String, LRUNode> keyMap;//<String: Key, String: ValNode>
     private ConcurrentLinkedDeque<LRUNode> lruQueue;
@@ -34,7 +34,7 @@ public class LRUCache
 
     public void insertInCache(String k, String v)
     {
-        if((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k)))//if key already exists in the cache
+        if((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k)))//if key is in the cache
         {
             LRUNode oldNode = this.keyMap.get(k);
             oldNode.setValue(v);//update oldNode value
@@ -43,6 +43,7 @@ public class LRUCache
         else//key not in cache
         {
             LRUNode newValNode = new LRUNode(k,v);
+            //Tip for future: to speed up cache, remove a bunch of kv pairs
             if(this.keyMap.size() >= this.maxCacheSize)//cache is full
             {
                 LRUNode ndToEvict = this.lruQueue.getLast();
@@ -54,7 +55,7 @@ public class LRUCache
         }
     }
 
-    public void updateLruQueue(LRUNode nd)//move nd to the front of lruQueue
+    private void updateLruQueue(LRUNode nd)//move nd to the front of lruQueue
     {
         if(!this.lruQueue.getFirst().equals(nd))
         {
@@ -62,6 +63,21 @@ public class LRUCache
             this.lruQueue.addFirst(nd);
         }
     }
+
+    public void deleteFromCache(String k)
+    {
+        //this function does nothing if key, k, is not found
+        if((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k)))
+        {
+            LRUNode ndToDelete = this.keyMap.get(k);
+            if((!this.lruQueue.isEmpty()) && (this.lruQueue.contains(ndToDelete)))
+            {
+                this.lruQueue.remove(ndToDelete);//remove from queue
+                this.keyMap.remove(ndToDelete.getKey());//remove from map
+            }
+        }
+    }
+
 
     public void printCacheState()
     {
