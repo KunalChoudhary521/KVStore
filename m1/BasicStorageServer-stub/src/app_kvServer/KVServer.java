@@ -45,13 +45,23 @@ public class KVServer  {
 		this.cacheSize = cSize;
 		this.strategy = strat;
 
-        if(this.strategy.equals("FIFO")) { this.cache = new FIFOCache(this.cacheSize ); }
-		else if(this.strategy.equals("LFU")) { this.cache = new LFUCache(this.cacheSize ); }
-        else if(this.strategy.equals("LRU")) { this.cache = new LRUCache(this.cacheSize ); }
-        else  {
+		if(cSize <= 0) {//user wants no caching
             this.cache = null;
         }
-
+        else {
+            if (this.strategy.equals("FIFO")) {
+                this.cache = new FIFOCache(this.cacheSize);
+            }
+            else if (this.strategy.equals("LFU")) {
+                this.cache = new LFUCache(this.cacheSize);
+            }
+            else if (this.strategy.equals("LRU")) {
+                this.cache = new LRUCache(this.cacheSize);
+            }
+            else {
+                this.cache = null;
+            }
+        }
 		this.KVFileName = KVFName;
         this.log = log;
 	}

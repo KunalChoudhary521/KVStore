@@ -52,5 +52,7 @@ public class GetClient implements Runnable{
 
         float averageGetTime = succesGetCounts/(period/1000);
         System.out.println("Thread" + id + ": Average get time was (requests/second):" + averageGetTime);
+
+        this.client.disconnect();
     }
 }

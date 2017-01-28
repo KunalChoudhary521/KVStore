@@ -191,6 +191,8 @@ public class AdditionalTest extends TestCase {
 			}
 			assertTrue(ex == null && response.getStatus() == StatusType.PUT_SUCCESS);
 		}
+
+        kvClient.disconnect();
 	}
 
 	public void test_repeated_update() {
@@ -229,7 +231,7 @@ public class AdditionalTest extends TestCase {
 
 	@Test//need to figure out how to implement
 	public void test_multiple_client_gets() {
-		int numGetClients = 3;
+		int numGetClients = 1;
 		//int numPutClients = Integer.parseInt(args[1]);
 		KVStore getClients[] = new KVStore[numGetClients];
 		//KVStore putClients[] = new KVStore[numPutClients];
