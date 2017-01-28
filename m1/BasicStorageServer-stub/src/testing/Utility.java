@@ -15,4 +15,9 @@ public class Utility {
         int kn = new Random().nextInt(maxSize+1) + 1;
         return "key"+kn;
     }
+
+    public String GenerateRandomValue(int maxSize) {
+        int vn = new Random().nextInt(maxSize+1) + 1;
+        return ""+vn;
+    }
 }

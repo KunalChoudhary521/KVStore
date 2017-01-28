@@ -15,7 +15,6 @@ public class FileStoreHelper {
     private String file;
 
     private ReentrantLock originalFileLock;
-    private ReentrantLock newFileLock;
 
     public enum FileStoreStatusType {
         PUT_SUCCESS,
@@ -28,7 +27,6 @@ public class FileStoreHelper {
     public FileStoreHelper(String fileName){
         this.file = fileName;
         originalFileLock = new ReentrantLock();
-        newFileLock = new ReentrantLock();
     }
 
     public String FindFromFile(String key) throws Exception{
@@ -43,28 +41,31 @@ public class FileStoreHelper {
             String line = null;
 
             while((line = reader.readLine()) != null){
-                int keyIndex = line.indexOf("key=\"");
-                keyIndex+= "key\"".length() + 1;
-                String currKey = "";
-                char currChar = 0;
-                do{
-                    currChar = line.charAt(keyIndex);
-                    if(currChar !='\"') {
-                        currKey += currChar;
-                    }
-                    keyIndex++;
-                }while(currChar != '\"');
+                if(!line.isEmpty()) {
+                    int keyIndex = line.indexOf("key=\"");
+                    keyIndex += "key\"".length() + 1;
+                    String currKey = "";
+                    char currChar = 0;
+                    do {
+                        currChar = line.charAt(keyIndex);
+                        if (currChar != '\"') {
+                            currKey += currChar;
+                        }
+                        keyIndex++;
+                    } while (currChar != '\"');
 
-                if(currKey.equals(key)){
-                    // get the value of the xml entry
-                    reader.close();
-                    String value = "";
-                    int to_start = ++keyIndex;
-                    keyIndex++;
-                    do{
+                    if (currKey.equals(key)) {
+                        // get the value of the xml entry
+                        String value = "";
+                        keyIndex++;
+                        int to_start = keyIndex;
+                        do {
                             keyIndex++;
-                    }while(!line.substring(keyIndex,keyIndex+8).equals("</entry>"));
-                    return line.substring(to_start,keyIndex);
+                        } while (!line.substring(keyIndex, keyIndex + 8).equals("</entry>"));
+                        return line.substring(to_start, keyIndex);
+                    }
+                } else {
+                    break;
                 }
             }
 
@@ -104,7 +105,7 @@ public class FileStoreHelper {
     public FileStoreStatusType DeleteInFile(String key) throws Exception{
         try {
 
-
+            originalFileLock.lock();
 
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -115,34 +116,34 @@ public class FileStoreHelper {
 
             boolean success = false; //only successful if the key was found
 
-            while((line = reader.readLine()) != null){
-                int keyIndex = line.indexOf("key=\"");
-                keyIndex+= "key\"".length() + 1;
-                String currKey = "";
-                char currChar = 0;
-                do{
-                    currChar = line.charAt(keyIndex);
-                    if(currChar !='\"') {
-                        currKey += currChar;
-                    }
-                    keyIndex++;
-                }while(currChar != '\"');
+            while((line = reader.readLine()) != null) {
+                if (!line.isEmpty()) {
+                    int keyIndex = line.indexOf("key=\"");
+                    keyIndex += "key\"".length() + 1;
+                    String currKey = "";
+                    char currChar = 0;
+                    do {
+                        currChar = line.charAt(keyIndex);
+                        if (currChar != '\"') {
+                            currKey += currChar;
+                        }
+                        keyIndex++;
+                    } while (currChar != '\"');
 
-                if(currKey.equals(key) == false){
-                    // get the value of the xml entry
-                    writer.println(line);
+                    if (currKey.equals(key) == false) {
+                        // get the value of the xml entry
+                        writer.println(line);
+                    } else {
+                        success = true;
+                    }
                 } else {
-                    success = true;
+                    break;
                 }
             }
 
             reader.close();
             writer.flush();
             writer.close();
-
-
-            originalFileLock.lock();
-            newFileLock.lock();
 
             File old = new File("./TestFile.txt");
             File n = new File("./newFile.txt");
@@ -152,7 +153,6 @@ public class FileStoreHelper {
             File another = new File("./TestFile.txt");
             n.renameTo(another);
 
-            newFileLock.unlock();
             originalFileLock.unlock();
 
             if(success) {
@@ -161,7 +161,6 @@ public class FileStoreHelper {
                 return FileStoreStatusType.DELETE_FAIL;
             }
         } catch (Exception ex) {
-            newFileLock.unlock();
             originalFileLock.unlock();
 
             throw new Exception(ex.getMessage());
@@ -170,6 +169,7 @@ public class FileStoreHelper {
 
     public FileStoreStatusType UpsertInFile(String key, String value) throws Exception{
         try {
+            originalFileLock.lock();
 
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -182,24 +182,28 @@ public class FileStoreHelper {
             boolean success = false;
 
             while((line = reader.readLine()) != null){
-                int keyIndex = line.indexOf("key=\"");
-                keyIndex+= "key\"".length() + 1;
-                String currKey = "";
-                char currChar = 0;
-                do{
-                    currChar = line.charAt(keyIndex);
-                    if(currChar !='\"') {
-                        currKey += currChar;
-                    }
-                    keyIndex++;
-                }while(currChar != '\"');
+                if(!line.isEmpty()) {
+                    int keyIndex = line.indexOf("key=\"");
+                    keyIndex += "key\"".length() + 1;
+                    String currKey = "";
+                    char currChar = 0;
+                    do {
+                        currChar = line.charAt(keyIndex);
+                        if (currChar != '\"') {
+                            currKey += currChar;
+                        }
+                        keyIndex++;
+                    } while (currChar != '\"');
 
-                if(currKey.equals(key) == false){
-                    // get the value of the xml entry
-                    writer.println(line);
+                    if (currKey.equals(key) == false) {
+                        // get the value of the xml entry
+                        writer.println(line);
+                    } else {
+                        success = true;
+                        writer.println(newline);
+                    }
                 } else {
-                    success = true;
-                    writer.println(newline);
+                    break;
                 }
             }
 
@@ -207,19 +211,14 @@ public class FileStoreHelper {
             writer.flush();
             writer.close();
 
-
-            originalFileLock.lock();
-            newFileLock.lock();
-
             File old = new File("./TestFile.txt");
             File n = new File("./newFile.txt");
 
-            Files.delete(old.toPath());
+            old.delete();
 
             File another = new File("./TestFile.txt");
             n.renameTo(another);
 
-            newFileLock.unlock();
             originalFileLock.unlock();
 
             if(success) {
@@ -228,7 +227,6 @@ public class FileStoreHelper {
                 return FileStoreStatusType.UPSERT_FAIL;
             }
         } catch (Exception ex) {
-            newFileLock.unlock();
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         }
