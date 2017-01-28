@@ -129,6 +129,8 @@ public class ClientConnection implements Runnable {
                 String result = fileStoreHelper.FindFromFile(key);
                 if(result != null){
                 	// PUT in the cache if there is space
+					this.server.getKvcache().insertInCache(key,result);//is result Value?
+
                     got_key = 1;
                     payload = result;
                     length = payload.length();
@@ -299,12 +301,14 @@ public class ClientConnection implements Runnable {
                     FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(client_msgs[0]);
                     if(result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS){
                         fileSuccess = 1;
+                        this.server.getKvcache().deleteFromCache(client_msgs[0]);
                     }
                 } else {
                     // UPDATE
                     FileStoreHelper.FileStoreStatusType result = fileStoreHelper.UpsertInFile(client_msgs[0], client_msgs[3]);
                     if(result == FileStoreHelper.FileStoreStatusType.UPSERT_SUCCESS){
                         fileSuccess = 1;
+						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[1]);
                     }
                 }
             }
