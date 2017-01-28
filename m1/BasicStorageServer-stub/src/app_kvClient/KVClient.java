@@ -1,23 +1,17 @@
 package app_kvClient;
 
 
-import client.KVCommInterface;
 import client.KVStore;
 import common.messages.KVMessage;
 import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.io.*;
-import java.net.Socket;
-import java.net.UnknownHostException;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Time;
-import java.time.LocalTime;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-
-import static javax.swing.text.html.HTML.Tag.HEAD;
+//import java.time.LocalTime;
 
 public class KVClient {
 
@@ -54,87 +48,87 @@ public class KVClient {
 
         if(tokens[0].equals("quit")) {
             stop = true;
-            logger.info("disconnecting at " +Time.valueOf(LocalTime.now()));
+            //logger.info("disconnecting at " +Time.valueOf(LocalTime.now()));
             disconnect();
             System.out.println(PROMPT + "Application exit!");
 
         } else if (tokens[0].equals("connect")){
             if(tokens.length == 3) {
                 try {
-                    logger.debug("Connecting to "+tokens[1]+":"+tokens[2]
-                    +"at"+Time.valueOf(LocalTime.now()));
+                    //logger.debug("Connecting to "+tokens[1]+":"+tokens[2]
+                    //+"at"+Time.valueOf(LocalTime.now()));
                     serverAddress = tokens[1];
                     serverPort = Integer.parseInt(tokens[2]);
                     client = new KVStore(serverAddress, serverPort);
                     client.connect();
-                    logger.info("Connecting to "+tokens[1]+":"+tokens[2]
-                            +"at"+Time.valueOf(LocalTime.now()));
+                   // logger.info("Connecting to "+tokens[1]+":"+tokens[2]
+                   //         +"at"+Time.valueOf(LocalTime.now()));
                     println("Connected to server successfully");
                 } catch (Exception ex) {
                     printError("Could not establish connection!");
                     logger.warn("Could not establish connection!", ex);
                 }
             } else {
-                logger.error("Invalid number of parameters for connection at "
-                        +Time.valueOf(LocalTime.now()));
+                //logger.error("Invalid number of parameters for connection at "
+                //        +Time.valueOf(LocalTime.now()));
                 printError("Invalid number of parameters!");
             }
         } else if(tokens[0].equals("disconnect")) {
-            logger.info("Disconnecting from "+serverAddress+":"+serverPort
-                    +"at"+Time.valueOf(LocalTime.now()));
+            //logger.info("Disconnecting from "+serverAddress+":"+serverPort
+             //       +"at"+Time.valueOf(LocalTime.now()));
             disconnect();
-            logger.debug("Disconnected from "+serverAddress+":"+serverPort
-                    +"at"+Time.valueOf(LocalTime.now()));
+            //logger.debug("Disconnected from "+serverAddress+":"+serverPort
+             //       +"at"+Time.valueOf(LocalTime.now()));
         }else if(tokens[0].equals("logLevel")){
-            logger.info("Changing logging level to "+tokens[1]
-                    +"at"+Time.valueOf(LocalTime.now()));
-            logger.setLevel(Level.toLevel(tokens[1]));
+            //logger.info("Changing logging level to "+tokens[1]
+             //       +"at"+Time.valueOf(LocalTime.now()));
+            //logger.setLevel(Level.toLevel(tokens[1]));
             System.out.println("logger level now" + logger.getLevel());
         }else if(tokens[0].equals("put")){
             try{
-                logger.debug("Put, # tokens: "+ tokens.length);
-                logger.debug("Put, tokens = : "+ tokens[1]+"and"+ tokens[2]);
+                //logger.debug("Put, # tokens: "+ tokens.length);
+                //logger.debug("Put, tokens = : "+ tokens[1]+"and"+ tokens[2]);
 
                 KVMessage response = client.put(tokens[1], tokens[2]);
-                logger.debug("Put, returned at: "+ Time.valueOf(LocalTime.now()));
+                //logger.debug("Put, returned at: "+ Time.valueOf(LocalTime.now()));
 
                 if(response.getStatus() == KVMessage.StatusType.PUT_SUCCESS){
-                    logger.info("Put was successful, key was"+response.getKey()+
-                        "value was"+response.getValue());
+                    //logger.info("Put was successful, key was"+response.getKey()+
+                    //    "value was"+response.getValue());
                     println("Put Success-----");
                     println("Key:\t" + response.getKey());
                     println("Value:\t" + response.getValue());
                     println("----------------");
                  }else if(response.getStatus() == KVMessage.StatusType.PUT_UPDATE){
-                    logger.info("Update was successful, key was"+response.getKey()+
-                            "value was"+response.getValue());
+                    //logger.info("Update was successful, key was"+response.getKey()+
+                    //        "value was"+response.getValue());
                     println("Update completed successfully");
                     println("Key:\t" + response.getKey());
                     println("Value:\t" + response.getValue());
                     println("----------------");
                  }else if(response.getStatus() == KVMessage.StatusType.DELETE_SUCCESS){
-                    logger.info("Delete was successful, key was"+response.getKey());
+                    //logger.info("Delete was successful, key was"+response.getKey());
                     println("Delete completed successfully");
                     println("Key:\t" + response.getKey());
                     println("----------------");
                  }else if(response.getStatus() == KVMessage.StatusType.PUT_ERROR){
-                     logger.error("Put failed at "+ Time.valueOf(LocalTime.now()));
+                     //logger.error("Put failed at "+ Time.valueOf(LocalTime.now()));
                      println("Put failed please try again");
                      if(tokens[1].length()>20) {
-                         logger.error("Reason for failure was key was too long");
+                         //logger.error("Reason for failure was key was too long");
                          println("Your key was too long, maximum length is 20 characters");
                      }else if (tokens[2].length()>120*1024){
-                        logger.error("Reason for failure was value was too long");
+                        //logger.error("Reason for failure was value was too long");
                          println("your payload was too long, maximum length is 122880 characters");
                      }
                      println("Attempted Key:\t" + response.getKey());
                      println("Attempted Value:\t" + response.getValue());
                      println("----------------");
                  }else if (response.getStatus() == KVMessage.StatusType.DELETE_ERROR){
-                    logger.error("Delete failed at "+ Time.valueOf(LocalTime.now()));
+                    //logger.error("Delete failed at "+ Time.valueOf(LocalTime.now()));
                     println("Delete failed please try again");
                     if(tokens[1].length()>20)
-                        logger.error("Reason for failure was key was too long");
+                        //logger.error("Reason for failure was key was too long");
                         println("Your key was too long, maximum length is 20 characters");
                         println("Attempted Key:\t" + response.getKey());
                         println("----------------");
@@ -143,15 +137,15 @@ public class KVClient {
 
             } catch (Exception ex) {
                 printError("Put failed.");
-                logger.fatal("Put failed");
+                //logger.fatal("Put failed");
             }
 
         } else if(tokens[0].equals("help")) {
             printHelp();
 	    }else if (tokens[0].equals("get")){
-            logger.debug("Get, # tokens: "+ tokens.length);
+            //logger.debug("Get, # tokens: "+ tokens.length);
 		    try{
-		        logger.info("concatenating elements of key");
+		        //logger.info("concatenating elements of key");
                 String fullKey = "";
                 if(tokens.length > 2) {
                     for(int i = 1; i < tokens.length; i++){
@@ -163,36 +157,36 @@ public class KVClient {
                 } else {
                     fullKey = tokens[1];
                 }
-                logger.info("Getting"+fullKey);
+                //logger.info("Getting"+fullKey);
                 KVMessage response = client.get(fullKey);
                 if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS) {
-                    logger.info("Got"+fullKey+"at"+Time.valueOf(LocalTime.now())+
-                    "value was"+response.getValue());
+                    //logger.info("Got"+fullKey+"at"+Time.valueOf(LocalTime.now())+
+                    //"value was"+response.getValue());
                     println("Get Success-----");
                     println("Key:\t" + response.getKey());
                     println("Value:\t" + response.getValue());
                     println("----------------");
                 }else if(response.getStatus() == KVMessage.StatusType.GET_ERROR){
-                    logger.info("Get failed, key ="+fullKey+"at"+
-                                    Time.valueOf(LocalTime.now()));
+                    //logger.info("Get failed, key ="+fullKey+"at"+
+                                    //Time.valueOf(LocalTime.now()));
                     println("Get Failure------");
                     if (response.getKey().length()<=20)
                         println("Key:\t" +response.getKey() + " not found, please"+
                             "check the key and try again");
                     else
-                        logger.info("reason for failure was key was too long");
+                        //logger.info("reason for failure was key was too long");
                         println("Key:\t" +response.getKey() + " too long, please"+
                             "check the key and try again. Maximum key"+
                             " length is 20 characters.");
                 }
             }
             catch(Exception ex){
-                logger.error("Get failed"+"at"+
-                        Time.valueOf(LocalTime.now()));
+                //logger.error("Get failed"+"at"+
+                //        Time.valueOf(LocalTime.now()));
                 println("get failed. "+ex.getMessage());
             }
         } else {
-	        logger.error("unknown command at"+Time.valueOf(LocalTime.now()));
+	        //logger.error("unknown command at"+Time.valueOf(LocalTime.now()));
             printError("Unknown command");
             printHelp();
         }
@@ -234,7 +228,7 @@ public class KVClient {
     private void disconnect() {
         if(client != null) {
             try {
-                logger.info("Disconnecting at "+Time.valueOf(LocalTime.now()));
+                //logger.info("Disconnecting at "+Time.valueOf(LocalTime.now()));
                 client.disconnect();
             } catch(Exception ex){
                 logger.error("disconnect failed",ex);

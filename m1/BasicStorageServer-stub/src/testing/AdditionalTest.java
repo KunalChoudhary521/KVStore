@@ -210,8 +210,77 @@ public class AdditionalTest extends TestCase {
 		}
 	}
 
+	public void test_repeated_delete() {
+		String[] keys = new String[4096];
+		String value = "null";
+		KVMessage response = null;
+		Exception ex = null;
+
+		for(int i =0; i < 4096; i++) {
+			keys[i] = "key" + (i+1);
+			try {
+				response = kvClient.put(keys[i], value);
+			} catch (Exception e) {
+				ex = e;
+			}
+			assertTrue(ex == null && response.getStatus() == StatusType.DELETE_SUCCESS);
+		}
+	}
+
 	@Test//need to figure out how to implement
 	public void test_multiple_client_gets() {
+		int numGetClients = 3;
+		//int numPutClients = Integer.parseInt(args[1]);
+		KVStore getClients[] = new KVStore[numGetClients];
+		//KVStore putClients[] = new KVStore[numPutClients];
+		Thread threads[] = new Thread[numGetClients/*+ numPutClients*/];
+
+		// performance setup, store 4096 unique kvp in file
+		String[] keys = new String[4096];
+		String[] values = new String[4096];
+		KVStore kvClient = new KVStore("localhost", 8080);
+		KVMessage response = null;
+		Exception ex = null;
+		int i,j,k =0;
+
+		try {
+			kvClient.connect();
+		} catch (Exception e){
+			ex = e;
+		}
+
+		if(ex == null) {
+			for (i = 0; i < getClients.length; i++) {
+				getClients[i] = new KVStore("localhost", 8080);
+				GetClient client = new GetClient(getClients[i], "" + i);
+				threads[i] = new Thread(client);
+				threads[i].start();
+				k++;
+			}
+
+            /*for (j = 0; j < putClients.length; j++) {
+                putClients[j] = new KVStore("localhost", 8080);
+                PutClient client = new PutClient(putClients[j]);
+                threads[k] = new Thread(client);
+                threads[k].start();
+                k++;
+            }*/
+
+			for(k = 0; k < threads.length; k++){
+				System.out.println("Waiting for threads to finish");
+				try {
+					threads[k].join();
+				} catch (Exception e){
+					System.out.println(e.getMessage());
+				}
+			}
+
+			System.out.println("All threads finished");
+
+		} else {
+			System.out.println("Failed to connect run application again");
+		}
+
 		assertTrue(true);
 	}
 
