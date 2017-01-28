@@ -176,12 +176,13 @@ public class AdditionalTest extends TestCase {
 
 	@Test
 	public void test_repeated_put() {
-		String[] keys = new String[4096];
-		String[] values = new String[4096];
+		int amount = 1024;
+		String[] keys = new String[amount];
+		String[] values = new String[amount];
 		KVMessage response = null;
 		Exception ex = null;
 
-		for(int i =0; i < 4096; i++) {
+		for(int i =0; i < amount; i++) {
 			keys[i] = "key" + (i + 1);
 			values[i] = "value" + (i + 1);
 			try {
@@ -191,17 +192,16 @@ public class AdditionalTest extends TestCase {
 			}
 			assertTrue(ex == null && response.getStatus() == StatusType.PUT_SUCCESS);
 		}
-
-        kvClient.disconnect();
 	}
 
 	public void test_repeated_update() {
-		String[] keys = new String[4096];
+		int amount = 1024;
+		String[] keys = new String[amount];
 		String value = "updated";
 		KVMessage response = null;
 		Exception ex = null;
 
-		for(int i =0; i < 4096; i++) {
+		for(int i =0; i < amount; i++) {
 			keys[i] = "key" + (i+1);
 			try {
 				response = kvClient.put(keys[i], value);
@@ -213,12 +213,13 @@ public class AdditionalTest extends TestCase {
 	}
 
 	public void test_repeated_delete() {
-		String[] keys = new String[4096];
+		int amount = 1024;
+		String[] keys = new String[amount];
 		String value = "null";
 		KVMessage response = null;
 		Exception ex = null;
 
-		for(int i =0; i < 4096; i++) {
+		for(int i =0; i < amount; i++) {
 			keys[i] = "key" + (i+1);
 			try {
 				response = kvClient.put(keys[i], value);
@@ -228,7 +229,7 @@ public class AdditionalTest extends TestCase {
 			assertTrue(ex == null && response.getStatus() == StatusType.DELETE_SUCCESS);
 		}
 	}
-
+	
 	@Test//need to figure out how to implement
 	public void test_multiple_client_gets() {
 		int numGetClients = 1;
@@ -285,7 +286,7 @@ public class AdditionalTest extends TestCase {
 
 		assertTrue(true);
 	}
-	
+
 	@Test//need to figure out how to implement
 	public void test_multiple_client_puts() {
 		int numPutClients = 5;
