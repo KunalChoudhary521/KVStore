@@ -1,6 +1,10 @@
 package app_kvServer;
 
+import cache.KVCache;
+import cache.FIFOCache;
+import cache.LFUCache;
 import cache.LRUCache;
+
 import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -34,16 +38,25 @@ public class KVServer  {
 
     private String KVFileName;
 
-    private LRUCache cache;
+    private KVCache cache;
 
-	public KVServer(int port, int cacheSize, String strategy, String KVFileName, boolean log) {
+	public KVServer(int port, int cSize, String strat, String KVFName, boolean log) {
 		this.port = port;
-		this.cacheSize = cacheSize;
-		this.strategy = strategy;
-		this.cache = new LRUCache(100 );
-		this.KVFileName = KVFileName;
+		this.cacheSize = cSize;
+		this.strategy = strat;
+
+        if(this.strategy.equals("FIFO")) { this.cache = new FIFOCache(this.cacheSize ); }
+		else if(this.strategy.equals("LFU")) { this.cache = new LFUCache(this.cacheSize ); }
+        else if(this.strategy.equals("LRU")) { this.cache = new LRUCache(this.cacheSize ); }
+        else  {
+            this.cache = null;
+        }
+
+		this.KVFileName = KVFName;
         this.log = log;
 	}
+
+    public KVCache getKvcache(){return this.cache;}
 
 	public void Run(){
 
