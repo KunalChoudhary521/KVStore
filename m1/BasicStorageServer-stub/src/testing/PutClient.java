@@ -56,6 +56,8 @@ public class PutClient implements Runnable{
 
         float averagePutTime = succesPutCounts/(period/1000);
         System.out.println("Thread " + id + ": Average put time was (requests/second):" + averagePutTime);
+
+        client.disconnect();
     }
 }
 

@@ -229,51 +229,36 @@ public class AdditionalTest extends TestCase {
 			assertTrue(ex == null && response.getStatus() == StatusType.DELETE_SUCCESS);
 		}
 	}
-	
+
 	@Test//need to figure out how to implement
 	public void test_multiple_client_gets() {
-		int numGetClients = 1;
-		//int numPutClients = Integer.parseInt(args[1]);
+		int numGetClients = 4;
 		KVStore getClients[] = new KVStore[numGetClients];
-		//KVStore putClients[] = new KVStore[numPutClients];
-		Thread threads[] = new Thread[numGetClients/*+ numPutClients*/];
+		Thread threads[] = new Thread[numGetClients];
 
-		// performance setup, store 4096 unique kvp in file
-		String[] keys = new String[4096];
-		String[] values = new String[4096];
 		KVStore kvClient = new KVStore("localhost", 8080);
-		KVMessage response = null;
 		Exception ex = null;
-		int i,j,k =0;
+		int i = 0;
 
 		try {
 			kvClient.connect();
-		} catch (Exception e){
+		} catch (Exception e) {
 			ex = e;
 		}
 
-		if(ex == null) {
+		if (ex == null) {
 			for (i = 0; i < getClients.length; i++) {
 				getClients[i] = new KVStore("localhost", 8080);
 				GetClient client = new GetClient(getClients[i], "" + i, 1023);
 				threads[i] = new Thread(client);
 				threads[i].start();
-				k++;
 			}
 
-            /*for (j = 0; j < putClients.length; j++) {
-                putClients[j] = new KVStore("localhost", 8080);
-                PutClient client = new PutClient(putClients[j]);
-                threads[k] = new Thread(client);
-                threads[k].start();
-                k++;
-            }*/
-
-			for(k = 0; k < threads.length; k++){
+			for (i = 0; i < threads.length; i++) {
 				System.out.println("Waiting for threads to finish");
 				try {
-					threads[k].join();
-				} catch (Exception e){
+					threads[i].join();
+				} catch (Exception e) {
 					System.out.println(e.getMessage());
 				}
 			}
@@ -286,100 +271,4 @@ public class AdditionalTest extends TestCase {
 
 		assertTrue(true);
 	}
-
-	@Test//need to figure out how to implement
-	public void test_multiple_client_puts() {
-		int numPutClients = 5;
-		KVStore putClients[] = new KVStore[numPutClients];
-		Thread threads[] = new Thread[numPutClients];
-
-		KVStore kvClient = new KVStore("localhost", 8080);
-		Exception ex = null;
-		int j = 0;
-
-		try {
-			kvClient.connect();
-		} catch (Exception e){
-			ex = e;
-		}
-
-		if(ex == null) {
-			for (j = 0; j < numPutClients; j++) {
-				putClients[j] = new KVStore("localhost", 8080);
-				PutClient client = new PutClient(putClients[j], ""+j, 1024);
-				threads[j] = new Thread(client);
-				threads[j].start();
-			}
-
-			for(j = 0; j < numPutClients; j++){
-				System.out.println("Waiting for threads to finish");
-				try {
-					threads[j].join();
-				} catch (Exception e){
-					System.out.println(e.getMessage());
-				}
-			}
-
-			System.out.println("All threads finished");
-
-		} else {
-			System.out.println("Failed to connect run application again");
-		}
-
-		assertTrue(true);
-	}
-
-	@Test//need to figure out how to implement
-	public void test_multiple_client_gets_puts() {
-		int numGetClients = 2;
-		int numPutClients = 2;
-		KVStore getClients[] = new KVStore[numGetClients];
-		KVStore putClients[] = new KVStore[numPutClients];
-		Thread threads[] = new Thread[numGetClients+ numPutClients];
-
-		KVStore kvClient = new KVStore("localhost", 8080);
-		Exception ex = null;
-		int i,j,k =0;
-
-		try {
-			kvClient.connect();
-		} catch (Exception e){
-			ex = e;
-		}
-
-		if(ex == null) {
-			for (i = 0; i < getClients.length; i++) {
-				getClients[i] = new KVStore("localhost", 8080);
-				GetClient client = new GetClient(getClients[i], "" + i, 9);
-				threads[i] = new Thread(client);
-				threads[i].start();
-				k++;
-			}
-
-			for (j = 0; j < putClients.length; j++) {
-				putClients[j] = new KVStore("localhost", 8080);
-				PutClient client = new PutClient(putClients[j], "" + j, 9);
-				threads[k] = new Thread(client);
-				threads[k].start();
-				k++;
-			}
-
-			for(k = 0; k < threads.length; k++){
-				System.out.println("Waiting for threads to finish");
-				try {
-					threads[k].join();
-				} catch (Exception e){
-					System.out.println(e.getMessage());
-				}
-			}
-
-			System.out.println("All threads finished");
-
-		} else {
-			System.out.println("Failed to connect run application again");
-		}
-
-		assertTrue(true);
-	}
-
 }

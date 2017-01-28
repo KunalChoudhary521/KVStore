@@ -1,6 +1,7 @@
 package app_kvServer;
 
 import java.io.*;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -70,12 +71,15 @@ public class FileStoreHelper {
             }
 
             reader.close();
+            in.close();
+            System.gc();
 
-            originalFileLock.unlock();
             return null;
         } catch (Exception ex) {
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
+        } finally {
+            originalFileLock.unlock();
         }
     }
 
@@ -92,13 +96,15 @@ public class FileStoreHelper {
             writer.write(line); writer.newLine();
             writer.flush();
             writer.close();
+            System.gc();
 
-            originalFileLock.unlock();
 
             return FileStoreStatusType.PUT_SUCCESS;
         } catch (Exception ex) {
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
+        } finally {
+            originalFileLock.unlock();
         }
     }
 
@@ -107,53 +113,62 @@ public class FileStoreHelper {
 
             originalFileLock.lock();
 
-            FileInputStream in = new FileInputStream(file);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-
-            PrintWriter writer = new PrintWriter("./newFile.txt", "UTF-8");
-
-            String line = null;
-
+            FileInputStream in = null;
+            BufferedReader reader = null;
+            PrintWriter writer = null;
             boolean success = false; //only successful if the key was found
 
-            while((line = reader.readLine()) != null) {
-                if (!line.isEmpty()) {
-                    int keyIndex = line.indexOf("key=\"");
-                    keyIndex += "key\"".length() + 1;
-                    String currKey = "";
-                    char currChar = 0;
-                    do {
-                        currChar = line.charAt(keyIndex);
-                        if (currChar != '\"') {
-                            currKey += currChar;
+            try {
+
+                in = new FileInputStream(file);
+                reader = new BufferedReader(new InputStreamReader(in));
+
+                writer = new PrintWriter("./newFile.txt", "UTF-8");
+
+                String line = null;
+
+                while ((line = reader.readLine()) != null) {
+                    if (!line.isEmpty()) {
+                        int keyIndex = line.indexOf("key=\"");
+                        keyIndex += "key\"".length() + 1;
+                        String currKey = "";
+                        char currChar = 0;
+                        do {
+                            currChar = line.charAt(keyIndex);
+                            if (currChar != '\"') {
+                                currKey += currChar;
+                            }
+                            keyIndex++;
+                        } while (currChar != '\"');
+
+                        if (currKey.equals(key) == false) {
+                            // get the value of the xml entry
+                            writer.println(line);
+                            writer.flush();
+                        } else {
+                            success = true;
                         }
-                        keyIndex++;
-                    } while (currChar != '\"');
-
-                    if (currKey.equals(key) == false) {
-                        // get the value of the xml entry
-                        writer.println(line);
                     } else {
-                        success = true;
+                        break;
                     }
-                } else {
-                    break;
                 }
+            } catch (Exception ex)
+            {
+                System.out.println(ex.getMessage());
+            } finally {
+                if(reader != null) { reader.close(); }
+                if(writer != null) { writer.close();}
+                if(in != null) { in.close(); }
+                System.gc();
             }
-
-            reader.close();
-            writer.flush();
-            writer.close();
 
             File old = new File("./TestFile.txt");
             File n = new File("./newFile.txt");
 
-            Files.delete(old.toPath());
+            old.delete();
 
             File another = new File("./TestFile.txt");
             n.renameTo(another);
-
-            originalFileLock.unlock();
 
             if(success) {
                 return FileStoreStatusType.DELETE_SUCCESS;
@@ -164,6 +179,8 @@ public class FileStoreHelper {
             originalFileLock.unlock();
 
             throw new Exception(ex.getMessage());
+        } finally {
+            originalFileLock.unlock();
         }
     }
 
@@ -171,45 +188,55 @@ public class FileStoreHelper {
         try {
             originalFileLock.lock();
 
-            FileInputStream in = new FileInputStream(file);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-
-            PrintWriter writer = new PrintWriter("./newFile.txt","UTF-8");
-
-            String newline = createFilEntryFromKVP(key, value);
-            String line = null; //only successful if they key was found
-
+            FileInputStream in = null;
+            BufferedReader reader = null;
+            PrintWriter writer = null;
             boolean success = false;
 
-            while((line = reader.readLine()) != null){
-                if(!line.isEmpty()) {
-                    int keyIndex = line.indexOf("key=\"");
-                    keyIndex += "key\"".length() + 1;
-                    String currKey = "";
-                    char currChar = 0;
-                    do {
-                        currChar = line.charAt(keyIndex);
-                        if (currChar != '\"') {
-                            currKey += currChar;
+            try{
+                in = new FileInputStream(file);
+                reader = new BufferedReader(new InputStreamReader(in));
+                writer = new PrintWriter("./newFile.txt","UTF-8");
+
+                String newline = createFilEntryFromKVP(key, value);
+                String line = null; //only successful if they key was found
+
+                while((line = reader.readLine()) != null){
+                    if(!line.isEmpty()) {
+                        int keyIndex = line.indexOf("key=\"");
+                        keyIndex += "key\"".length() + 1;
+                        String currKey = "";
+                        char currChar = 0;
+                        do {
+                            currChar = line.charAt(keyIndex);
+                            if (currChar != '\"') {
+                                currKey += currChar;
+                            }
+                            keyIndex++;
+                        } while (currChar != '\"');
+
+                        if (currKey.equals(key) == false) {
+                            // get the value of the xml entry
+                            writer.println(line);
+                            writer.flush();
+                        } else {
+                            success = true;
+                            writer.println(newline);
+                            writer.flush();
                         }
-                        keyIndex++;
-                    } while (currChar != '\"');
-
-                    if (currKey.equals(key) == false) {
-                        // get the value of the xml entry
-                        writer.println(line);
                     } else {
-                        success = true;
-                        writer.println(newline);
+                        break;
                     }
-                } else {
-                    break;
                 }
+            }  catch (Exception ex)
+            {
+                System.out.println(ex.getMessage());
+            } finally {
+                if(reader != null) { reader.close(); }
+                if(writer != null) { writer.close();}
+                if(in != null) { in.close(); }
+                System.gc();
             }
-
-            reader.close();
-            writer.flush();
-            writer.close();
 
             File old = new File("./TestFile.txt");
             File n = new File("./newFile.txt");
@@ -219,8 +246,6 @@ public class FileStoreHelper {
             File another = new File("./TestFile.txt");
             n.renameTo(another);
 
-            originalFileLock.unlock();
-
             if(success) {
                 return FileStoreStatusType.UPSERT_SUCCESS;
             }else {
@@ -229,6 +254,8 @@ public class FileStoreHelper {
         } catch (Exception ex) {
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
+        } finally {
+            originalFileLock.unlock();
         }
     }
 
