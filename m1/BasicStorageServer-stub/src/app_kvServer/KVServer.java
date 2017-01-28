@@ -30,18 +30,19 @@ public class KVServer  {
 	private boolean isRunning;
 	private ServerSocket socket;
     private static Logger logger = Logger.getRootLogger();
+    private boolean log;
 
     private String KVFileName;
 
     private LRUCache cache;
 
-	public KVServer(int port, int cacheSize, String strategy, String KVFileName) {
+	public KVServer(int port, int cacheSize, String strategy, String KVFileName, boolean log) {
 		this.port = port;
 		this.cacheSize = cacheSize;
 		this.strategy = strategy;
-		this.cache = new LRUCache(100);
+		this.cache = new LRUCache(100 );
 		this.KVFileName = KVFileName;
-
+        this.log = log;
 	}
 
 	public void Run(){
@@ -52,19 +53,25 @@ public class KVServer  {
                 try {
                     Socket client = socket.accept();
                     ClientConnection connection =
-                            new ClientConnection(client,this, this.KVFileName);
+                            new ClientConnection(client,this, this.KVFileName, this.log);
                     new Thread(connection).start();
 
-                    logger.info("Connected to "
-                            + client.getInetAddress().getHostName()
-                            +  " on port " + client.getPort());
+                    if(log) {
+                        logger.info("Connected to "
+                                + client.getInetAddress().getHostName()
+                                + " on port " + client.getPort());
+                    }
                 } catch (IOException e) {
-                    logger.error("Error! " +
-                            "Unable to establish connection. \n", e);
+                    if(log) {
+                        logger.error("Error! " +
+                                "Unable to establish connection. \n", e);
+                    }
                 }
             }
         }
-        logger.info("Server stopped.");
+        if(log) {
+            logger.info("Server stopped.");
+        }
 	}
 
 	public void Stop(){
@@ -74,15 +81,18 @@ public class KVServer  {
         } catch (IOException e) {
             logger.error("Error! " +
                     "Unable to close socket on port: " + port, e);
+
         }
     }
 
 	private boolean InitializeServer(){
         logger.info("Initialize server ...");
+
         try {
             socket = new ServerSocket(port);
             logger.info("Server listening on port: "
                     + socket.getLocalPort());
+
             return true;
 
         } catch (IOException e) {
@@ -100,6 +110,7 @@ public class KVServer  {
 	    int cacheSize = Integer.parseInt(args[1]);
         String strategy = args[2];
         String KVFileName = args[3];
+        boolean shouldLog = Boolean.parseBoolean(args[4]);
 
         try {
             new LogSetup("/m1/BasicStorageServer-stub/logs/server.log", Level.ALL);
@@ -108,7 +119,7 @@ public class KVServer  {
             System.out.println(ex.getMessage());
         }
 
-        KVServer server = new KVServer(port, cacheSize, strategy, KVFileName);
+        KVServer server = new KVServer(port, cacheSize, strategy, KVFileName, shouldLog);
         server.Run();
     }
 

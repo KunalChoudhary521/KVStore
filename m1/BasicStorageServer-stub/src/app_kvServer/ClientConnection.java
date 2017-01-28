@@ -31,16 +31,18 @@ public class ClientConnection implements Runnable {
 	private OutputStream output;
 	private KVServer server;
 	private FileStoreHelper fileStoreHelper;
+	private boolean log;
 	
 	/**
 	 * Constructs a new CientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, KVServer server, String KVFileName) {
+	public ClientConnection(Socket clientSocket, KVServer server, String KVFileName, boolean log) {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.server = server;
 		this.fileStoreHelper = new FileStoreHelper(KVFileName);
+		this.log = log;
 	}
 	
 	/**
@@ -55,15 +57,18 @@ public class ClientConnection implements Runnable {
 			while(isOpen) {
 				try {
 					TextMessage latestMsg = receiveMessage();
-					System.out.println("command: "+latestMsg.getMsg().trim()+"type:"+(latestMsg.getMsg().trim()).getClass().getName());
+					if(log) {
+						System.out.println("command: " + latestMsg.getMsg().trim() + "type:" + (latestMsg.getMsg().trim()).getClass().getName());
+					}
 					if (latestMsg.getMsg().trim().contains("P")){
-						System.out.println("handling put");
+						//System.out.println("handling put");
 						handle_put();
 						
 					}
 					else if (latestMsg.getMsg().trim().contains("G")){
-						
-						System.out.println("handling get");
+						if(log) {
+							System.out.println("handling get");
+						}
 						handle_get();
 					}
 				//	sendMessage(latestMsg);
@@ -72,7 +77,9 @@ public class ClientConnection implements Runnable {
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
 				} catch (IOException ioe) {
-					logger.info("Error! Connection lost!");
+					if(log) {
+						logger.info("Error! Connection lost!");
+					}
 					isOpen = false;
 				}catch (Exception ex){
 					logger.info(ex.getMessage());
@@ -98,8 +105,10 @@ public class ClientConnection implements Runnable {
 	
 	public void handle_get() throws Exception, IOException{
 		String key = receiveMessage().getMsg().trim();
-		System.out.println("key: "+key);
-		logger.info("Client tried to get key: '"+key+"'");
+		if(log) {
+			System.out.println("key: " + key);
+			logger.info("Client tried to get key: '" + key + "'");
+		}
 		try{
 			if (key.length()>20){
 				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
@@ -107,7 +116,9 @@ public class ClientConnection implements Runnable {
 			int length = 0;
 			//check if we have the key in our file
 			String payload = this.server.findInCache(key);
-			System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
+			if(log) {
+				System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
+			}
 
 			int got_key = 0;
 
@@ -117,6 +128,7 @@ public class ClientConnection implements Runnable {
                 got_key = 0;
                 String result = fileStoreHelper.FindFromFile(key);
                 if(result != null){
+                	// PUT in the cache if there is space
                     got_key = 1;
                     payload = result;
                     length = payload.length();
@@ -142,7 +154,9 @@ public class ClientConnection implements Runnable {
 				}
 				message[2+kl]= (byte) 0;
 				for (int i = 0; i <ll; i++){
-					System.out.println("adding "+length_str.charAt(i));
+					if(log) {
+						System.out.println("adding " + length_str.charAt(i));
+					}
 					message[3+kl+i]=(byte) length_str.charAt(i);
 				}
 				message[3+kl+ll] = (byte) 0;
@@ -150,9 +164,13 @@ public class ClientConnection implements Runnable {
 					message[4+kl+ll+i] = (byte) payload.charAt(i);
 				}
 				message[4+kl+ll+length]=(byte)0;
-				System.out.println("sending");
+				if(log) {
+					System.out.println("sending");
+				}
 				this.sendMessage(message, 5+kl+ll+length);
-				System.out.println("sent");
+				if(log) {
+					System.out.println("sent");
+				}
 			}
 			else{
 				byte[] message = new byte[2];
@@ -160,11 +178,13 @@ public class ClientConnection implements Runnable {
 				message[1]=(byte) 0;
 				this.sendMessage(message, 2);
 				String msg = "Get, client sent non-existent key, key = '"+key+"'";
-	        	logger.info(msg);
+				if(log) {
+					logger.info(msg);
+				}
 			}
 		}
 		catch(Exception ex) {
-            logger.info(ex.getMessage());
+			logger.info(ex.getMessage());
         }
 	}
 	public void handle_put(){
@@ -173,26 +193,38 @@ public class ClientConnection implements Runnable {
 		try{
 			for (int i =0; i<2; i++){
 				client_msgs[i] = this.receiveMessage().getMsg().trim();
-				System.out.println("recieved "+client_msgs[i]);
+				if(log) {
+					System.out.println("recieved " + client_msgs[i]);
+				}
 			}
-			System.out.println("key: "+client_msgs[0]);
-			System.out.println("size: "+client_msgs[1]);
-			logger.info("Put, client wants to place "+client_msgs[1]+" bytes for key '"+client_msgs[0]+"'");
+			if(log) {
+				System.out.println("key: " + client_msgs[0]);
+				System.out.println("size: " + client_msgs[1]);
+				logger.info("Put, client wants to place " + client_msgs[1] + " bytes for key '" + client_msgs[0] + "'");
+			}
 			int kl = client_msgs[0].length();
 			int ll = client_msgs[1].length();
-			System.out.println("validating lengths");
+			if(log) {
+				System.out.println("validating lengths");
+			}
 			if (kl>20){
-				System.out.println("long key");
+				if(log) {
+					System.out.println("long key");
+				}
 				byte [] message = new byte [2];
 				message[0]=(byte) 'F';
 				message[1] = (byte) 0;
 				this.sendMessage(message, 2);
 				throw new Exception("Put, client sent too long of a key, key = '"+client_msgs[0]+"', length = "+kl);
 			}
-			System.out.println("key not too long");
-			System.out.println(Integer.valueOf(client_msgs[1].trim()));
+			if(log) {
+				System.out.println("key not too long");
+				System.out.println(Integer.valueOf(client_msgs[1].trim()));
+			}
 			if (Integer.valueOf(client_msgs[1].trim())>(120*1024)){
-				System.out.println("long message");
+				if(log) {
+					System.out.println("long message");
+				}
 				byte [] message = new byte [2];
 				message[0]=(byte) 'F';
 				message[1] = (byte) 0;
@@ -225,10 +257,14 @@ public class ClientConnection implements Runnable {
 			this.sendMessage(message, 4+kl+ll);
 			for (int i = 2; i<4; i++){
 				client_msgs[i] = this.receiveMessage().getMsg().trim();
-				System.out.println("recieved" + client_msgs[i]);
+				if(log) {
+					System.out.println("recieved" + client_msgs[i]);
+				}
 			}
-			System.out.println("flag: "+client_msgs[2]);
-			System.out.println("payload: "+client_msgs[3]);
+			if(log) {
+				System.out.println("flag: " + client_msgs[2]);
+				System.out.println("payload: " + client_msgs[3]);
+			}
 			if (client_msgs[2].contains("F")){
 				throw new Exception("Put, client sent a failure signal");
 			}
@@ -236,7 +272,9 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
 			}
 			///overwrite the payload or whatever other file stuff her
-			System.out.println("NEED TO IMPLEMENT INSERTION, UPDATE and Deletion IN FILE");
+			if(log) {
+				System.out.println("NEED TO IMPLEMENT INSERTION, UPDATE and Deletion IN FILE");
+			}
 
 			int cacheSuccess =0; //change based on insertion results
 			int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
@@ -245,7 +283,9 @@ public class ClientConnection implements Runnable {
                 // PUT
 				this.server.addToCache(client_msgs[0],client_msgs[3]);
 				cacheSuccess = 1;
-				System.out.println("cached");
+				if(log) {
+					System.out.println("cached");
+				}
 
                 FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
                 if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
@@ -287,7 +327,8 @@ public class ClientConnection implements Runnable {
 			}
 		}
 		catch(Exception ex) {
-            logger.info(ex.getMessage());
+			logger.info(ex.getMessage());
+
         }
 	}
 	
@@ -295,7 +336,9 @@ public class ClientConnection implements Runnable {
 		output.write(msg, 0, len);
 		output.flush();
 		String message = new String(msg,0,len);
-		logger.info("Send message:\t '" + message + "'");
+		if(log) {
+			logger.info("Send message:\t '" + message + "'");
+		}
     }
     private TextMessage receiveMessage() throws IOException {
 		
@@ -353,7 +396,9 @@ public class ClientConnection implements Runnable {
 		
 		/* build final String */
 		TextMessage msg = new TextMessage(msgBytes);
-		logger.info("Receive message:\t '" + msg.getMsg() + "'");
+		if(log) {
+			logger.info("Receive message:\t '" + msg.getMsg() + "'");
+		}
 		return msg;
     }
 }
