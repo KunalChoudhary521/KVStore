@@ -26,8 +26,9 @@ public class FileStoreHelper {
     };
 
     public FileStoreHelper(String fileName){
-        this.file = fileName;
-        originalFileLock = new ReentrantLock();
+	this.file = System.getProperty("user.dir")+fileName;
+        System.out.println(this.file);
+	originalFileLock = new ReentrantLock();
     }
 
     public String FindFromFile(String key, boolean log) throws Exception{

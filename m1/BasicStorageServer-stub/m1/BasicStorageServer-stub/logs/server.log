@@ -1,0 +1,11 @@
+2017-01-28 18:58:11,585 INFO  [main] root: Initialize server ...
+2017-01-28 18:58:11,588 INFO  [main] root: Server listening on port: 8080
+2017-01-28 18:58:58,976 INFO  [main] root: Connected to localhost on port 35072
+2017-01-28 18:59:14,275 INFO  [Thread-0] root: Receive message:	 'P
+'
+2017-01-28 18:59:14,276 INFO  [Thread-0] root: Receive message:	 'apple
+'
+2017-01-28 18:59:14,277 INFO  [Thread-0] root: Receive message:	 '5
+'
+2017-01-28 18:59:14,277 INFO  [Thread-0] root: Put, client wants to place 5 bytes for key 'apple'
+2017-01-28 18:59:14,280 INFO  [Thread-0] root: 

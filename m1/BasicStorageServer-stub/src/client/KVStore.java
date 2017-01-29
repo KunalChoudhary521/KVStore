@@ -12,7 +12,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.sql.Time;
-import java.time.LocalTime;
 import java.util.Date;
 import java.util.Set;
 
@@ -55,7 +54,7 @@ public class KVStore implements KVCommInterface {
 			this.input = clientSocket.getInputStream();
 
 		} catch(Exception ex){
-			logger.error("connection error at"+ Time.valueOf(LocalTime.now()), ex);//this.logger.trace(ex.getMessage());
+			logger.error("connection error at"+ new Date().toString(), ex);//this.logger.trace(ex.getMessage());
 		}
 
 		if(clientSocket.isConnected()){
