@@ -179,6 +179,7 @@ public class AdditionalTest extends TestCase {
 	/**
 	 * Repeatedly hammers the server with an amount of puts
 	 * All of them have to be successful for this test to pass
+	 * !!!!! Should clear contents of the file before proceeding !!!!!
 	 * */
 	public void test_repeated_put() {
 		int amount = 1024;
