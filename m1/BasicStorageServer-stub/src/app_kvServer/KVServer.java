@@ -136,7 +136,7 @@ public class KVServer  {
         boolean shouldLog = Boolean.parseBoolean(args[4]);
 
         try {
-            new LogSetup("/m1/BasicStorageServer-stub/logs/server.log", Level.ALL);
+            new LogSetup(System.getProperty("user.dir")+"/logs/server.log", Level.ALL);
         } catch (Exception ex)
         {
             System.out.println(ex.getMessage());

@@ -240,7 +240,7 @@ public class KVClient {
 
     public static void main(String args[]){
         try {
-            new LogSetup(System.getProperty("user.dir")+"/m1/BasicStorageServer-stub/logs/client.log", Level.ALL);
+            new LogSetup(System.getProperty("user.dir")+"/logs/client.log", Level.ALL);
             KVClient app = new KVClient();
             app.run();
         } catch (Exception ex){
