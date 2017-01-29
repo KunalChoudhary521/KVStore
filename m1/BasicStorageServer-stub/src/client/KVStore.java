@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.sql.Time;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.Set;
 
@@ -40,14 +42,20 @@ public class KVStore implements KVCommInterface {
 	private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
 
 	//@Override
+	/*
+	Connects to a server at address:port and sets up input/output
+	 */
 	public void connect() throws Exception {
 		this.clientSocket = new Socket(address, port);
 
 		try {
+			logger.debug("getting output at"+new Date().toString());
 			this.output = clientSocket.getOutputStream();
+			logger.debug("getting input at"+new Date().toString());
 			this.input = clientSocket.getInputStream();
+
 		} catch(Exception ex){
-			logger.info(ex.getMessage());//this.logger.trace(ex.getMessage());
+			logger.error("connection error at"+ Time.valueOf(LocalTime.now()), ex);//this.logger.trace(ex.getMessage());
 		}
 
 		if(clientSocket.isConnected()){
@@ -56,12 +64,15 @@ public class KVStore implements KVCommInterface {
 		} else {
 			String message = "Could not connect to host " + this.address + ":"
 					+ this.port + "at " + new Date().toString();
-			logger.info(message);//this.logger.trace(message);
+			logger.error(message);
 			throw new Exception(message);
 		}
 	}
 
 	//@Override
+	/*
+	disconnects from current connection
+	 */
 	public void disconnect() {
 		String message = "try to close connection with " + this.address +":" + this.port
 	    		+ "at" + new Date().toString();
@@ -72,40 +83,62 @@ public class KVStore implements KVCommInterface {
 	    		for (ClientSocketListener listener : listeners){
 	    			listener.handleStatus(SocketStatus.DISCONNECTED);
 	    		}
+	    		logger.info("connection closed with " + this.address +":" + this.port
+						+ "at" + new Date().toString());
 	    	}catch(Exception ioe){
-	    		logger.info("Unable to close connection!");
+	    		logger.warn("Unable to close connection!",ioe);
 	    	}
 	}
+	/*
+	disconnects from current connection
+	 */
 	private void tearDownConnection() throws IOException{
     	setRunning(false);
     	String message = "tearing down connection "+this.address +":"+this.port+"at"+new Date().toString();
     	logger.info(message);
     	if (clientSocket != null){
+    		logger.debug("closing input at"+new Date().toString());
     		input.close();
+			logger.debug("closing output at"+new Date().toString());
     		output.close();
+			logger.debug("closing socket at"+new Date().toString());
     		clientSocket.close();
     		clientSocket =null;
     		message = "connection:"+this.address +":"+this.port
     				+ "closed at" + new Date().toString();
+    		logger.info(message);
     	}
     }
+
+    /*
+    returns running state of client
+     */
     public boolean isRunning() {
 		return running;
 	}
+
+	/*sets client to running state given by run*/
     public void setRunning(boolean run) {
-		running = run;
+		logger.info("run state now"+run+"at"+new Date().toString());
+    	running = run;
 	}
+   /*adds ClientSocketListener listener to the list*/
     public void addListener(ClientSocketListener listener){
 		listeners.add(listener);
 	}
-    
+
+	/*sends len bytes over the socket*/
     public void sendMessage(byte[] msg, int len) throws IOException {
-		output.write(msg, 0, len);
-		output.flush();
 		String message = new String(msg,0,len);
-		logger.info("Send message:\t '" + message + "'");
+    	logger.info("Send message:\t '" + message + "'");
+    	output.write(msg, 0, len);
+		output.flush();
+		logger.info("sent message:\t '" + message + ";");
     }
-    
+
+    /*removes a message from the socket. Stops reading at
+    0 byte
+     */
     private TextMessage receiveMessage() throws IOException {
 		
 		int index = 0;
@@ -115,7 +148,7 @@ public class KVStore implements KVCommInterface {
 		/* read first char from stream */
 		byte read = (byte) input.read();	
 		boolean reading = true;
-		
+		logger.info("client recieving message at "+ new Date().toString());
 		while(read != 0 && reading) {/* carriage return */
 			/* if buffer filled, copy to msg array */
 			if(index == BUFFER_SIZE) {
@@ -143,6 +176,7 @@ public class KVStore implements KVCommInterface {
 			/* stop reading is DROP_SIZE is reached */
 			if(msgBytes != null && msgBytes.length + index >= DROP_SIZE) {
 				reading = false;
+				logger.warn("Drop size reached");
 			}
 			
 			/* read next char from stream */

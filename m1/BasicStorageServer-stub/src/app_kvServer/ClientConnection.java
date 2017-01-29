@@ -115,7 +115,7 @@ public class ClientConnection implements Runnable {
 			}
 			int length = 0;
 			//check if we have the key in our file
-			String payload = this.server.findInCache(key);
+			String payload = this.server.findInCache(key,log);
 			if(log) {
 				System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			}
@@ -126,7 +126,7 @@ public class ClientConnection implements Runnable {
             {
                 // was not found in cache find in file
                 got_key = 0;
-                String result = fileStoreHelper.FindFromFile(key);
+                String result = fileStoreHelper.FindFromFile(key,log);
                 if(result != null){
                 	// PUT in the cache if there is space
 					this.server.getKvcache().insertInCache(key,result);//is result Value?
@@ -236,8 +236,12 @@ public class ClientConnection implements Runnable {
 			//GET the key from the file on disk populate below variables based on file
 			//System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			int got_key = 0;
-			if ((this.server.findInCache(client_msgs[0])!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
+			if ((this.server.findInCache(client_msgs[0],log)!=null) || fileStoreHelper.FindFromFile(client_msgs[0],log)!=null){
 				got_key = 1;
+			}
+			if(log) {
+				System.out.println("got_key="+got_key);
+
 			}
 
 			byte[] message = new byte[4+kl+ll];
@@ -256,6 +260,9 @@ public class ClientConnection implements Runnable {
 				message[3+kl+i] = (byte) client_msgs[1].charAt(i);
 			}
 			message[3+kl+ll]=(byte) 0;
+			if(log) {
+				System.out.println("sending");
+			}
 			this.sendMessage(message, 4+kl+ll);
 			for (int i = 2; i<4; i++){
 				client_msgs[i] = this.receiveMessage().getMsg().trim();
@@ -283,6 +290,9 @@ public class ClientConnection implements Runnable {
 
 			if(got_key == 0 && !client_msgs[3].equals("null")) {
                 // PUT
+				if(log) {
+					System.out.println("adding to cache");
+				}
 				this.server.addToCache(client_msgs[0],client_msgs[3]);
 				cacheSuccess = 1;
 				if(log) {
@@ -298,17 +308,41 @@ public class ClientConnection implements Runnable {
 			    // UPDATE OR DELETE
                 if(client_msgs[3].equals("null")){
                     // DELETE
+					if(log) {
+						System.out.println("deleting from file");
+					}
                     FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(client_msgs[0]);
+					if(log) {
+						System.out.println("deleted");
+					}
                     if(result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS){
+						if(log) {
+							System.out.println("deleting from cache");
+						}
                         fileSuccess = 1;
                         this.server.getKvcache().deleteFromCache(client_msgs[0]);
+						if(log) {
+							System.out.println("deleted");
+						}
                     }
                 } else {
                     // UPDATE
+					if(log) {
+						System.out.println("updating in file");
+					}
                     FileStoreHelper.FileStoreStatusType result = fileStoreHelper.UpsertInFile(client_msgs[0], client_msgs[3]);
+					if(log) {
+						System.out.println("updated");
+					}
                     if(result == FileStoreHelper.FileStoreStatusType.UPSERT_SUCCESS){
                         fileSuccess = 1;
+						if(log) {
+							System.out.println("adding to cache");
+						}
 						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[1]);
+						if(log) {
+							System.out.println("added to cache");
+						}
                     }
                 }
             }

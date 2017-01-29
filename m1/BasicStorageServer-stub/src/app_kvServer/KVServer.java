@@ -148,12 +148,28 @@ public class KVServer  {
 
     public void addToCache(String k, String v)
     {
-        this.cache.insertInCache(k,v);
+        if(log) {
+            System.out.println("about to check cache size before adding");
+        }
+        if (this.cacheSize >0) {
+            if(log) {
+                System.out.println("size>0");
+            }
+            this.cache.insertInCache(k, v);
+        }
     }
 
-    public String findInCache(String k)
+    public String findInCache(String k, boolean log)
     {
-        String val = this.cache.checkCache(k);
+        if (this.cacheSize == 0)
+            return null;
+        if(log) {
+            System.out.println("checking cache");
+        }
+        String val = this.cache.checkCache(k,log);
+        if(log) {
+            System.out.println("cache returned"+val);
+        }
         return val;
     }
 }
