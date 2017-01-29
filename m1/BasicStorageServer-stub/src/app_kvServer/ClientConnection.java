@@ -41,7 +41,7 @@ public class ClientConnection implements Runnable {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.server = server;
-		this.fileStoreHelper = new FileStoreHelper(KVFileName);
+		this.fileStoreHelper = new FileStoreHelper(KVFileName, this.log);
 		this.log = log;
 	}
 	
