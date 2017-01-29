@@ -108,7 +108,6 @@ public class FileStoreHelper {
                         if(log){
                             System.out.println("Found the key constructing the value.");
                         }
-
                         // get the value of the xml entry
                         String value = "";
                         keyIndex++;
