@@ -11,32 +11,45 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Created by Zabeeh on 1/26/2017.
  */
+
+
+/**
+ * An API for storing and getting KVPs from a file on disk
+ */
 public class FileStoreHelper {
 
     private String file;
 
     private ReentrantLock originalFileLock;
 
+    /**
+     * Various result statuses
+     * */
     public enum FileStoreStatusType {
         PUT_SUCCESS,
+        PUT_FAIL,
         DELETE_SUCCESS,
         DELETE_FAIL,
         UPSERT_SUCCESS,
         UPSERT_FAIL
     };
 
+    /**
+     * Constructor just takes a fileName and initializes a lock for all file access
+     * */
     public FileStoreHelper(String fileName){
-	this.file = System.getProperty("user.dir")+fileName;
-        System.out.println(this.file);
-	originalFileLock = new ReentrantLock();
+        this.file = fileName;
+        originalFileLock = new ReentrantLock();
     }
 
-    public String FindFromFile(String key, boolean log) throws Exception{
+    /**
+     * Searches a kvp in a file
+     * @param key a string key
+     * @return string value, null when not found
+     * */
+    public String FindFromFile(String key) throws Exception{
         try {
-            if(log) {
-                System.out.println("checking file");
-            }
-            //String currPath = System.getProperty("user.dir");
+            String currPath = System.getProperty("user.dir");
 
             originalFileLock.lock();
 
@@ -45,12 +58,15 @@ public class FileStoreHelper {
 
             String line = null;
 
+            // read each line from the file
             while((line = reader.readLine()) != null){
+                // if line is not empty parse the xml line
                 if(!line.isEmpty()) {
                     int keyIndex = line.indexOf("key=\"");
                     keyIndex += "key\"".length() + 1;
                     String currKey = "";
                     char currChar = 0;
+                    // read the key
                     do {
                         currChar = line.charAt(keyIndex);
                         if (currChar != '\"') {
@@ -59,6 +75,7 @@ public class FileStoreHelper {
                         keyIndex++;
                     } while (currChar != '\"');
 
+                    // compare the key from the line to what was passed in
                     if (currKey.equals(key)) {
                         // get the value of the xml entry
                         String value = "";
@@ -67,9 +84,11 @@ public class FileStoreHelper {
                         do {
                             keyIndex++;
                         } while (!line.substring(keyIndex, keyIndex + 8).equals("</entry>"));
-                        if(log) {
-                            System.out.println("returning "+line.substring(to_start, keyIndex));
-                        }
+
+                        //if key matched return it otherwise continue reading the file
+                        reader.close();
+                        in.close();
+                        System.gc(); //FORCES the file to be closed
                         return line.substring(to_start, keyIndex);
                     }
                 } else {
@@ -79,10 +98,8 @@ public class FileStoreHelper {
 
             reader.close();
             in.close();
-            System.gc();
-            if(log) {
-                System.out.println("returning null");
-            }
+            System.gc(); //FORCES the file to be closed
+
             return null;
         } catch (Exception ex) {
             originalFileLock.unlock();
@@ -92,6 +109,12 @@ public class FileStoreHelper {
         }
     }
 
+    /**
+     * Stores a kvp in the file
+     * @param key string key
+     * @param value string value
+     * @value returns a FileStoreStatusType or throws an exception
+     * */
     public FileStoreStatusType PutInFile(String key, String value) throws Exception{
         try {
             //String currPath = System.getProperty("user.dir");
@@ -107,8 +130,8 @@ public class FileStoreHelper {
             writer.close();
             System.gc();
 
-
             return FileStoreStatusType.PUT_SUCCESS;
+
         } catch (Exception ex) {
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
@@ -117,6 +140,11 @@ public class FileStoreHelper {
         }
     }
 
+    /**
+     * Delete a kvp in the file by creating a new file without the particular kvp
+     * @param key string key
+     * @value returns a FileStoreStatusType or throws an exception
+     * */
     public FileStoreStatusType DeleteInFile(String key) throws Exception{
         try {
 
@@ -186,13 +214,17 @@ public class FileStoreHelper {
             }
         } catch (Exception ex) {
             originalFileLock.unlock();
-
             throw new Exception(ex.getMessage());
         } finally {
             originalFileLock.unlock();
         }
     }
 
+    /**
+     * Upserts a kvp in the file by creating a new file with the updated kvp
+     * @param key string key
+     * @value returns a FileStoreStatusType or throws an exception
+     * */
     public FileStoreStatusType UpsertInFile(String key, String value) throws Exception{
         try {
             originalFileLock.lock();

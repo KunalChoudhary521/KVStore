@@ -102,7 +102,12 @@ public class ClientConnection implements Runnable {
 			}
 		}
 	}
-	
+
+	/**
+	 * All the parsing logic for handling a get request
+	 * Also calls the cache and FileStore instances to obtain kvp
+	 * Builds back a message and sends it back to the client
+	 * */
 	public void handle_get() throws Exception, IOException{
 		String key = receiveMessage().getMsg().trim();
 		if(log) {
@@ -126,7 +131,7 @@ public class ClientConnection implements Runnable {
             {
                 // was not found in cache find in file
                 got_key = 0;
-                String result = fileStoreHelper.FindFromFile(key,log);
+                String result = fileStoreHelper.FindFromFile(key);
                 if(result != null){
                 	// PUT in the cache if there is space
 					this.server.getKvcache().insertInCache(key,result);//is result Value?
@@ -189,6 +194,12 @@ public class ClientConnection implements Runnable {
 			logger.info(ex.getMessage());
         }
 	}
+
+	/**
+	 * All the parsing logic for handling a put request
+	 * Also calls the cache and FileStore instances to store the kvp
+	 * Builds back a message and sends it back to the client
+	 * */
 	public void handle_put(){
 		String [] client_msgs = new String[4];
 		
@@ -234,9 +245,8 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Put, client sent too large a size, size = "+client_msgs[1]);
 			}
 			//GET the key from the file on disk populate below variables based on file
-			//System.out.println("NEED TO IMPLEMENT CHECK FOR KEY and retrieval of size and value");
 			int got_key = 0;
-			if ((this.server.findInCache(client_msgs[0],log)!=null) || fileStoreHelper.FindFromFile(client_msgs[0],log)!=null){
+			if ((this.server.findInCache(client_msgs[0],log)!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
 				got_key = 1;
 			}
 			if(log) {
@@ -280,12 +290,7 @@ public class ClientConnection implements Runnable {
 			if(client_msgs[3].length() != Integer.parseInt(client_msgs[1].trim())){
 				throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
 			}
-			///overwrite the payload or whatever other file stuff her
-			if(log) {
-				System.out.println("NEED TO IMPLEMENT INSERTION, UPDATE and Deletion IN FILE");
-			}
 
-			int cacheSuccess =0; //change based on insertion results
 			int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
 
 			if(got_key == 0 && !client_msgs[3].equals("null")) {
@@ -294,11 +299,9 @@ public class ClientConnection implements Runnable {
 					System.out.println("adding to cache");
 				}
 				this.server.addToCache(client_msgs[0],client_msgs[3]);
-				cacheSuccess = 1;
 				if(log) {
 					System.out.println("cached");
 				}
-
                 FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
                 if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
                 {
@@ -339,7 +342,7 @@ public class ClientConnection implements Runnable {
 						if(log) {
 							System.out.println("adding to cache");
 						}
-						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[1]);
+						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[3]);
 						if(log) {
 							System.out.println("added to cache");
 						}
@@ -369,7 +372,10 @@ public class ClientConnection implements Runnable {
 
         }
 	}
-	
+
+	/**
+	 * Mostly from the stub code. Sends a message to the client by writing in the stream
+	 * */
     public void sendMessage(byte[] msg, int len) throws IOException {
 		output.write(msg, 0, len);
 		output.flush();
@@ -378,6 +384,11 @@ public class ClientConnection implements Runnable {
 			logger.info("Send message:\t '" + message + "'");
 		}
     }
+
+	/**
+	 * Mostly from the stub code. Receives and parses a message sent from a client
+	 * Reads from the input stream
+	 * */
     private TextMessage receiveMessage() throws IOException {
 		
 		int index = 0;

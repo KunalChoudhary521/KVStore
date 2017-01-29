@@ -1,4 +1,4 @@
-package testing;
+package stress;
 
 import java.util.Random;
 
