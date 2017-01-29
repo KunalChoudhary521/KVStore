@@ -40,6 +40,14 @@ public class KVServer  {
 
     private KVCache cache;
 
+    /**
+    * KVServer contructor
+    * @param port the port on which the server is to run
+    * @param cSize the size of the cache in terms of the number of key-value pairs
+    * @param strat cache policy to run
+    * @param KVFName the file in which to store KVP on disk
+    * @param log a variable to toggle logging
+    * */
 	public KVServer(int port, int cSize, String strat, String KVFName, boolean log) {
 		this.port = port;
 		this.cacheSize = cSize;
@@ -68,6 +76,12 @@ public class KVServer  {
 
     public KVCache getKvcache(){return this.cache;}
 
+
+    /**
+    * Repeatedly listen for incoming connections, once a connection is recieved,
+    * pass it to a worker thread. The work done by a worker thread is defined in
+    * ClientConnection
+    * */
 	public void Run(){
 
 	    isRunning = InitializeServer();
@@ -97,6 +111,9 @@ public class KVServer  {
         }
 	}
 
+	/**
+	* Stops the server
+	* */
 	public void Stop(){
         isRunning = false;
         try {
@@ -108,6 +125,9 @@ public class KVServer  {
         }
     }
 
+    /**
+    * Initializes the server by trying to obtain a socket on the port
+    * */
 	private boolean InitializeServer(){
         logger.info("Initialize server ...");
 
@@ -127,6 +147,11 @@ public class KVServer  {
         }
     }
 
+    /**
+    * Entry point for KVServer
+    * Parses command line arguments and starts a KVServer
+    * @param args an array of string command line arguments
+    * */
     public static void main(String[] args){
 	    // todo validation
 	    int port = Integer.parseInt(args[0]);
@@ -146,6 +171,13 @@ public class KVServer  {
         server.Run();
     }
 
+
+    /**
+    * KVServer contains a global cache and provides an interface to threads
+    * for adding to a cache
+    * @param k the key
+    * @param v the value
+    * */
     public void addToCache(String k, String v)
     {
 
@@ -155,6 +187,12 @@ public class KVServer  {
         }
     }
 
+    /**
+    * KVServer contains a global cache and provides an interface to threads
+    * for finding something in the cache
+    * @param k the key
+    * @param log variable to toggle logging
+    * */
     public String findInCache(String k, boolean log)
     {
         if (this.cacheSize == 0)

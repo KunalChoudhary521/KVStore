@@ -6,6 +6,7 @@ import junit.framework.TestCase;
 import common.messages.KVMessage;
 import common.messages.KVMessage.StatusType;
 import client.KVStore;
+import stress.GetClient;
 import testing.perf_test1;
 
 
@@ -38,8 +39,7 @@ public class AdditionalTest extends TestCase {
 		} catch(Exception e){
 			ex = e;
 		}
-		assertTrue(response.getStatus() ==StatusType.GET_ERROR);
-		assertTrue(ex == null);
+		assertTrue(ex == null && response.getStatus() ==StatusType.GET_ERROR);
 	}
 	@Test
 	public void test_put_long_payload() {
@@ -163,6 +163,11 @@ public class AdditionalTest extends TestCase {
 	}
 
 	@Test
+	/**
+	 * Repeatedly hammers the server with an amount of puts
+	 * All of them have to be successful for this test to pass
+	 * !!!!! Should clear contents of the file before proceeding !!!!!
+	 * */
 	public void test_repeated_put() {
 		int amount = 1024;
 		String[] keys = new String[amount];
@@ -182,6 +187,13 @@ public class AdditionalTest extends TestCase {
 		}
 	}
 
+	/**
+	 * Repeatedly hammers the server with an amount of put updates
+	 * Assumes the server has a file populated with kvp pairs that have the
+	 * 	format as follows; <entry key="keyX">valueX</entry> where X: 1-1024
+	 * 	!!!!!  Can run test_repeated_put if you want to ensure that this test will run  !!!!!
+	 * All of them have to be successful for this test to pass
+	 * */
 	public void test_repeated_update() {
 		int amount = 1024;
 		String[] keys = new String[amount];
@@ -200,6 +212,13 @@ public class AdditionalTest extends TestCase {
 		}
 	}
 
+	/**
+	 * Repeatedly hammers the server with an amount of put deletes
+	 * Assumes the server has a file populated with kvp pairs that have the
+	 * 	format as follows; <entry key="keyX">valueX</entry> where X: 1-1024
+	 * 	!!!!!  Can run test_repeated_put if you want to ensure that this test will run  !!!!!
+	 * All of them have to be successful for this test to pass
+	 * */
 	public void test_repeated_delete() {
 		int amount = 1024;
 		String[] keys = new String[amount];
@@ -219,9 +238,17 @@ public class AdditionalTest extends TestCase {
 	}
 
 	@Test
+	/**
+	 * Repeatedly hammers the server with an amount of gets from a number of threads
+	 * Assumes the server has a file populated with kvp pairs that have the
+	 * 	format as follows; <entry key="keyX">valueX</entry> where X: 1-1024
+	 * 	!!!!!  Should run test_repeated_put if you want to ensure that this test will run  !!!!!
+	 * All of them have to be successful for this test to pass
+	 * */
 	public void test_multiple_client_gets() {
 		int numGetClients = 4;
 		KVStore getClients[] = new KVStore[numGetClients];
+		GetClient repeatedGetter[] = new GetClient[numGetClients];
 		Thread threads[] = new Thread[numGetClients];
 
 		KVStore kvClient = new KVStore("localhost", 8080);
@@ -237,8 +264,8 @@ public class AdditionalTest extends TestCase {
 		if (ex == null) {
 			for (i = 0; i < getClients.length; i++) {
 				getClients[i] = new KVStore("localhost", 8080);
-				GetClient client = new GetClient(getClients[i], "" + i, 1023);
-				threads[i] = new Thread(client);
+				repeatedGetter[i] = new GetClient(getClients[i], "" + i, 1023);
+				threads[i] = new Thread(repeatedGetter[i]);
 				threads[i].start();
 			}
 
@@ -251,6 +278,12 @@ public class AdditionalTest extends TestCase {
 				}
 			}
 
+			for(i = 0; i < repeatedGetter.length; i++){
+				// any of the clients failed
+				if(repeatedGetter[i].anyFailed){
+					assertTrue(false);
+				}
+			}
 			System.out.println("All threads finished");
 
 		} else {
