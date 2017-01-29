@@ -50,6 +50,11 @@ public class FileStoreHelper {
      * */
     public String FindFromFile(String key) throws Exception{
         try {
+
+            if(log){
+                System.out.println("Trying to get current directory");
+            }
+
             String currPath = System.getProperty("user.dir");
 
             if(log){

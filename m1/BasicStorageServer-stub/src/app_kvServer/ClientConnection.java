@@ -251,7 +251,6 @@ public class ClientConnection implements Runnable {
 			}
 			if(log) {
 				System.out.println("got_key="+got_key);
-
 			}
 
 			byte[] message = new byte[4+kl+ll];
