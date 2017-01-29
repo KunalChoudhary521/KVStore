@@ -182,7 +182,7 @@ public class KVServer  {
     {
 
         if (this.cacheSize >0) {
-
+            logger.debug("adding "+k+" : "+ v+"to cache");
             this.cache.insertInCache(k, v);
         }
     }
@@ -199,7 +199,7 @@ public class KVServer  {
             return null;
 
         String val = this.cache.checkCache(k,log);
-
+        logger.debug("found " + val +"in cache");
         return val;
     }
 }

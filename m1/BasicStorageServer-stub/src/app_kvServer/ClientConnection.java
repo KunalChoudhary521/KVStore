@@ -57,6 +57,7 @@ public class ClientConnection implements Runnable {
 			while(isOpen) {
 				try {
 					TextMessage latestMsg = receiveMessage();
+					logger.info("client sent"+latestMsg.getMsg());
 					if (latestMsg.getMsg().trim().contains("P")){
 						handle_put();
 						
@@ -70,11 +71,11 @@ public class ClientConnection implements Runnable {
 				 * network problems*/	
 				} catch (IOException ioe) {
 					if(log) {
-						logger.info("Error! Connection lost!");
+						logger.error("Error! Connection lost!");
 					}
 					isOpen = false;
 				}catch (Exception ex){
-					logger.info(ex.getMessage());
+					logger.error(ex.getMessage());
 				}
 			}
 			
@@ -111,8 +112,9 @@ public class ClientConnection implements Runnable {
 			}
 			int length = 0;
 			//check if we have the key in our file
+			logger.debug("checking cache");
 			String payload = this.server.findInCache(key,log);
-
+			logger.debug("cache returned"+payload);
 
 			int got_key = 0;
 
@@ -120,10 +122,14 @@ public class ClientConnection implements Runnable {
             {
                 // was not found in cache find in file
                 got_key = 0;
+                logger.debug("not in cache, checking file");
                 String result = fileStoreHelper.FindFromFile(key);
+                logger.info("file returned"+result);
                 if(result != null){
                 	// PUT in the cache if there is space
+					logger.debug("putting in cache");
 					this.server.getKvcache().insertInCache(key,result);//is result Value?
+					logger.info("put in cache");
 
                     got_key = 1;
                     payload = result;
@@ -137,9 +143,10 @@ public class ClientConnection implements Runnable {
 
 
 			String length_str = Integer.toString(length);
-			//
+
 			
 			if (got_key == 1){
+				//creating response
 				int kl = key.length();
 				int ll = length_str.length();
 				byte[] message = new byte[5+kl+ll+length];
@@ -157,9 +164,12 @@ public class ClientConnection implements Runnable {
 					message[4+kl+ll+i] = (byte) payload.charAt(i);
 				}
 				message[4+kl+ll+length]=(byte)0;
+				logger.info("sending response");
+				//respond
 				this.sendMessage(message, 5+kl+ll+length);
 			}
 			else{
+				logger.warn("client sent non-existent key");
 				byte[] message = new byte[2];
 				message[0]=(byte) 'F';
 				message[1]=(byte) 0;
@@ -192,7 +202,7 @@ public class ClientConnection implements Runnable {
 			}
 			int kl = client_msgs[0].length();
 			int ll = client_msgs[1].length();
-
+		//validate key and payload lengths
 			if (kl>20){
 				byte [] message = new byte [2];
 				message[0]=(byte) 'F';
@@ -208,12 +218,12 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Put, client sent too large a size, size = "+client_msgs[1]);
 			}
 			//GET the key from the file on disk populate below variables based on file
-
+			logger.info("key and length passed validation");
 			int got_key = 0;
 			if ((this.server.findInCache(client_msgs[0],log)!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
 				got_key = 1;
 			}
-
+			logger.debug("got_key="+got_key);
 
 			byte[] message = new byte[4+kl+ll];
 			if (got_key == 1){
@@ -233,6 +243,7 @@ public class ClientConnection implements Runnable {
 			message[3+kl+ll]=(byte) 0;
 
 			this.sendMessage(message, 4+kl+ll);
+			logger.info("acknowledgement sent, awaiting payload");
 			for (int i = 2; i<4; i++){
 				client_msgs[i] = this.receiveMessage().getMsg().trim();
 
@@ -244,7 +255,6 @@ public class ClientConnection implements Runnable {
 			if(client_msgs[3].length() != Integer.parseInt(client_msgs[1].trim())){
 				throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
 			}
-			///overwrite the payload or whatever other file stuff her
 
 			int cacheSuccess =0; //change based on insertion results
 			int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
@@ -256,43 +266,36 @@ public class ClientConnection implements Runnable {
 				cacheSuccess = 1;
 
 
-				if(log) {
-					System.out.println("cached");
-				}
+				logger.debug("cached");
                 FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
                 if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
                 {
+                	logger.info("put successfully");
                     fileSuccess = 1;
                 }
             } else {
 			    // UPDATE OR DELETE
                 if(client_msgs[3].equals("null")){
                     // DELETE
-
+					logger.debug("deleting");
                     FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(client_msgs[0]);
 
                     if(result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS){
-
+					logger.debug("deleted");
                         fileSuccess = 1;
                         this.server.getKvcache().deleteFromCache(client_msgs[0]);
 
                     }
                 } else {
                     // UPDATE
-
+					logger.debug("updating");
                     FileStoreHelper.FileStoreStatusType result = fileStoreHelper.UpsertInFile(client_msgs[0], client_msgs[3]);
 
                     if(result == FileStoreHelper.FileStoreStatusType.UPSERT_SUCCESS){
                         fileSuccess = 1;
-
+						logger.debug("file updated");
 						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[3]);
-						if(log) {
-							System.out.println("adding to cache");
-						}
-						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[3]);
-						if(log) {
-							System.out.println("added to cache");
-						}
+						logger.debug("cache updated");
                     }
                 }
             }
@@ -340,7 +343,7 @@ public class ClientConnection implements Runnable {
 		
 		int index = 0;
 		byte[] msgBytes = null, tmp = null;
-		byte[] bufferBytes = new byte[BUFFER_SIZE];//need to add in BUFFER_SIZE constant
+		byte[] bufferBytes = new byte[BUFFER_SIZE];
 		
 		/* read first char from stream */
 		byte read = (byte) input.read();	

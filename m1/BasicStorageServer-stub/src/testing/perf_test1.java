@@ -58,13 +58,16 @@ public class perf_test1 {
         Random rg = new Random(3);
        try {
            for (int i = 0; i < 100; i++) {
-               String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3};
-               String[] values = {"value1", "value2", "value3", "value4"};
-               for (int j = 0; j < 4; j++) {
+               String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+               String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+               for (int j = 0; j < 8; j++) {
                    kvClient_LRU.put(keys[j], values[j]);
                }
                for (int j = 0; j < 2; j++) {
-                   kvClient_LRU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(4));
+                   if (i>0)
+                        kvClient_LRU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(8));
+                   else
+                       kvClient_LRU.get("key_" + 0 + "_" + rg.nextInt(8));
                }
            }
        }
@@ -78,13 +81,16 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2};
-                String[] values = {"value1", "value2", "value3"};
-                for (int j = 0; j < 3; j++) {
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2,"key_" + i + "_" + 3, "key_" + i + "_" + 4};
+                String[] values = {"value1", "value2", "value3", "value2", "value3"};
+                for (int j = 0; j < 5; j++) {
                     kvClient_LRU.put(keys[j], values[j]);
                 }
-                for (int j = 0; j < 3; j++) {
-                    kvClient_LRU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(3));
+                for (int j = 0; j < 5; j++) {
+                    if (i>0)
+                        kvClient_LRU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(5));
+                    else
+                        kvClient_LRU.get("key_" + 0 + "_" + rg.nextInt(5));
                 }
             }
         }
@@ -97,13 +103,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3};
-                String[] values = {"value1", "value2", "value3", "value4"};
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
                 for (int j = 0; j < 2; j++) {
                     kvClient_LRU.put(keys[j], values[j]);
                 }
-                for (int j = 0; j < 4; j++) {
-                    kvClient_LRU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(2));
+                for (int j = 0; j < 8; j++) {
+                    if (i>0)
+                        kvClient_LRU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(2));
+                    else
+                        kvClient_LRU.get("key_" + 0 + "_" + rg.nextInt(2));
                 }
             }
         }
@@ -117,13 +127,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3};
-                String[] values = {"value1", "value2", "value3", "value4"};
-                for (int j = 0; j < 4; j++) {
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
+                for (int j = 0; j < 8; j++) {
                     kvClient_LFU.put(keys[j], values[j]);
                 }
                 for (int j = 0; j < 2; j++) {
-                    kvClient_LFU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(4));
+                    if (i>0)
+                        kvClient_LFU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(8));
+                    else
+                        kvClient_LFU.get("key_" + 0 + "_" + rg.nextInt(8));
                 }
             }
         }
@@ -136,13 +150,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2};
-                String[] values = {"value1", "value2", "value3"};
-                for (int j = 0; j < 3; j++) {
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
+                for (int j = 0; j < 5; j++) {
                     kvClient_LFU.put(keys[j], values[j]);
                 }
-                for (int j = 0; j < 3; j++) {
-                    kvClient_LFU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(3));
+                for (int j = 0; j < 5; j++) {
+                    if (i>0)
+                        kvClient_LFU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(5));
+                    else
+                        kvClient_LFU.get("key_" + 0 + "_" + rg.nextInt(5));
                 }
             }
         }
@@ -154,13 +172,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3};
-                String[] values = {"value1", "value2", "value3", "value4"};
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
                 for (int j = 0; j < 2; j++) {
                     kvClient_LFU.put(keys[j], values[j]);
                 }
-                for (int j = 0; j < 4; j++) {
-                    kvClient_LFU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(2));
+                for (int j = 0; j < 8; j++) {
+                    if (i>0)
+                        kvClient_LFU.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(2));
+                    else
+                        kvClient_LFU.get("key_" + 0 + "_" + rg.nextInt(2));
                 }
             }
         }
@@ -173,13 +195,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3};
-                String[] values = {"value1", "value2", "value3", "value4"};
-                for (int j = 0; j < 4; j++) {
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
+                for (int j = 0; j < 8; j++) {
                     kvClient_FIFO.put(keys[j], values[j]);
                 }
                 for (int j = 0; j < 2; j++) {
-                    kvClient_FIFO.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(4));
+                    if (i>0)
+                        kvClient_FIFO.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(8));
+                    else
+                        kvClient_FIFO.get("key_" + 0 + "_" + rg.nextInt(8));
                 }
             }
         }
@@ -192,13 +218,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2};
-                String[] values = {"value1", "value2", "value3"};
-                for (int j = 0; j < 3; j++) {
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
+                for (int j = 0; j < 5; j++) {
                     kvClient_FIFO.put(keys[j], values[j]);
                 }
-                for (int j = 0; j < 3; j++) {
-                    kvClient_FIFO.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(3));
+                for (int j = 0; j < 5; j++) {
+                    if (i>0)
+                        kvClient_FIFO.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(5));
+                    else
+                        kvClient_FIFO.get("key_" + 0 + "_" + rg.nextInt(5));
                 }
             }
         }
@@ -210,13 +240,17 @@ public class perf_test1 {
         Random rg = new Random(3);
         try {
             for (int i = 0; i < 100; i++) {
-                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3};
-                String[] values = {"value1", "value2", "value3", "value4"};
+                String[] keys = {"key_" + i + "_" + 0, "key_" + i + "_" + 1, "key_" + i + "_" + 2, "key_" + i + "_" + 3,"key_" + i + "_" + 4, "key_" + i + "_" + 5, "key_" + i + "_" + 6, "key_" + i + "_" + 7};
+                String[] values = {"value1", "value2", "value3", "value4","value5", "value2", "value3", "value4"};
+
                 for (int j = 0; j < 2; j++) {
                     kvClient_FIFO.put(keys[j], values[j]);
                 }
-                for (int j = 0; j < 4; j++) {
-                    kvClient_FIFO.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(2));
+                for (int j = 0; j < 8; j++) {
+                    if (i>0)
+                        kvClient_FIFO.get("key_" + rg.nextInt(i) + "_" + rg.nextInt(2));
+                    else
+                        kvClient_FIFO.get("key_" + 0 + "_" + rg.nextInt(2));
                 }
             }
         }
