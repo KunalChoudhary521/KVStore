@@ -251,38 +251,31 @@ public class KVStore implements KVCommInterface {
 	        }
 	        message[2+kl]=0;
 	        for (int i = 0; i<ll;i++){
-	        	System.out.println("adding"+length_byte[i]);
 	        	message[3+kl+i]=length_byte[i];
 	        }
 	        message[3+kl+ll]= (byte)0;
 	        this.sendMessage(message,4+kl+ll);
-	        System.out.println("sent");
 	        for (int i =0; i<3; i++){
 	        	ret_vals[i]=this.receiveMessage();
 	        	if (ret_vals[0].getMsg().trim().contains("F"))
 	        		break;
 	        }
-	        System.out.println("flag: "+ret_vals[0].getMsg().trim());
-	        System.out.println("key: "+ret_vals[1].getMsg().trim());
-	        System.out.println("size: "+ret_vals[2].getMsg().trim());
 	        if (ret_vals[0].getMsg().trim().contains("F")){
-	        	String msg = "Put, server sent F when validating key: '"+key+"', disconnecting";
+	        	String msg = "Put, server sent F when validating key: '"+key+"'";
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-			System.out.println("server did not send F");
-	        if (!ret_vals[1].getMsg().trim().equals(key) || 
+	        if (!ret_vals[1].getMsg().trim().equals(key) ||
 	        		!ret_vals[2].getMsg().trim().equals(length)){
 	        	byte[] failure = new byte[2];
 	        	failure[0]=(byte) 'F';
 	        	failure[1]=0;
 	        	this.sendMessage(failure, 2);
 	        	String msg = "Put, server responded with incorrect key or size: "
-	        			+ ret_vals[1].getMsg().trim() +", " + ret_vals[2].getMsg().trim()+", disconnecting";
+	        			+ ret_vals[1].getMsg().trim() +", " + ret_vals[2].getMsg().trim();
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
-			System.out.println("server sent correct key and size");
 	        message = null;
 	        byte[] message2 = new byte[vl+3];
 	        //byte [] payload_bytes = value.getBytes();//removed per piazza
@@ -296,14 +289,11 @@ public class KVStore implements KVCommInterface {
 	        	message2[2+i]=payload_bytes[i];
 	        }
 	        message2[2+vl]=0;
-			System.out.println("sending payload");
 	        this.sendMessage(message2, 3+vl);
-			System.out.println("awaiting ack");
 	        ret_vals[3]=this.receiveMessage();
-	        System.out.println("ack: "+ret_vals[3].getMsg().trim());
 	        if (ret_vals[3].getMsg().trim().contains("F")){
 	        	String msg = "Put, server sent F after inserting: "
-	        			+key +" : "+value+", disconnecting";
+	        			+key +" : "+value;
 	        	logger.info(msg);
 	        	throw new Exception(msg);
 	        }
@@ -312,27 +302,24 @@ public class KVStore implements KVCommInterface {
 	        }
 	        else{
 	        	if (value.equals("null")){
-	        		System.out.println("delete_success");
 	        		return new Message(key, "null", KVMessage.StatusType.DELETE_SUCCESS);
 	        	}
 	        	else{
-	        		System.out.println("updated");
 	        		return new Message(key, value, KVMessage.StatusType.PUT_UPDATE);
 	        	}
 	        }
 		}
-		catch(Exception ex){
-        		logger.info(ex.getMessage());
+		catch(Exception ex) {
+			logger.info(ex.getMessage());
 			if (ex.getMessage().contains(", disconnecting")) {
 				this.disconnect();
-				if (value.equals("null")) {
-					return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
-				} else {
-					return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
-				}
-			} else
-				throw new Exception(ex.getMessage());
-        	}
+			}
+			if (value.equals("null")) {
+				return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
+			} else {
+				return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
+			}
+		}
 
 	}
 
@@ -370,10 +357,6 @@ public class KVStore implements KVCommInterface {
 						if (ret_vals[i].getMsg().trim().contains("F"))
 							break;
 					}
-					System.out.println("flag: "+ret_vals[0].getMsg().trim());
-					System.out.println("key: "+ret_vals[1].getMsg().trim());
-					System.out.println("size: "+ret_vals[2].getMsg().trim());
-					System.out.println("payload: "+ret_vals[3].getMsg().trim());
 					if (ret_vals[0].getMsg().trim().contains("F")){
 						String msg = "Get, server sent F when validating key: '"+key+"'";
 			        	logger.info(msg);
@@ -401,7 +384,6 @@ public class KVStore implements KVCommInterface {
 			if (this.clientSocket == null || (this.clientSocket!=null && !this.clientSocket.isConnected())){
 				throw new Exception (ex.getMessage());
 			}
-        	this.disconnect();
         	logger.info(ex.getMessage());
         	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
         }

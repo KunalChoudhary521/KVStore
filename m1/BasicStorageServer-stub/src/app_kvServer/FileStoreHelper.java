@@ -33,9 +33,7 @@ public class FileStoreHelper {
 
     public String FindFromFile(String key, boolean log) throws Exception{
         try {
-            if(log) {
-                System.out.println("checking file");
-            }
+
             //String currPath = System.getProperty("user.dir");
 
             originalFileLock.lock();
@@ -67,9 +65,7 @@ public class FileStoreHelper {
                         do {
                             keyIndex++;
                         } while (!line.substring(keyIndex, keyIndex + 8).equals("</entry>"));
-                        if(log) {
-                            System.out.println("returning "+line.substring(to_start, keyIndex));
-                        }
+
                         return line.substring(to_start, keyIndex);
                     }
                 } else {
@@ -80,9 +76,7 @@ public class FileStoreHelper {
             reader.close();
             in.close();
             System.gc();
-            if(log) {
-                System.out.println("returning null");
-            }
+
             return null;
         } catch (Exception ex) {
             originalFileLock.unlock();

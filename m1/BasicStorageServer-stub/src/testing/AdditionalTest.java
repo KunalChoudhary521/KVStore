@@ -6,6 +6,8 @@ import junit.framework.TestCase;
 import common.messages.KVMessage;
 import common.messages.KVMessage.StatusType;
 import client.KVStore;
+import testing.perf_test1;
+
 
 public class AdditionalTest extends TestCase {
 
@@ -26,21 +28,22 @@ public class AdditionalTest extends TestCase {
 
 
 	@Test
-	public void get_long_key() {
+	public void test_get_long_key() {
 		String key = "The Quick Brown Fox Jumped Over The Lazy Dog";
 		KVMessage response = null;
 		Exception ex = null;
 
 		try{
-			kvClient.get(key);
+			response = kvClient.get(key);
 		} catch(Exception e){
 			ex = e;
 		}
-		assertTrue(ex == null && response.getStatus() ==StatusType.GET_ERROR);
+		assertTrue(response.getStatus() ==StatusType.GET_ERROR);
+		assertTrue(ex == null);
 	}
 	@Test
-	public void put_long_payload() {
-		String key = "foo";
+	public void test_put_long_payload() {
+		String key = "lp";
 		String value = "bar";
 		for (int i = 0; i<=120*1024;i++){
 			value += "bar";
@@ -56,21 +59,21 @@ public class AdditionalTest extends TestCase {
 		assertTrue(ex == null && response.getStatus() == StatusType.PUT_ERROR);
 	}
 	@Test
-	public void put_long_key() {
-		String key = "The Quick Brown Fox Jumped Over The Lazy Dog";
+	public void test_put_long_key() {
+		String key = "The Quick Brown Foxes Jumped Over The Lazy Dog";
 		String value = "bar";
 		KVMessage response = null;
 		Exception ex = null;
 
 		try{
-			kvClient.put(key,value);
+			response = kvClient.put(key,value);
 		} catch(Exception e){
 			ex = e;
 		}
 		assertTrue(ex == null && response.getStatus() ==StatusType.PUT_ERROR);
 	}
 	@Test
-	public void delete_get() {
+	public void test_delete_get() {
 		String key = "deleteTestValue";
 		String value = "toDelete";
 		
@@ -89,8 +92,8 @@ public class AdditionalTest extends TestCase {
 		assertTrue(ex == null && response.getStatus() == StatusType.GET_ERROR);
 	}
 	@Test
-	public void update_shorter() {
-		String key = "foo";
+	public void test_update_shorter() {
+		String key = "fool";
 		String value = "bar";
 		
 		KVMessage response = null;
@@ -107,8 +110,8 @@ public class AdditionalTest extends TestCase {
 		assertTrue(ex == null && response.getStatus() == StatusType.PUT_UPDATE);
 	}
 	@Test
-	public void update_longer() {
-		String key = "foo";
+	public void test_update_longer() {
+		String key = "foot";
 		String value = "to";
 		
 		KVMessage response = null;
@@ -124,22 +127,7 @@ public class AdditionalTest extends TestCase {
 
 		assertTrue(ex == null && response.getStatus() == StatusType.PUT_UPDATE);
 	}
-	@Test
-	public void test_get_disconnected() {
-		kvClient.disconnect();
-		String key = "foo";
-		String value = "bar";
-		Exception ex = null;
 
-		try {
-			kvClient.get(key);
-
-		} catch (Exception e) {
-			ex = e;
-		}
-
-		assertNotNull(ex);
-	}
 	@Test
 	public void test_get_with_0() {
 		String key = "0foo0";
@@ -154,7 +142,7 @@ public class AdditionalTest extends TestCase {
 				ex = e;
 			}
 		
-		assertTrue(ex == null && response.getValue().equals("bar"));
+		assertTrue(ex == null && response.getValue().equals(value));
 	}
 	@Test
 	public void test_put_with_0() {
@@ -230,7 +218,7 @@ public class AdditionalTest extends TestCase {
 		}
 	}
 
-	@Test//need to figure out how to implement
+	@Test
 	public void test_multiple_client_gets() {
 		int numGetClients = 4;
 		KVStore getClients[] = new KVStore[numGetClients];
@@ -271,4 +259,23 @@ public class AdditionalTest extends TestCase {
 
 		assertTrue(true);
 	}
+
+	@Test
+	public void test_performance(){
+		for (int i = 20; i<200; i*=2) {
+			perf_test1 ptest = new perf_test1(i);
+			//put benchmarking statement here
+			ptest.test_performance_FIFO_20_80();
+			ptest.test_performance_FIFO_50_50();
+			ptest.test_performance_FIFO_80_20();
+			ptest.test_performance_LFU_20_80();
+			ptest.test_performance_LFU_50_50();
+			ptest.test_performance_LFU_80_20();
+			ptest.test_performance_LRU_20_80();
+			ptest.test_performance_LRU_50_50();
+			ptest.test_performance_LRU_80_20();
+			ptest.tearDown();
+		}
+	}
+
 }

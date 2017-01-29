@@ -24,33 +24,18 @@ public class LFUCache implements KVCache
     public String checkCache(String k,boolean log)
     {
         if (this.maxCacheSize>0) {
-            if (log) {
-                System.out.println("LFU");
-                System.out.println("empty=" + this.keyMap.isEmpty());
-                System.out.println("contains =" + keyMap.containsKey(k));
-            }
+
             if ((!this.keyMap.isEmpty()) && (this.keyMap.containsKey(k))) {
-                if (log) {
-                    System.out.println("getting");
-                }
+
                 LFUNode valNode = keyMap.get(k);
-                if (log) {
-                    System.out.println("valnode=" + valNode);
-                }
+
                 String cacheValue = valNode.getValue();//store before removing valNode from valueList
-                if (log) {
-                    System.out.println("cachevalue" + cacheValue);
-                }
+
                 updateFrequency(valNode);
-                if (log) {
-                    System.out.println("frequency updated");
-                }
+
 
                 return cacheValue;
             }
-        }
-        if(log) {
-            System.out.println("returning null");
         }
         return null;
     }

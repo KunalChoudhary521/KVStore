@@ -23,25 +23,14 @@ public class LRUCache implements KVCache
     public String checkCache(String k, boolean log)
     {
         if (this.maxCacheSize>0) {
-            if (log) {
-                System.out.println("LRU");
-                System.out.println("empty=" + this.keyMap.isEmpty());
-                System.out.println("contains =" + keyMap.containsKey(k));
-            }
+
             if ((!this.keyMap.isEmpty()) && this.keyMap.containsKey(k)) {
                 LRUNode valNode = keyMap.get(k);
-                if (log) {
-                    System.out.println("valNode" + valNode);
-                }
+
                 updateLruQueue(valNode);
-                if (log) {
-                    System.out.println("updated");
-                }
+
                 return valNode.getValue();
             }
-        }
-        if(log) {
-            System.out.println("returning null");
         }
 
         return null;

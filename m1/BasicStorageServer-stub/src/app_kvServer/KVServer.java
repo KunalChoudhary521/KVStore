@@ -148,13 +148,9 @@ public class KVServer  {
 
     public void addToCache(String k, String v)
     {
-        if(log) {
-            System.out.println("about to check cache size before adding");
-        }
+
         if (this.cacheSize >0) {
-            if(log) {
-                System.out.println("size>0");
-            }
+
             this.cache.insertInCache(k, v);
         }
     }
@@ -163,13 +159,9 @@ public class KVServer  {
     {
         if (this.cacheSize == 0)
             return null;
-        if(log) {
-            System.out.println("checking cache");
-        }
+
         String val = this.cache.checkCache(k,log);
-        if(log) {
-            System.out.println("cache returned"+val);
-        }
+
         return val;
     }
 }
