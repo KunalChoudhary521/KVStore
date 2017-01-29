@@ -246,7 +246,7 @@ public class ClientConnection implements Runnable {
 			}
 			///overwrite the payload or whatever other file stuff her
 
-
+			int cacheSuccess =0; //change based on insertion results
 			int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
 
 			if(got_key == 0 && !client_msgs[3].equals("null")) {
