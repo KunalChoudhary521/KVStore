@@ -40,6 +40,7 @@ public class FileStoreHelper {
      * */
     public FileStoreHelper(String fileName, boolean log){
         this.file = fileName;
+        this.log = log;
         originalFileLock = new ReentrantLock();
     }
 
