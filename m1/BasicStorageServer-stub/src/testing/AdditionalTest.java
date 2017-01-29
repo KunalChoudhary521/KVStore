@@ -1,13 +1,16 @@
 package testing;
 
+import org.junit.Rule;
 import org.junit.Test;
 
 import junit.framework.TestCase;
 import common.messages.KVMessage;
 import common.messages.KVMessage.StatusType;
 import client.KVStore;
+import org.junit.rules.TestRule;
 import stress.GetClient;
 import testing.perf_test1;
+
 
 
 public class AdditionalTest extends TestCase {
@@ -292,6 +295,7 @@ public class AdditionalTest extends TestCase {
 
 		assertTrue(true);
 	}
+
 
 	@Test
 	public void test_performance(){
