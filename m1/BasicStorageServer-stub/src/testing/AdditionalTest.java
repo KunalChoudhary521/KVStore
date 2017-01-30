@@ -88,15 +88,18 @@ public class AdditionalTest extends TestCase {
 		Exception ex = null;
 
 		try {
-			kvClient.put(key, value);
-			response = kvClient.put(key, "null");
+			System.out.println(kvClient.put(key, value).getStatus());
+			System.out.println(kvClient.put(key, "null").getStatus());
 			response = kvClient.get(key);
+			System.out.println(response.getStatus());
 			
 		} catch (Exception e) {
+			System.out.println("delete exeption"+e.getMessage());
 			ex = e;
 		}
 
-		assertTrue(ex == null && response.getStatus() == StatusType.GET_ERROR);
+		assertTrue(ex == null);
+		assertTrue(response.getStatus() == StatusType.GET_ERROR);
 	}
 	@Test
 	public void test_update_shorter() {
@@ -212,6 +215,7 @@ public class AdditionalTest extends TestCase {
 			keys[i] = "key" + (i+1);
 			try {
 				response = kvClient.put(keys[i], value);
+				response= kvClient.put(keys[i],"new");
 			} catch (Exception e) {
 				ex = e;
 			}
@@ -229,7 +233,7 @@ public class AdditionalTest extends TestCase {
 	public void test_repeated_delete() {
 		int amount = 1024;
 		String[] keys = new String[amount];
-		String value = "null";
+		String value = "aull";
 		KVMessage response = null;
 		Exception ex = null;
 
@@ -237,7 +241,8 @@ public class AdditionalTest extends TestCase {
 			keys[i] = "key" + (i+1);
 			try {
 				response = kvClient.put(keys[i], value);
-			} catch (Exception e) {
+				response = kvClient.put(keys[i], "null");
+			 } catch (Exception e) {
 				ex = e;
 			}
 			assertTrue(ex == null && response.getStatus() == StatusType.DELETE_SUCCESS);

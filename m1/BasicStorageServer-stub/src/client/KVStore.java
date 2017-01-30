@@ -383,23 +383,23 @@ public class KVStore implements KVCommInterface {
 					if (ret_vals[0].getMsg().trim().contains("F")){
 						String msg = "Get, server sent F when validating key: '"+key+"'";
 			        	logger.info(msg);
-			        	return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
+			        	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
 					}
 					else if(!ret_vals[1].getMsg().trim().equals(key)){
 						String msg = "Get, server sent incorrect key: key="
 			        			+ key + "returned key = " + ret_vals[1].getMsg().trim();
 						logger.warn(msg);
-						return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
+						return new Message(key, null, KVMessage.StatusType.GET_ERROR);
 					}
 					else if(Integer.parseInt(ret_vals[2].getMsg().trim())!=ret_vals[3].getMsg().trim().length()){
 						String msg = "Get, server sent either incorrect payload of incorrect size: payload="
 			        			+ret_vals[3].getMsg().trim()+", size="+ret_vals[2].getMsg().trim();
 						logger.warn(msg);
-						return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
+						return new Message(key, null, KVMessage.StatusType.GET_ERROR);
 					}
 					logger.info("payload = "+ret_vals[3].getMsg().trim());
 
-				return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
+					return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
 				}
 			}
 		}
