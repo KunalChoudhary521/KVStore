@@ -126,7 +126,7 @@ public class KVStore implements KVCommInterface {
 		listeners.add(listener);
 	}
 
-	/*sends len bytes over the socket*/
+	/*sends len bytes over the socket based on M0*/
     public void sendMessage(byte[] msg, int len) throws IOException {
 		String message = new String(msg,0,len);
     	logger.info("Send message:\t '" + message + "'");
@@ -136,7 +136,7 @@ public class KVStore implements KVCommInterface {
     }
 
     /*removes a message from the socket. Stops reading at
-    0 byte
+    0 byte based on M0
      */
     private TextMessage receiveMessage() throws IOException {
 		
@@ -199,46 +199,55 @@ public class KVStore implements KVCommInterface {
 		return msg;
     }
 
+    /*
+    Performs marshalling and responses in order to send a Put command to the server
+
+     */
 	//@Override
 	public KVMessage put(String key, String value) throws Exception {
 		try{
 			if(this.clientSocket == null){
 				String msg = "Put, no client socket: key = '"+key+"', value = ' "+value+"'";
-	        	logger.info(msg);
+	        	logger.error(msg);
 	        	throw new Exception(msg);
 			}
 			if(!this.clientSocket.isConnected()){
 				String msg = "Put, client socket not connected: key = '"+key+"', value = ' "+value+"'";
-	        	logger.info(msg);
+	        	logger.error(msg);
 	        	throw new Exception(msg);
 			}
+			logger.info("client wants to put key: "+key +" and value: "+value);
 			int kl = key.length();
 			int vl;
 			if (value != null)
 				vl = value.length();
 			else
 				vl = 0;
+			//validate that key isn't too long to store
 	        if (kl>20){
 	        	String msg = "key: '" + key + "' too long, ("+kl+" bytes)";
-	        	logger.info(msg);
+	        	logger.error(msg);
 	        	throw new Exception(msg);
 	        }
+	        //validate that payload isn't to long to store
 	        if (vl > 120*1024){
 	        	String msg = "value: '"+value+"' too long, ("+vl+" bytes)";
-	        	logger.info(msg);
+	        	logger.error(msg);
 	        	throw new Exception(msg);
 	        }
+	        logger.debug("lengths are both ok");
+	        //get the length to send for message validation
 	        String length = Integer.toString(vl);
 	        int ll = length.length();
 	        int ml = kl+4+ll;
 	        byte[] message = new byte[ml];
-	        //byte[] byteKey = key.getBytes();//removed per piazza
-	        
+
+	        //begin marshalling for first message exchange
 			byte[] byteKey = new byte[kl];
 			for(int i =0; i < kl; i++){
 				byteKey[i]=(byte)key.charAt(i);
 			}
-	        //byte[] length_byte = length.getBytes();//removed per piazza
+
 			byte[] length_byte = new byte[ll];
 			for(int i =0; i < ll; i++){
 				length_byte[i]=(byte)length.charAt(i);
@@ -254,6 +263,7 @@ public class KVStore implements KVCommInterface {
 	        	message[3+kl+i]=length_byte[i];
 	        }
 	        message[3+kl+ll]= (byte)0;
+			logger.debug("sent first message of put");
 	        this.sendMessage(message,4+kl+ll);
 	        for (int i =0; i<3; i++){
 	        	ret_vals[i]=this.receiveMessage();
@@ -273,12 +283,12 @@ public class KVStore implements KVCommInterface {
 	        	this.sendMessage(failure, 2);
 	        	String msg = "Put, server responded with incorrect key or size: "
 	        			+ ret_vals[1].getMsg().trim() +", " + ret_vals[2].getMsg().trim();
-	        	logger.info(msg);
+	        	logger.warn(msg);
 	        	throw new Exception(msg);
 	        }
 	        message = null;
 	        byte[] message2 = new byte[vl+3];
-	        //byte [] payload_bytes = value.getBytes();//removed per piazza
+
 			byte[] payload_bytes = new byte[vl];
 			for(int i =0; i < vl; i++){
 				payload_bytes[i]=(byte) value.charAt(i);
@@ -289,14 +299,17 @@ public class KVStore implements KVCommInterface {
 	        	message2[2+i]=payload_bytes[i];
 	        }
 	        message2[2+vl]=0;
+			logger.info("sending payload");
 	        this.sendMessage(message2, 3+vl);
 	        ret_vals[3]=this.receiveMessage();
 	        if (ret_vals[3].getMsg().trim().contains("F")){
 	        	String msg = "Put, server sent F after inserting: "
 	        			+key +" : "+value;
-	        	logger.info(msg);
+	        	logger.error(msg);
 	        	throw new Exception(msg);
 	        }
+	        logger.info("put succes");
+	        //determine what type of successful operation
 	        if (ret_vals[0].getMsg().trim().contains("S")){
 	        	return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS);
 	        }
@@ -310,6 +323,8 @@ public class KVStore implements KVCommInterface {
 	        }
 		}
 		catch(Exception ex) {
+			if (ex.getMessage().contains("socket"))
+				throw ex;
 			logger.info(ex.getMessage());
 			if (ex.getMessage().contains(", disconnecting")) {
 				this.disconnect();
@@ -322,20 +337,26 @@ public class KVStore implements KVCommInterface {
 		}
 
 	}
+	/*
+	performs marshalling and responses required to get a key value pair from
+	the KVStore
+	 */
 
-	//@Override
+	@Override
 	public KVMessage get(String key) throws Exception {
 		try{
 			if(this.clientSocket != null){
 				if(this.clientSocket.isConnected())
 				{
+					logger.info("client wants to get key:"+key);
 					byte[] message = new byte[27];
 					int kl = key.length();
 					byte[] byteKey = new byte[kl];
+					//create message
 					for(int i =0; i < kl; i++){
 						byteKey[i]=(byte)key.charAt(i);
 					}
-//					byte[] byteKey = key.getBytes();//removed per piaza
+
 					TextMessage[] ret_vals = new TextMessage[4];
 
 	
@@ -344,39 +365,41 @@ public class KVStore implements KVCommInterface {
 	
 					// pad or align
 					message[1] = (byte) 0;
-					// fill the get message with a 20 byte key
+					// fill the get message with a  maximum 20 byte key
 					for(int i = 0; i < key.length(); i++)
 					{
 						message[2+i] = byteKey[i];
 					}
 					message[2+key.length()]=0;
-					//message[3+key.length()]=0;
+					logger.info("sending message");
 					this.sendMessage(message,3+key.length());
 					for (int i =0; i<4;i++){
 						ret_vals[i]=this.receiveMessage();
-						if (ret_vals[i].getMsg().trim().contains("F"))
+						if (ret_vals[i].getMsg().trim().contains("F")) {
+
 							break;
+						}
 					}
 					if (ret_vals[0].getMsg().trim().contains("F")){
 						String msg = "Get, server sent F when validating key: '"+key+"'";
 			        	logger.info(msg);
-			        	return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
+			        	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
 					}
 					else if(!ret_vals[1].getMsg().trim().equals(key)){
 						String msg = "Get, server sent incorrect key: key="
 			        			+ key + "returned key = " + ret_vals[1].getMsg().trim();
-						logger.info(msg);
-						return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
+						logger.warn(msg);
+						return new Message(key, null, KVMessage.StatusType.GET_ERROR);
 					}
 					else if(Integer.parseInt(ret_vals[2].getMsg().trim())!=ret_vals[3].getMsg().trim().length()){
 						String msg = "Get, server sent either incorrect payload of incorrect size: payload="
 			        			+ret_vals[3].getMsg().trim()+", size="+ret_vals[2].getMsg().trim();
-						logger.info(msg);
-						return new Message(key, msg, KVMessage.StatusType.GET_ERROR);
+						logger.warn(msg);
+						return new Message(key, null, KVMessage.StatusType.GET_ERROR);
 					}
 					logger.info("payload = "+ret_vals[3].getMsg().trim());
 
-				return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
+					return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
 				}
 			}
 		}
@@ -384,7 +407,6 @@ public class KVStore implements KVCommInterface {
 			if (this.clientSocket == null || (this.clientSocket!=null && !this.clientSocket.isConnected())){
 				throw new Exception (ex.getMessage());
 			}
-        	logger.info(ex.getMessage());
         	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
         }
 	return null;}

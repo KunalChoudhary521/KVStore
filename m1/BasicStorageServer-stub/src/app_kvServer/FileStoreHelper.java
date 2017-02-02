@@ -52,8 +52,6 @@ public class FileStoreHelper {
     public String FindFromFile(String key) throws Exception{
         try {
 
-            //String currPath = System.getProperty("user.dir");
-
             if(log){
                 System.out.println("Trying to get current directory");
             }
@@ -69,15 +67,24 @@ public class FileStoreHelper {
             }
             originalFileLock.lock();
 
+            if(log){
+                System.out.println("Opening streams");
+            }
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
             String line = null;
 
+            // read each line from the file
+            if(log){
+                System.out.println("Opened stream, beginning reading line by line");
+            }
             while((line = reader.readLine()) != null){
                 // if line is not empty parse the xml line
                 // read each line from the file
-
+                if(log){
+                    System.out.println("line: "+ line);
+                }
                 if(!line.isEmpty()) {
                     int keyIndex = line.indexOf("key=\"");
                     keyIndex += "key\"".length() + 1;
@@ -92,9 +99,15 @@ public class FileStoreHelper {
                         keyIndex++;
                     } while (currChar != '\"');
 
-
+                    if(log){
+                        System.out.println("key from file: "+ currKey);
+                    }
                     // compare the key from the line to what was passed in
                     if (currKey.equals(key)) {
+
+                        if(log){
+                            System.out.println("Found the key constructing the value.");
+                        }
                         // get the value of the xml entry
                         String value = "";
                         keyIndex++;
@@ -103,10 +116,11 @@ public class FileStoreHelper {
                             keyIndex++;
                         } while (!line.substring(keyIndex, keyIndex + 8).equals("</entry>"));
 
-
                         //if key matched return it otherwise continue reading the file
 
-
+                        if(log){
+                            System.out.println("Returning the value.");
+                        }
                         reader.close();
                         in.close();
                         System.gc(); //FORCES the file to be closed
@@ -117,14 +131,19 @@ public class FileStoreHelper {
                 }
             }
 
+            if(log){
+                System.out.println("Could not find the key returning null.");
+            }
+
             reader.close();
             in.close();
-            //System.gc();
-
             System.gc(); //FORCES the file to be closed
 
             return null;
         } catch (Exception ex) {
+            if(log){
+                System.out.println(ex.getMessage());
+            }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         } finally {
@@ -142,11 +161,23 @@ public class FileStoreHelper {
         try {
             //String currPath = System.getProperty("user.dir");
 
+            if(log){
+                System.out.println("Acquiring lock - Put");
+            }
+
             originalFileLock.lock();
+
+            if(log){
+                System.out.println("Opening stream for writing");
+            }
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
 
             String line = createFilEntryFromKVP(key, value);
+
+            if(log){
+                System.out.println("Successfully wrote into stream");
+            }
 
             writer.write(line); writer.newLine();
             writer.flush();
@@ -156,6 +187,9 @@ public class FileStoreHelper {
             return FileStoreStatusType.PUT_SUCCESS;
 
         } catch (Exception ex) {
+            if(log){
+                System.out.println(ex.getMessage());
+            }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         } finally {
@@ -171,7 +205,15 @@ public class FileStoreHelper {
     public FileStoreStatusType DeleteInFile(String key) throws Exception{
         try {
 
+            if(log){
+                System.out.println("Acquiring lock - Delete");
+            }
+
             originalFileLock.lock();
+
+            if(log){
+                System.out.println("Opening streams");
+            }
 
             FileInputStream in = null;
             BufferedReader reader = null;
@@ -186,9 +228,20 @@ public class FileStoreHelper {
 
                 writer = new PrintWriter("./newFile.txt", "UTF-8");
 
+                if(log){
+                    System.out.println("Opened streams");
+                }
+
                 String line = null;
 
+                if(log){
+                    System.out.println("Opened stream, beginning reading line by line");
+                }
+
                 while ((line = reader.readLine()) != null) {
+                    if(log){
+                        System.out.println("line: "+ line);
+                    }
                     if (!line.isEmpty()) {
                         int keyIndex = line.indexOf("key=\"");
                         keyIndex += "key\"".length() + 1;
@@ -202,11 +255,21 @@ public class FileStoreHelper {
                             keyIndex++;
                         } while (currChar != '\"');
 
+                        if(log){
+                            System.out.println("key from file: "+ currKey);
+                        }
+
                         if (currKey.equals(key) == false) {
+                            if(log){
+                                System.out.println("Not the key to delete, so copy it");
+                            }
                             // get the value of the xml entry
                             writer.println(line);
                             writer.flush();
                         } else {
+                            if(log){
+                                System.out.println("Found the key so, don't copy.");
+                            }
                             success = true;
                         }
                     } else {
@@ -237,6 +300,9 @@ public class FileStoreHelper {
                 return FileStoreStatusType.DELETE_FAIL;
             }
         } catch (Exception ex) {
+            if(log){
+                System.out.println(ex.getMessage());
+            }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         } finally {
@@ -251,7 +317,16 @@ public class FileStoreHelper {
      * */
     public FileStoreStatusType UpsertInFile(String key, String value) throws Exception{
         try {
+
+            if(log){
+                System.out.println("Acquiring lock - Update");
+            }
+
             originalFileLock.lock();
+
+            if(log){
+                System.out.println("Opening streams");
+            }
 
             FileInputStream in = null;
             BufferedReader reader = null;
@@ -266,7 +341,14 @@ public class FileStoreHelper {
                 String newline = createFilEntryFromKVP(key, value);
                 String line = null; //only successful if they key was found
 
+                if(log){
+                    System.out.println("Opened all streams");
+                }
+
                 while((line = reader.readLine()) != null){
+                    if(log){
+                        System.out.println("line: " + line);
+                    }
                     if(!line.isEmpty()) {
                         int keyIndex = line.indexOf("key=\"");
                         keyIndex += "key\"".length() + 1;
@@ -280,11 +362,21 @@ public class FileStoreHelper {
                             keyIndex++;
                         } while (currChar != '\"');
 
+                        if(log){
+                            System.out.println("key from file: " + currKey);
+                        }
+
                         if (currKey.equals(key) == false) {
+                            if(log){
+                                System.out.println("This is not the key to update, so just copy it to new file.");
+                            }
                             // get the value of the xml entry
                             writer.println(line);
                             writer.flush();
                         } else {
+                            if(log){
+                                System.out.println("This is not the key to update, so update and copy it to new file.");
+                            }
                             success = true;
                             writer.println(newline);
                             writer.flush();
@@ -317,6 +409,9 @@ public class FileStoreHelper {
                 return FileStoreStatusType.UPSERT_FAIL;
             }
         } catch (Exception ex) {
+            if(log){
+                System.out.println(ex.getMessage());
+            }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
         } finally {

@@ -20,7 +20,7 @@ public class AdditionalTest extends TestCase {
 
 	// TODO add your test cases, at least 3
 	private KVStore kvClient;
-	
+	public  boolean perform_test = false;
 	public void setUp() {
 		kvClient = new KVStore("localhost", 8080);
 		try {
@@ -33,7 +33,9 @@ public class AdditionalTest extends TestCase {
 		kvClient.disconnect();
 	}
 
-
+	/*
+	Ensure that keys>20 characters cause an error
+	*/
 	@Test
 	public void test_get_long_key() {
 		String key = "The Quick Brown Fox Jumped Over The Lazy Dog";
@@ -49,16 +51,15 @@ public class AdditionalTest extends TestCase {
 	}
 	@Test
 	public void test_put_long_payload() {
-		String key = "lp";
-		String value = "bar";
-		for (int i = 0; i<=120*1024;i++){
-			value += "bar";
+		String key = "lp34";
+		String value = "";
+		for (int i = 0; i<=121*1024;i+=8){
+			value += "bbbbbbbb";
 		}
 		KVMessage response = null;
 		Exception ex = null;
 		try{
-			kvClient.put(key,value);
-			response = kvClient.get(key);
+			response = kvClient.put(key,value);
 		}catch(Exception e){
 			ex = e;
 		}
@@ -78,43 +79,7 @@ public class AdditionalTest extends TestCase {
 		}
 		assertTrue(ex == null && response.getStatus() ==StatusType.PUT_ERROR);
 	}
-	@Test
-	public void test_delete_get() {
-		String key = "deleteTestValue";
-		String value = "toDelete";
-		
-		KVMessage response = null;
-		Exception ex = null;
 
-		try {
-			kvClient.put(key, value);
-			response = kvClient.put(key, "null");
-			response = kvClient.get(key);
-			
-		} catch (Exception e) {
-			ex = e;
-		}
-
-		assertTrue(ex == null && response.getStatus() == StatusType.GET_ERROR);
-	}
-	@Test
-	public void test_update_shorter() {
-		String key = "fool";
-		String value = "bar";
-		
-		KVMessage response = null;
-		Exception ex = null;
-
-		try {
-			kvClient.put(key, value);
-			response = kvClient.put(key, "r");
-			
-		} catch (Exception e) {
-			ex = e;
-		}
-
-		assertTrue(ex == null && response.getStatus() == StatusType.PUT_UPDATE);
-	}
 	@Test
 	public void test_update_longer() {
 		String key = "foot";
