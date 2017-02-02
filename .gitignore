@@ -9,8 +9,10 @@
 #	milestone1-specific ignores
 m1/echoServer/bin/*
 m1/echoServer/echoServer.jar
+m1/echoServer/logs/*
 
 m1/echoClient/bin/*
+m1/echoClient/logs/*
 m1/echoClient/echoClient.jar
 
 m1/BasicStorageServer-stub/bin/*
@@ -19,3 +21,4 @@ m1/BasicStorageServer-stub/ms1-server.jar
 
 
 #	milestone2-specific ignores
+m2/ScalableStorageService/logs/*
