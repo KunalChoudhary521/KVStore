@@ -29,6 +29,8 @@ public class sshSession
 
             this.session.connect(10000);//program ends if client doesn't connect in this many milliseconds
             System.out.println("Connected to " + user + "@" + host + ":" + port);
+
+            Thread.sleep(3* 1000);
         }
         catch(Exception ex)
         {
@@ -47,15 +49,16 @@ public class sshSession
             this.channel.connect(4 * 1000);//server process begins
 
             sendCmds.println(dir);
-			for(int i = 0; i < command.length; i++)//run all servers
+			/*for(int i = 0; i < command.length; i++)//run all servers
 			{
 				sendCmds.println(command[i] + " &");
-			}
+			}*/
+            sendCmds.println(command[0] + " &");
 
             sendCmds.close();
 
             do {
-                Thread.sleep(1000);
+                Thread.sleep(3 *1000);
             }while(this.channel.isEOF());//wait for channel to to be empty
 
         }
