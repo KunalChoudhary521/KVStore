@@ -366,14 +366,14 @@ public class FileStoreHelper {
 
                         if (currKey.equals(key) == false) {
                             if(log){
-                                logger.info("This is not the key to update, so just copy it to new file.");
+                                logger.info("This is not the key to update, so just copy it to new file. Key to update is " + key);
                             }
                             // get the value of the xml entry
                             writer.println(line);
                             writer.flush();
                         } else {
                             if(log){
-                                logger.info("This is not the key to update, so update and copy it to new file.");
+                                logger.info("This is the key to update, so update and copy it to new file.");
                             }
                             success = true;
                             writer.println(newline);
