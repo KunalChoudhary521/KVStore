@@ -1,5 +1,7 @@
 package app_kvServer;
 
+import org.apache.log4j.Logger;
+
 import java.io.*;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -15,6 +17,7 @@ public class FileStoreHelper {
 
     private String file;
     private boolean log;
+    private static Logger logger = Logger.getRootLogger();
 
     private ReentrantLock originalFileLock;
 
@@ -48,22 +51,22 @@ public class FileStoreHelper {
         try {
 
             if(log){
-                System.out.println("Trying to get current directory");
+                logger.info("Trying to get current directory");
             }
 
             String currPath = System.getProperty("user.dir");
 
             if(log){
-                System.out.println("Current directory: " + currPath);
+                logger.info("Current directory: " + currPath);
             }
 
             if(log){
-                System.out.println("Acquiring lock - Get");
+                logger.info("Acquiring lock - Get");
             }
             originalFileLock.lock();
 
             if(log){
-                System.out.println("Opening streams");
+                logger.info("Opening streams");
             }
             FileInputStream in = new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -72,13 +75,13 @@ public class FileStoreHelper {
 
             // read each line from the file
             if(log){
-                System.out.println("Opened stream, beginning reading line by line");
+                logger.info("Opened stream, beginning reading line by line");
             }
             while((line = reader.readLine()) != null){
                 // if line is not empty parse the xml line
                 // read each line from the file
                 if(log){
-                    System.out.println("line: "+ line);
+                    logger.info("line: "+ line);
                 }
                 if(!line.isEmpty()) {
                     int keyIndex = line.indexOf("key=\"");
@@ -95,13 +98,13 @@ public class FileStoreHelper {
                     } while (currChar != '\"');
 
                     if(log){
-                        System.out.println("key from file: "+ currKey);
+                        logger.info("key from file: "+ currKey);
                     }
                     // compare the key from the line to what was passed in
                     if (currKey.equals(key)) {
 
                         if(log){
-                            System.out.println("Found the key constructing the value.");
+                            logger.info("Found the key constructing the value.");
                         }
                         // get the value of the xml entry
                         String value = "";
@@ -114,7 +117,7 @@ public class FileStoreHelper {
                         //if key matched return it otherwise continue reading the file
 
                         if(log){
-                            System.out.println("Returning the value.");
+                            logger.info("Returning the value.");
                         }
                         reader.close();
                         in.close();
@@ -127,7 +130,7 @@ public class FileStoreHelper {
             }
 
             if(log){
-                System.out.println("Could not find the key returning null.");
+                logger.info("Could not find the key returning null.");
             }
 
             reader.close();
@@ -137,7 +140,7 @@ public class FileStoreHelper {
             return null;
         } catch (Exception ex) {
             if(log){
-                System.out.println(ex.getMessage());
+                logger.info(ex.getMessage());
             }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
@@ -157,13 +160,13 @@ public class FileStoreHelper {
             String currPath = System.getProperty("user.dir");
 
             if(log){
-                System.out.println("Acquiring lock - Put");
+                logger.info("Acquiring lock - Put");
             }
 
             originalFileLock.lock();
 
             if(log){
-                System.out.println("Opening stream for writing");
+                logger.info("Opening stream for writing");
             }
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
@@ -171,7 +174,7 @@ public class FileStoreHelper {
             String line = createFilEntryFromKVP(key, value);
 
             if(log){
-                System.out.println("Successfully wrote into stream");
+                logger.info("Successfully wrote into stream");
             }
 
             writer.write(line); writer.newLine();
@@ -183,7 +186,7 @@ public class FileStoreHelper {
 
         } catch (Exception ex) {
             if(log){
-                System.out.println(ex.getMessage());
+                logger.info(ex.getMessage());
             }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
@@ -201,13 +204,13 @@ public class FileStoreHelper {
         try {
 
             if(log){
-                System.out.println("Acquiring lock - Delete");
+                logger.info("Acquiring lock - Delete");
             }
 
             originalFileLock.lock();
 
             if(log){
-                System.out.println("Opening streams");
+                logger.info("Opening streams");
             }
 
             FileInputStream in = null;
@@ -224,18 +227,18 @@ public class FileStoreHelper {
                 writer = new PrintWriter("./newFile.txt", "UTF-8");
 
                 if(log){
-                    System.out.println("Opened streams");
+                    logger.info("Opened streams");
                 }
 
                 String line = null;
 
                 if(log){
-                    System.out.println("Opened stream, beginning reading line by line");
+                    logger.info("Opened stream, beginning reading line by line");
                 }
 
                 while ((line = reader.readLine()) != null) {
                     if(log){
-                        System.out.println("line: "+ line);
+                        logger.info("line: "+ line);
                     }
                     if (!line.isEmpty()) {
                         int keyIndex = line.indexOf("key=\"");
@@ -251,19 +254,19 @@ public class FileStoreHelper {
                         } while (currChar != '\"');
 
                         if(log){
-                            System.out.println("key from file: "+ currKey);
+                            logger.info("key from file: "+ currKey);
                         }
 
                         if (currKey.equals(key) == false) {
                             if(log){
-                                System.out.println("Not the key to delete, so copy it");
+                                logger.info("Not the key to delete, so copy it");
                             }
                             // get the value of the xml entry
                             writer.println(line);
                             writer.flush();
                         } else {
                             if(log){
-                                System.out.println("Found the key so, don't copy.");
+                                logger.info("Found the key so, don't copy.");
                             }
                             success = true;
                         }
@@ -273,7 +276,7 @@ public class FileStoreHelper {
                 }
             } catch (Exception ex)
             {
-                System.out.println(ex.getMessage());
+                logger.info(ex.getMessage());
             } finally {
                 if(reader != null) { reader.close(); }
                 if(writer != null) { writer.close();}
@@ -296,7 +299,7 @@ public class FileStoreHelper {
             }
         } catch (Exception ex) {
             if(log){
-                System.out.println(ex.getMessage());
+                logger.info(ex.getMessage());
             }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
@@ -314,13 +317,13 @@ public class FileStoreHelper {
         try {
 
             if(log){
-                System.out.println("Acquiring lock - Update");
+                logger.info("Acquiring lock - Update");
             }
 
             originalFileLock.lock();
 
             if(log){
-                System.out.println("Opening streams");
+                logger.info("Opening streams");
             }
 
             FileInputStream in = null;
@@ -337,12 +340,12 @@ public class FileStoreHelper {
                 String line = null; //only successful if they key was found
 
                 if(log){
-                    System.out.println("Opened all streams");
+                    logger.info("Opened all streams");
                 }
 
                 while((line = reader.readLine()) != null){
                     if(log){
-                        System.out.println("line: " + line);
+                        logger.info("line: " + line);
                     }
                     if(!line.isEmpty()) {
                         int keyIndex = line.indexOf("key=\"");
@@ -358,19 +361,19 @@ public class FileStoreHelper {
                         } while (currChar != '\"');
 
                         if(log){
-                            System.out.println("key from file: " + currKey);
+                            logger.info("key from file: " + currKey);
                         }
 
                         if (currKey.equals(key) == false) {
                             if(log){
-                                System.out.println("This is not the key to update, so just copy it to new file.");
+                                logger.info("This is not the key to update, so just copy it to new file.");
                             }
                             // get the value of the xml entry
                             writer.println(line);
                             writer.flush();
                         } else {
                             if(log){
-                                System.out.println("This is not the key to update, so update and copy it to new file.");
+                                logger.info("This is not the key to update, so update and copy it to new file.");
                             }
                             success = true;
                             writer.println(newline);
@@ -382,7 +385,7 @@ public class FileStoreHelper {
                 }
             }  catch (Exception ex)
             {
-                System.out.println(ex.getMessage());
+                logger.info(ex.getMessage());
             } finally {
                 if(reader != null) { reader.close(); }
                 if(writer != null) { writer.close();}
@@ -405,7 +408,7 @@ public class FileStoreHelper {
             }
         } catch (Exception ex) {
             if(log){
-                System.out.println(ex.getMessage());
+                logger.info(ex.getMessage());
             }
             originalFileLock.unlock();
             throw new Exception(ex.getMessage());
