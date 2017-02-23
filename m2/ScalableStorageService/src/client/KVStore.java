@@ -46,51 +46,28 @@ public class KVStore implements KVCommInterface {
 	private static final int BUFFER_SIZE = 1024;
 	private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
 
-	/*
-	Used for ordering the priority queue used for ordering the hashes
-
-	 */
-	public static Comparator<HashMap> h_comp = new Comparator<HashMap>(){
-		@Override
-		public int compare(HashMap h1, HashMap h2){
-			return (h1.get("end")).toString().compareTo((h2.get("end")).toString());
-		}
-	};
-	/*
+/*
 	Updates the client's map of servers
 
 	 */
 	private void update_Map() throws Exception{
 		Integer len = Integer.valueOf(receiveMessage().getMsg().trim());
 		this.server_mapping = new HashMap(len);
-		Queue<HashMap> server_mapping_queu = new PriorityQueue<>(7,h_comp);
 		for (int i=0; i<len; i++){
-			String current_hash = new String();
-			String ip_port = receiveMessage().getMsg().trim();
-			String[] addr = ip_port.split(":");
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			md.update(ip_port.getBytes());
-			current_hash = md.digest().toString();
+			String serv = receiveMessage().getMsg().trim();
+			String [] ip_port_start_end = serv.split(",");
+			String[] addr = ip_port_start_end[0].split(":");
+
 			HashMap curr = new HashMap();
 			curr.put("ip", addr[0]);
 			curr.put("port",addr[1]);
-			curr.put("end", current_hash);
-			curr.put("start",null);
-			server_mapping_queu.add(curr);
-		}
-		this.server_mapping.put("0", server_mapping_queu.poll());
-		int i =1;
-		for (; i<len; i++){
-			HashMap curr = server_mapping_queu.poll();
-			HashMap last = (HashMap)this.server_mapping.get(Integer.toString(i-1));
+			curr.put("end", ip_port_start_end[3]);
 
-			curr.put("start",last.get("end"));
+			curr.put("start",ip_port_start_end[2]);
+
 			this.server_mapping.put(Integer.toString(i),curr);
 		}
-		HashMap last = (HashMap) this.server_mapping.get(Integer.toString(len-1));
-		HashMap first = (HashMap)this.server_mapping.get("0");
-		first.put("start", last.get("end"));
-		this.server_mapping.put("0",first);
+
 	}
 	//@Override
 	/*
