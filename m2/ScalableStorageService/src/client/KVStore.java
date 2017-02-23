@@ -12,7 +12,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.*;
-import java.security.MessageDigest;
+import app_kvEcs.md5;
 import java.util.concurrent.TimeUnit;
 
 public class KVStore implements KVCommInterface {
@@ -61,9 +61,9 @@ public class KVStore implements KVCommInterface {
 			HashMap curr = new HashMap();
 			curr.put("ip", addr[0]);
 			curr.put("port",addr[1]);
-			curr.put("end", ip_port_start_end[3]);
+			curr.put("end", ip_port_start_end[2]);
 
-			curr.put("start",ip_port_start_end[2]);
+			curr.put("start",ip_port_start_end[1]);
 
 			this.server_mapping.put(Integer.toString(i),curr);
 		}
@@ -293,9 +293,8 @@ public class KVStore implements KVCommInterface {
 	public KVMessage put(String key, String value) throws Exception {
 		try{
 			while (true) {
-				MessageDigest md = MessageDigest.getInstance("MD5");
-				md.update(key.getBytes());
-				String kh = md.digest().toString();
+				String kh = md5.HashS(key);
+
 				if (server_mapping == null && this.def_clientSocket == null) {
 					String msg = "Put, no default client socket to get: key = '" + key + "', value = ' " + value + "'";
 					logger.error(msg);
@@ -307,12 +306,19 @@ public class KVStore implements KVCommInterface {
 				} else if (server_mapping == null) {
 					get(key);
 				}
-				for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
-					if (kh.compareTo((String) entry.getValue().get("end")) <= 0 && kh.compareTo((String) entry.getValue().get("start")) > 0) {
-						this.address = (String) entry.getValue().get("ip");
-						this.port = Integer.parseInt((String) entry.getValue().get("port"));
-						break;
+				if (server_mapping != null){
+					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
+						String st = (String) entry.getValue().get("start");
+						String ed = (String) entry.getValue().get("end");
+						if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))) {
+							this.address = (String) entry.getValue().get("ip");
+							this.port = Integer.parseInt((String) entry.getValue().get("port"));
+							break;
+						}
 					}
+				}else{
+					this.address =this.def_address;
+					this.port = this.def_port;
 				}
 				con = false;
 				connect();
@@ -506,9 +512,7 @@ public class KVStore implements KVCommInterface {
 	public KVMessage get(String key) throws Exception {
 		try{
 			while (true) {
-				MessageDigest md = MessageDigest.getInstance("MD5");
-				md.update(key.getBytes());
-				String kh = md.digest().toString();
+				String kh = md5.HashS(key);
 				if (server_mapping == null && this.def_clientSocket == null) {
 					String msg = "Get, no default client socket to get: key = '" + key + "'";
 					logger.error(msg);
@@ -578,7 +582,9 @@ public class KVStore implements KVCommInterface {
 					}
 				}else{
 					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
-						if (kh.compareTo((String) entry.getValue().get("end")) <= 0 && kh.compareTo((String) entry.getValue().get("start")) > 0) {
+						String st = (String) entry.getValue().get("start");
+						String ed = (String) entry.getValue().get("end");
+						if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
 							this.address = (String) entry.getValue().get("ip");
 							this.port = Integer.parseInt((String) entry.getValue().get("port"));
 							break;

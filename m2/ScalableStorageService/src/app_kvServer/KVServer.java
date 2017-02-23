@@ -64,6 +64,7 @@ public class KVServer  {
 		}
 		this.KVFileLocation = KVFLocation;
 		this.log = log;
+
 		serverMetadata = new ArrayList<Metadata>();
 		this.buildMetadata();
 	}
