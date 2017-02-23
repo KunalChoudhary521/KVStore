@@ -11,13 +11,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.Date;
-import java.util.Set;
+import java.util.*;
 import java.security.MessageDigest;
-import java.util.HashMap;
-import java.util.Comparator;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
 public class KVStore implements KVCommInterface {
@@ -335,7 +330,7 @@ public class KVStore implements KVCommInterface {
 				} else if (server_mapping == null) {
 					get(key);
 				}
-				for (HashMap.Entry<String, HashMap> entry : server_mapping.entrySet()) {
+				for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 					if (kh.compareTo((String) entry.getValue().get("end")) <= 0 && kh.compareTo((String) entry.getValue().get("start")) > 0) {
 						this.address = (String) entry.getValue().get("ip");
 						this.port = Integer.parseInt((String) entry.getValue().get("port"));
@@ -492,7 +487,7 @@ public class KVStore implements KVCommInterface {
 		}
 		catch(Exception ex) {
 			if (ex.getMessage().contains("Could not connect")){
-				for (HashMap.Entry<String, HashMap> entry : server_mapping.entrySet()) {
+				for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 
 					try{
 						this.address = (String) entry.getValue().get("ip");
@@ -605,7 +600,7 @@ public class KVStore implements KVCommInterface {
 						}
 					}
 				}else{
-					for (HashMap.Entry<String, HashMap> entry : server_mapping.entrySet()) {
+					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 						if (kh.compareTo((String) entry.getValue().get("end")) <= 0 && kh.compareTo((String) entry.getValue().get("start")) > 0) {
 							this.address = (String) entry.getValue().get("ip");
 							this.port = Integer.parseInt((String) entry.getValue().get("port"));
@@ -690,7 +685,7 @@ public class KVStore implements KVCommInterface {
 		}
 		catch(Exception ex){
 			if (ex.getMessage().contains("Could not connect")){
-				for (HashMap.Entry<String, HashMap> entry : server_mapping.entrySet()) {
+				for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 
 					try{
 						this.address = (String) entry.getValue().get("ip");

@@ -1,8 +1,10 @@
 package app_kvServer;
 
+import com.sun.xml.internal.bind.v2.runtime.unmarshaller.XsiNilLoader;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 import app_kvEcs.md5;
 
@@ -279,6 +281,29 @@ public class FileStoreHelper {
             originalFileLock.unlock();
         }
         return FileStoreStatusType.UPSERT_SUCCESS;
+    }
+
+    public String[] GetFileHashes(){
+        try{
+
+            originalFileLock.lock();
+            File[] files = new File(fileLocation).listFiles();
+            originalFileLock.unlock();
+
+            String[] fileNames = new String[files.length];
+            for(int i =0; i<files.length;i++){
+                fileNames[i] = files[i].getName();
+            }
+            Arrays.sort(fileNames);
+
+            return fileNames;
+        } catch (Exception ex){
+            originalFileLock.unlock();
+            logger.info("Something went wrong while trying to obtain file metadata");
+            return null;
+        } finally{
+            originalFileLock.unlock();
+        }
     }
 
     private String createFilEntryFromKVP(String key, String value){

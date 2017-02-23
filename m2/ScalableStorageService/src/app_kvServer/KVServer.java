@@ -9,11 +9,11 @@ import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.BindException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.*;
+import java.net.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class KVServer  {
   /**
@@ -34,6 +34,8 @@ public class KVServer  {
 	private ServerSocket socket;
 	private static Logger logger = Logger.getRootLogger();
 	private boolean log;
+	public Metadata myMetadata;
+	private ArrayList<Metadata> serverMetadata;
 
 	private String KVFileLocation;
 
@@ -62,6 +64,39 @@ public class KVServer  {
 		}
 		this.KVFileLocation = KVFLocation;
 		this.log = log;
+		serverMetadata = new ArrayList<Metadata>();
+		this.buildMetadata();
+	}
+
+	private void buildMetadata() {
+		File file = new File(this.KVFileLocation+"\\metadata");
+		try {
+			if (!file.exists()) {
+				logger.info("No metadata file!");
+				throw new Exception("no metadata file");
+			}
+			FileInputStream in = new FileInputStream(file);
+			BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+
+			String line = null;
+			while((line = reader.readLine()) != null){
+				List<String> items = Arrays.asList(line.split(","));
+				serverMetadata.add(new Metadata(items.get(0), items.get(1), items.get(2), items.get(3)));
+			}
+			reader.close();
+			in.close();
+		} catch (Exception ex){
+			logger.info(ex);
+		}
+	}
+
+	public String getMetadata() {
+		String metadata = serverMetadata.size()+"!";
+		for(int i =0; i < serverMetadata.size(); i++){
+			Metadata item = serverMetadata.get(i);
+			metadata+= item.host + ":" + item.port +"," + item.startHash + "," + item.endHash +"!";
+		}
+		return metadata;
 	}
 
 	public KVCache getKvcache(){return this.cache;}
@@ -121,9 +156,19 @@ public class KVServer  {
 		logger.info("Initialize server ...");
 
 		try {
-			socket = new ServerSocket(port);
-			logger.info("Server listening on port: "
-					+ socket.getLocalPort());
+			InetAddress address = InetAddress.getByName("localhost");
+			socket = new ServerSocket(port, 0, address);
+			logger.info("Server listening on " + address.getHostName()
+                    +":" +  socket.getLocalPort());
+			for(int i =0; i < serverMetadata.size(); i++){
+				Metadata md = serverMetadata.get(i);
+				if(socket.getInetAddress().getHostName().equals(md.host)){
+					if(port == Integer.parseInt(md.port)){
+						myMetadata = md;
+						break;
+					}
+				}
+			}
 
 			return true;
 

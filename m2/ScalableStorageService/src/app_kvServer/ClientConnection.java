@@ -1,5 +1,6 @@
 package app_kvServer;
 
+import app_kvEcs.md5;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -109,6 +110,26 @@ public class ClientConnection implements Runnable {
 				throw new Exception("Client sent too large a key, key = '"+key+"', size = "+key.length());
 			}
 			int length = 0;
+
+			//check if this node is responsible for the key
+			String hash = md5.HashS(key);
+			if(hash.compareTo(server.myMetadata.startHash) < 0 || hash.compareTo(server.myMetadata.endHash) > 0)
+			{
+
+				String message = "I!";
+				message+=server.getMetadata();
+				byte[] barray = new byte[message.length()];
+				for(int i = 0; i <message.length(); i++){
+					if(message.charAt(i) == '!'){
+						barray[i] = 0;
+					} else {
+						barray[i] = (byte) message.charAt(i);
+					}
+				}
+				sendMessage(barray, barray.length);
+				return;
+			}
+
 			//check if we have the key in our file
 			logger.debug("checking cache");
 			String payload = this.server.findInCache(key,log);
@@ -207,6 +228,23 @@ public class ClientConnection implements Runnable {
 				message[1] = (byte) 0;
 				this.sendMessage(message, 2);
 				throw new Exception("Put, client sent too long of a key, key = '"+client_msgs[0]+"', length = "+kl);
+			}
+			//check if this node is responsible for the key
+			String hash = md5.HashS(client_msgs[0]);
+			if(hash.compareTo(server.myMetadata.startHash) < 0 || hash.compareTo(server.myMetadata.endHash) > 0)
+			{
+				String message = "I!";
+				message+=server.getMetadata();
+				byte[] barray = new byte[message.length()];
+				for(int i = 0; i <message.length(); i++){
+					if(message.charAt(i) == '!'){
+						barray[i] = 0;
+					} else {
+						barray[i] = (byte) message.charAt(i);
+					}
+				}
+				sendMessage(barray, barray.length);
+				return;
 			}
 			if (Integer.valueOf(client_msgs[1].trim())>(120*1024)){
 				byte [] message = new byte [2];
