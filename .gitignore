@@ -22,5 +22,9 @@ m1/BasicStorageServer-stub/ms1-server.jar
 
 #	milestone2-specific ignores
 m2/ScalableStorageService/logs/*
+m2/ScalableStorageService/bin/*
+m2/ScalableStorageService/ms3-client.jar
+m2/ScalableStorageService/ms3-ecs.jar
+m2/ScalableStorageService/ms3-server.jar
 **/known_hosts
 **/id_rsa
