@@ -9,6 +9,7 @@ import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
@@ -34,11 +35,11 @@ public class KVServer  {
 	private static Logger logger = Logger.getRootLogger();
 	private boolean log;
 
-	private String KVFileName;
+	private String KVFileLocation;
 
 	private KVCache cache;
 
-	public KVServer(int port, int cSize, String strat, String KVFName, boolean log) {
+	public KVServer(int port, int cSize, String strat, String KVFLocation, boolean log) {
 		this.port = port;
 		this.cacheSize = cSize;
 		this.strategy = strat;
@@ -59,7 +60,7 @@ public class KVServer  {
 				this.cache = null;
 			}
 		}
-		this.KVFileName = KVFName;
+		this.KVFileLocation = KVFLocation;
 		this.log = log;
 	}
 
@@ -78,7 +79,7 @@ public class KVServer  {
 				try {
 					Socket client = socket.accept();
 					ClientConnection connection =
-							new ClientConnection(client,this, this.KVFileName, this.log);
+							new ClientConnection(client,this, this.KVFileLocation, this.log);
 					new Thread(connection).start();
 
 					if(log) {
@@ -176,8 +177,7 @@ public class KVServer  {
 		int port = Integer.parseInt(args[0]);
 		int cacheSize = Integer.parseInt(args[1]);
 		String strategy = args[2];
-		String KVFileName = args[3];
-		boolean shouldLog = Boolean.parseBoolean(args[4]);
+		boolean shouldLog = Boolean.parseBoolean(args[3]);
 
 		try {
 			new LogSetup(System.getProperty("user.dir")+"/logs/server.log", Level.ALL);
@@ -186,7 +186,18 @@ public class KVServer  {
 			System.out.println(ex.getMessage());
 		}
 
-		KVServer server = new KVServer(port, cacheSize, strategy, KVFileName, shouldLog);
+		String currPath = System.getProperty("user.dir");
+		File file = new File(currPath+"\\"+port);
+		if(!file.exists()){
+			file.mkdir();
+			if(shouldLog){
+				logger.info("Creating a directory to place all key-value pairs");
+			}
+		}
+
+		String KVFileLocation = file.getAbsolutePath();
+
+		KVServer server = new KVServer(port, cacheSize, strategy, KVFileLocation, shouldLog);
 		server.Run();
 	}
 
