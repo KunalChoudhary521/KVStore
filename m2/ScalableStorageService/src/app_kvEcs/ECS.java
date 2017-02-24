@@ -54,11 +54,15 @@ public class ECS implements ECSInterface {
     }
 
     private void updateServerMetadata() {
-        for(Map.Entry<String,Metadata> entry: hashRing.entrySet()){
+        /*for(Map.Entry<String,Metadata> entry: hashRing.entrySet()){
             String key = entry.getKey();
             Metadata m = entry.getValue();
-            update(m, m.host, Integer.parseInt(m.port));
+            // build a string of metadata, and send it via TCP to the server
         }
+        for(Map.Entry<String,Metadata> entry: hashRing.entrySet()){
+            update(m, m.host, Integer.parseInt(m.port));
+
+        }*/
     }
 
     private void updateRanges() {
@@ -87,6 +91,8 @@ public class ECS implements ECSInterface {
 
     @Override
     public void start(String host, int port) {
+        // send a TCP message that says, accept clients
+        byte[] byteMsg = {'E','C','S',0, 'S'};
 
     }
 
@@ -116,6 +122,10 @@ public class ECS implements ECSInterface {
     }
 
     @Override
+    /*
+    * All TCP logic for sending the kvServer updated metadata
+    *
+     */
     public void update(Metadata newMetadata, String host, int port) {
         try {
             this.clientSocket = new Socket(host, port);
@@ -127,8 +137,8 @@ public class ECS implements ECSInterface {
     public static void main(String[] args){
         ECS ecs = new ECS();
         Metadata fake1 = new Metadata("128.100.13.222", "8000", "", "");
-        Metadata fake2 = new Metadata("localhost", "8001", "", "");
-        Metadata fake3 = new Metadata("localhost", "8002", "", "");
+        //Metadata fake2 = new Metadata("128.100.13.222", "8001", "", "");
+        //Metadata fake3 = new Metadata("128.100.13.222", "8002", "", "");
         ecs.initKVServer(fake1, 0, "LRU", true);
         //ecs.initKVServer(fake2, 0, "LRU", true);
         //ecs.initKVServer(fake3, 0, "LRU", true);
