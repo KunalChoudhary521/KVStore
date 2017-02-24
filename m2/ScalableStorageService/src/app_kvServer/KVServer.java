@@ -68,6 +68,7 @@ public class KVServer  {
 		this.log = log;
 
 		serverMetadata = new ArrayList<Metadata>();
+
 		this.buildMetadata();
 	}
 
@@ -165,7 +166,7 @@ public class KVServer  {
                     +":" +  socket.getLocalPort());
 			for(int i =0; i < serverMetadata.size(); i++){
 				Metadata md = serverMetadata.get(i);
-				if(socket.getInetAddress().getHostName().equals(md.host)){
+				if(socket.getInetAddress().toString().equals(md.host)){
 					if(port == Integer.parseInt(md.port)){
 						myMetadata = md;
 						break;

@@ -42,6 +42,7 @@ public class ClientConnection implements Runnable {
 		this.server = server;
 		this.log = log;
 		this.fileStoreHelper = new FileStoreHelper(KVFileName, this.log);
+		String[] files = fileStoreHelper.GetFileHashes();
 	}
 	
 	/**
@@ -59,13 +60,12 @@ public class ClientConnection implements Runnable {
 					logger.info("client sent"+latestMsg.getMsg());
 					if (latestMsg.getMsg().trim().contains("P")){
 						handle_put();
-						
 					}
 					else if (latestMsg.getMsg().trim().contains("G")){
 						handle_get();
+					} else if(latestMsg.getMsg().trim().contains("ECS")){
+						handle_ecs(latestMsg.getMsg());
 					}
-
-
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
 				} catch (IOException ioe) {
@@ -92,6 +92,24 @@ public class ClientConnection implements Runnable {
 			} catch (IOException ioe) {
 				logger.error("Error! Unable to tear down connection!", ioe);
 			}
+		}
+	}
+
+	private void handle_ecs(String msg) {
+		if(msg.contains("ECS-LOCKWRITE")){ //can only read
+			logger.info("ECS message: lockwrite");
+		}else if(msg.contains("ECS-UNLOCKWRITE")){ //can write now
+			logger.info("ECS message: unlockwrite");
+		} else if(msg.contains("ECS-SHUTDOWN")){ //terminate
+			logger.info("ECS message: shutdown");
+		} else if(msg.contains("ECS-START")){ //start
+			logger.info("ECS message: start");
+		} else if(msg.contains("ECS-STOP")){ //stop
+			logger.info("ECS message: stop");
+		} else if(msg.contains("ECS-MOVE")){ //must move all data that falls with the range to a new server
+			logger.info("ECS message: move");
+		} else if(msg.contains("ECS-METADATA")){
+			logger.info("ECS message: metadata");
 		}
 	}
 
