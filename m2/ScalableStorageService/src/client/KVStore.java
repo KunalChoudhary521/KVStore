@@ -493,11 +493,16 @@ public class KVStore implements KVCommInterface {
 				throw ex;
 			logger.info(ex.getMessage());
 			if (ex.getMessage().contains(", disconnecting")) {
-				this.disconnect();
+				disconnect();
+				con = true;
 			}
 			if (value.equals("null")) {
+				disconnect();
+				con = true;
 				return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
 			} else {
+				disconnect();
+				con = true;
 				return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
 			}
 		}
@@ -690,6 +695,8 @@ public class KVStore implements KVCommInterface {
 			if (this.clientSocket == null || (this.clientSocket!=null && !this.clientSocket.isConnected())){
 				throw new Exception (ex.getMessage());
 			}
+			disconnect();
+			con = true;
         	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
         }
 	}
