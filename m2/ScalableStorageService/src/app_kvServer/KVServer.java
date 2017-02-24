@@ -238,8 +238,8 @@ public class KVServer  {
 
 		File file = new File(""+port);
 
-		logger.info(file.getAbsolutePath());
-		logger.info(file.getName());
+		logger.info("KVStore directory's abs path: " + file.getAbsolutePath());
+		logger.info("Name of KVStore's directory " + file.getName());
 
 		if(!file.exists()){
 			file.mkdir();
