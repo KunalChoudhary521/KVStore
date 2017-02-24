@@ -34,6 +34,7 @@ public class ECS implements ECSInterface {
         // put it into the hash ring
         hashRing.put(serverHash, m);
 
+        /*
         // update the ranges of the servers in clockwise order
         updateRanges();
 
@@ -50,6 +51,7 @@ public class ECS implements ECSInterface {
 
         mySsh.session.disconnect();//can be moved to destructor
 
+        */
         // start a TCP connection and update each server's metadata
 
         updateServerMetadata();
@@ -59,11 +61,13 @@ public class ECS implements ECSInterface {
     {
         for(Map.Entry<String,Metadata> entry: hashRing.entrySet())
         {
+            String msgType = "ECS-METADATA-";
+
             String key = entry.getKey();
             Metadata m = entry.getValue();
 
             // build a byte[] of metadata, and send it via TCP to the server
-            int mDatalen = entry.getValue().host.length() + entry.getValue().port.length()
+            int mDatalen = msgType.length() + entry.getValue().host.length() + entry.getValue().port.length()
                         + entry.getValue().startHash.length() +
                     entry.getValue().endHash.length() + 3;//3 for ","
 
@@ -74,12 +78,15 @@ public class ECS implements ECSInterface {
             byte[] srtRangeB = (entry.getValue().startHash + ",").getBytes();
             byte[] endRangeB = (entry.getValue().endHash).getBytes();
 
-            System.arraycopy(hostB,0,mData,0,hostB.length);
-            System.arraycopy(portB,0,mData,hostB.length,portB.length);
-            System.arraycopy(srtRangeB,0,mData,hostB.length + portB.length,srtRangeB.length);
-            System.arraycopy(endRangeB,0,mData,hostB.length + portB.length + srtRangeB.length,endRangeB.length);
+            System.arraycopy(msgType.getBytes(),0,mData,0,msgType.length());
+            System.arraycopy(hostB,0,mData,msgType.length(),hostB.length);
+            System.arraycopy(portB,0,mData,msgType.length() + hostB.length,portB.length);
+            System.arraycopy(srtRangeB,0,mData,msgType.length() + hostB.length
+                            + portB.length,srtRangeB.length);
+            System.arraycopy(endRangeB,0,mData,msgType.length() + hostB.length + portB.length
+                            + srtRangeB.length,endRangeB.length);
 
-            //System.out.println("MetaData byte array: " + new String(mData));//for debugging
+            System.out.println("MetaData byte array: " + new String(mData));//for debugging
 
             sendViaTCP(entry.getValue().host,Integer.parseInt(entry.getValue().port),mData);
         }
@@ -150,17 +157,14 @@ public class ECS implements ECSInterface {
     @Override
     public void moveData(String host, int port, String startRange, String endRange)
     {
-        //Protocol: ECS0M0<start-range>0<end-range>
-        byte[] byteMsg = new byte[5 + (1+startRange.length()) + (2+endRange.length())];//5 for ECS0M
+        //Protocol: ECS-M-<start-range>-<end-range>
+        String msgType = "ECS-MOVE-";
 
-        byteMsg[0] = 'E';
-        byteMsg[1] = 'C';
-        byteMsg[2] = 'S';
-        byteMsg[3] = '-';
-        byteMsg[4] = 'M';
+        byte[] byteMsg = new byte[msgType.length() + (1+startRange.length()) + (2+endRange.length())];
 
-        byteMsg[5] = '-';
-        int startRIdx = 6;
+        System.arraycopy(msgType.getBytes(),0,byteMsg,0,msgType.length());
+
+        int startRIdx = msgType.length()+1;
         byte[] startBytes = startRange.getBytes();
         System.arraycopy(startBytes,0,byteMsg,startRIdx,startBytes.length);
         byteMsg[startRIdx+startBytes.length] = '-';
@@ -204,7 +208,7 @@ public class ECS implements ECSInterface {
         //Metadata fake1 = new Metadata("128.100.13.222", "8000", "", "");
         //Metadata fake2 = new Metadata("128.100.13.222", "8001", "", "");
         //Metadata fake3 = new Metadata("128.100.13.222", "8002", "", "");
-        Metadata fake4 = new Metadata("localhost", "8000", "", "");
+        Metadata fake4 = new Metadata("localhost", "8000", "10ab", "a24f");
 
         ecs.lockWrite("localhost", 8000);
         ecs.unlockWrite("localhost", 8000);
@@ -214,6 +218,6 @@ public class ECS implements ECSInterface {
         ecs.moveData("localhost", 8000,
                 "00000000000000000000000000000000",
                 "00000000000000000000000000000000");
-
+        ecs.initKVServer(fake4,100,"LRU", true);
     }
 }
