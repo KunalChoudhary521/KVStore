@@ -1,14 +1,13 @@
 package app_kvEcs;
 
 import app_kvServer.Metadata;
-import com.sun.javafx.collections.transformation.SortedList;
 
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- * Created by Haashir on 2/24/2017.
+ * Created by rahmanz5 on 2/24/2017.
  */
 public class ECS implements ECSInterface {
 
@@ -125,7 +124,7 @@ public class ECS implements ECSInterface {
         Metadata fake2 = new Metadata("localhost", "8001", "", "");
         Metadata fake3 = new Metadata("localhost", "8002", "", "");
         ecs.initKVServer(fake1, 0, "LRU", true);
-        ecs.initKVServer(fake2, 0, "LRU", true);
-        ecs.initKVServer(fake3, 0, "LRU", true);
+        //ecs.initKVServer(fake2, 0, "LRU", true);
+        //ecs.initKVServer(fake3, 0, "LRU", true);
     }
 }
