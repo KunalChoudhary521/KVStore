@@ -2,6 +2,7 @@ package app_kvEcs;
 
 import app_kvServer.Metadata;
 
+import java.net.Socket;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -12,6 +13,7 @@ import java.util.TreeMap;
 public class ECS implements ECSInterface {
 
     private SortedMap<String, Metadata> hashRing;
+    private Socket clientSocket;
 
     public ECS(){
         hashRing = new TreeMap<String, Metadata>();
@@ -115,12 +117,16 @@ public class ECS implements ECSInterface {
 
     @Override
     public void update(Metadata newMetadata, String host, int port) {
+        try {
+            this.clientSocket = new Socket(host, port);
+        } catch (Exception ex){
 
+        }
     }
 
     public static void main(String[] args){
         ECS ecs = new ECS();
-        Metadata fake1 = new Metadata("localhost", "8000", "", "");
+        Metadata fake1 = new Metadata("128.100.13.222", "8000", "", "");
         Metadata fake2 = new Metadata("localhost", "8001", "", "");
         Metadata fake3 = new Metadata("localhost", "8002", "", "");
         ecs.initKVServer(fake1, 0, "LRU", true);

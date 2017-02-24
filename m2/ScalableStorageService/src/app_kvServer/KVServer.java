@@ -36,12 +36,14 @@ public class KVServer  {
 	private boolean log;
 	public Metadata myMetadata;
 	private ArrayList<Metadata> serverMetadata;
+	private String host;
 
 	private String KVFileLocation;
 
 	private KVCache cache;
 
-	public KVServer(int port, int cSize, String strat, String KVFLocation, boolean log) {
+	public KVServer(String host, int port, int cSize, String strat, String KVFLocation, boolean log) {
+		this.host = host;
 		this.port = port;
 		this.cacheSize = cSize;
 		this.strategy = strat;
@@ -157,7 +159,7 @@ public class KVServer  {
 		logger.info("Initialize server ...");
 
 		try {
-			InetAddress address = InetAddress.getByName("localhost");
+			InetAddress address = InetAddress.getByName(host);
 			socket = new ServerSocket(port, 0, address);
 			logger.info("Server listening on " + address.getHostName()
                     +":" +  socket.getLocalPort());
@@ -250,7 +252,7 @@ public class KVServer  {
 
 		String KVFileLocation = file.getAbsolutePath();
 
-		KVServer server = new KVServer(port, cacheSize, strategy, KVFileLocation, shouldLog);
+		KVServer server = new KVServer("localhost", port, cacheSize, strategy, KVFileLocation, shouldLog);
 		server.Run();
 	}
 
