@@ -161,7 +161,7 @@ public class KVServer  {
 		try {
 			InetAddress address = InetAddress.getByName(host);
 			socket = new ServerSocket(port, 0, address);
-			logger.info("Server listening on " + address.getHostName()
+			logger.info("Server listening on " + address.toString()
                     +":" +  socket.getLocalPort());
 			for(int i =0; i < serverMetadata.size(); i++){
 				Metadata md = serverMetadata.get(i);
