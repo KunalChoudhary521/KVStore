@@ -41,7 +41,7 @@ public class ECS implements ECSInterface {
 
         mySsh.connectSsh(user,host,port);
 
-        String cmd = "java -jar ms2-server.jar " + m.port +" "+cacheSize +" " + strategy  + " " + log;
+        String cmd = "java -jar ms2-server.jar "+ m.host + " " + m.port +" "+cacheSize +" " + strategy  + " " + log;
         String directory = "cd ece419/m2/ScalableStorageService";
 
         mySsh.runServer(directory, cmd);

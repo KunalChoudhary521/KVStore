@@ -222,10 +222,11 @@ public class KVServer  {
 	 * */
 	public static void main(String[] args){
 		// todo validation
-		int port = Integer.parseInt(args[0]);
-		int cacheSize = Integer.parseInt(args[1]);
-		String strategy = args[2];
-		boolean shouldLog = Boolean.parseBoolean(args[3]);
+		String host = args[0];
+		int port = Integer.parseInt(args[1]);
+		int cacheSize = Integer.parseInt(args[2]);
+		String strategy = args[3];
+		boolean shouldLog = Boolean.parseBoolean(args[4]);
 
 		try {
 			new LogSetup(System.getProperty("user.dir")+"/logs/server.log", Level.ALL);
@@ -252,7 +253,7 @@ public class KVServer  {
 
 		String KVFileLocation = file.getAbsolutePath();
 
-		KVServer server = new KVServer("localhost", port, cacheSize, strategy, KVFileLocation, shouldLog);
+		KVServer server = new KVServer(host, port, cacheSize, strategy, KVFileLocation, shouldLog);
 		server.Run();
 	}
 
