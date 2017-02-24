@@ -14,6 +14,6 @@ public interface ECSInterface {
     public void shutDown(String host, int port);
     public void lockWrite(String host, int port);
     public void unlockWrite(String host, int port);
-    public void moveData(String startRange, String endRange, String host, int port);
-    public void update(Metadata newMetadata, String host, int port);
+    public void moveData(String host, int port, String startRange, String endRange);
+    public void sendViaTCP(String host, int port, byte[] data);
 }

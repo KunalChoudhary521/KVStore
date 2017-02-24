@@ -2,6 +2,8 @@ package app_kvEcs;
 
 import app_kvServer.Metadata;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Map;
 import java.util.SortedMap;
@@ -13,7 +15,7 @@ import java.util.TreeMap;
 public class ECS implements ECSInterface {
 
     private SortedMap<String, Metadata> hashRing;
-    private Socket clientSocket;
+    private Socket ecsSocket;
 
     public ECS(){
         hashRing = new TreeMap<String, Metadata>();
@@ -53,16 +55,35 @@ public class ECS implements ECSInterface {
         updateServerMetadata();
     }
 
-    private void updateServerMetadata() {
-        /*for(Map.Entry<String,Metadata> entry: hashRing.entrySet()){
+    private void updateServerMetadata()
+    {
+        for(Map.Entry<String,Metadata> entry: hashRing.entrySet())
+        {
             String key = entry.getKey();
             Metadata m = entry.getValue();
-            // build a string of metadata, and send it via TCP to the server
-        }
-        for(Map.Entry<String,Metadata> entry: hashRing.entrySet()){
-            update(m, m.host, Integer.parseInt(m.port));
 
-        }*/
+            // build a byte[] of metadata, and send it via TCP to the server
+            int mDatalen = entry.getValue().host.length() + entry.getValue().port.length()
+                        + entry.getValue().startHash.length() +
+                    entry.getValue().endHash.length() + 3;//3 for ","
+
+            byte[] mData = new byte[mDatalen];
+
+            byte[] hostB = (entry.getValue().host + ",").getBytes();
+            byte[] portB = (entry.getValue().port + ",").getBytes();
+            byte[] srtRangeB = (entry.getValue().startHash + ",").getBytes();
+            byte[] endRangeB = (entry.getValue().endHash).getBytes();
+
+            System.arraycopy(hostB,0,mData,0,hostB.length);
+            System.arraycopy(portB,0,mData,hostB.length,portB.length);
+            System.arraycopy(srtRangeB,0,mData,hostB.length + portB.length,srtRangeB.length);
+            System.arraycopy(endRangeB,0,mData,hostB.length + portB.length + srtRangeB.length,endRangeB.length);
+
+            //System.out.println("MetaData byte array: " + new String(mData));//for debugging
+
+            sendViaTCP(entry.getValue().host,Integer.parseInt(entry.getValue().port),mData);
+        }
+
     }
 
     private void updateRanges() {
@@ -74,7 +95,8 @@ public class ECS implements ECSInterface {
             if(prev != null) {
                 m.endHash = key;
             } else {
-                m.endHash = "ffffffffffffffffffffffffffffffff";
+                //System.out.println(new String(new char[32]).replace("\0", "f"));
+                m.endHash = new String(new char[32]).replace("\0", "f");//"ffffffffffffffffffffffffffffffff";
             }
 
             //TODO: need to properly deal with boundaries (this is a quick fix)
@@ -90,35 +112,61 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void start(String host, int port) {
+    public void start(String host, int port)
+    {
         // send a TCP message that says, accept clients
         byte[] byteMsg = {'E','C','S',0, 'S'};
-
     }
 
     @Override
-    public void stop(String host, int port) {
-
+    public void stop(String host, int port)
+    {
+        byte[] byteMsg = {'E','C','S',0, 'E'};//E for End
     }
 
     @Override
-    public void shutDown(String host, int port) {
-
+    public void shutDown(String host, int port)
+    {
+        byte[] byteMsg = {'E','C','S',0, 'T'};//T for terminate
     }
 
     @Override
-    public void lockWrite(String host, int port) {
-
+    public void lockWrite(String host, int port)
+    {
+        byte[] byteMsg = {'E','C','S',0, 'R'};//R for read-only
     }
 
     @Override
-    public void unlockWrite(String host, int port) {
-
+    public void unlockWrite(String host, int port)
+    {
+        byte[] byteMsg = {'E','C','S',0, 'W'};//W for read-write
     }
 
     @Override
-    public void moveData(String startRange, String endRange, String host, int port) {
+    public void moveData(String host, int port, String startRange, String endRange)
+    {
+        //Protocol: ECS0M0<start-range>0<end-range>
+        byte[] byteMsg = new byte[5 + (1+startRange.length()) + (1+endRange.length())];//5 for ECS0M
 
+        byteMsg[0] = 'E';
+        byteMsg[1] = 'C';
+        byteMsg[2] = 'S';
+        byteMsg[3] = 0;
+        byteMsg[4] = 'M';
+
+        byteMsg[5] = 0;
+        int startRIdx = 6;
+        byte[] startBytes = startRange.getBytes();
+        System.arraycopy(startBytes,0,byteMsg,startRIdx,startBytes.length);
+        byteMsg[startRIdx+startBytes.length] = 0;
+
+        int endRIdx = (startRIdx+startBytes.length) + 1;
+        byte[] endBytes = endRange.getBytes();
+        System.arraycopy(endBytes,0,byteMsg,endRIdx,endBytes.length);
+
+        //System.out.println("start: " + startRange + "\n" + "end: " + endRange + "\n" + "Byte Msg: " + new String(byteMsg));//for debugging
+
+        return;
     }
 
     @Override
@@ -126,11 +174,22 @@ public class ECS implements ECSInterface {
     * All TCP logic for sending the kvServer updated metadata
     *
      */
-    public void update(Metadata newMetadata, String host, int port) {
+    public void sendViaTCP(String host, int port, byte[] data)
+    {
         try {
-            this.clientSocket = new Socket(host, port);
-        } catch (Exception ex){
+            this.ecsSocket = new Socket(host, port);//KVServer must be ready to accept TCP request before ECS sends data
+            OutputStream writeToSock = this.ecsSocket.getOutputStream();
 
+            writeToSock.write(data,0,data.length);
+            writeToSock.flush();
+
+            this.ecsSocket.close();
+
+        }
+        catch (Exception ex)
+        {
+            System.out.println("ECS failed to send data to KVServer: " + host + ":" + port);
+            ex.printStackTrace();
         }
     }
 
@@ -139,8 +198,25 @@ public class ECS implements ECSInterface {
         Metadata fake1 = new Metadata("128.100.13.222", "8000", "", "");
         //Metadata fake2 = new Metadata("128.100.13.222", "8001", "", "");
         //Metadata fake3 = new Metadata("128.100.13.222", "8002", "", "");
-        ecs.initKVServer(fake1, 0, "LRU", true);
+
+        //ecs.initKVServer(fake1, 0, "LRU", true);
         //ecs.initKVServer(fake2, 0, "LRU", true);
         //ecs.initKVServer(fake3, 0, "LRU", true);
+
+        //testing moveData function
+        String start, end;
+        try  {
+            start = md5.HashS("128.100.13.222:8000");
+            end = md5.HashS("128.100.13.222:8001");
+            ecs.moveData("localhost", 8000, start, end);
+
+            String host = "127.0.0.1";//"128.100.13.222"
+            Metadata test = new Metadata(host,"8000",start,end);
+            ecs.hashRing.put(host,test);
+            ecs.updateServerMetadata();
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 }
