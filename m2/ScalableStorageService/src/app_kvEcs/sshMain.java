@@ -10,7 +10,7 @@ public class sshMain
 
         mySsh.connectSsh(user,host,port);
 
-        String[] serverCmds = {
+        /*String[] serverCmds = {
                 "java -jar ms1-server.jar 9000 100 LRU ../TestFile.txt true",
                 "java -jar ms1-server.jar 9001 100 FIFO ../TestFile.txt true",
                 "java -jar ms1-server.jar 9002 100 LFU ../TestFile.txt true"
@@ -19,7 +19,7 @@ public class sshMain
         directory = "cd ece419/m1/BasicStorageServer-stub";
         //directory = "cd ece419/m2/ScalableStorageService";
 
-        mySsh.runServer(directory, serverCmds);
+        mySsh.runServer(directory, serverCmds);*/
 
         //mySsh.stopAllServer();
 
