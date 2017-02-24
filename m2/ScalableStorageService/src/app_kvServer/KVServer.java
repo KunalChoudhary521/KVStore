@@ -233,7 +233,7 @@ public class KVServer  {
 		}
 
 		String currPath = System.getProperty("user.dir");
-		File file = new File(currPath+"\\"+port);
+		File file = new File(""+port);
 		if(!file.exists()){
 			file.mkdir();
 			if(shouldLog){

@@ -38,7 +38,7 @@ public class sshSession
             ex.printStackTrace();
         }
     }
-    public void runServer(String dir, String[] command)
+    public void runServer(String dir, String command)
     {
         try
         {
@@ -49,11 +49,7 @@ public class sshSession
             this.channel.connect(4 * 1000);//server process begins
 
             sendCmds.println(dir);
-			/*for(int i = 0; i < command.length; i++)//run all servers
-			{
-				sendCmds.println(command[i] + " &");
-			}*/
-            sendCmds.println(command[0] + " &");
+            sendCmds.println(command + " &");
 
             sendCmds.close();
 
