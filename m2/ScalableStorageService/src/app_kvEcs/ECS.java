@@ -59,6 +59,7 @@ public class ECS implements ECSInterface {
 
     private void updateServerMetadata()
     {
+        //Protocol: ECS-METADATA-<HostIP>,<Port>,<StartRange>,<EndRange>,0
         for(Map.Entry<String,Metadata> entry: hashRing.entrySet())
         {
             String msgType = "ECS-METADATA-";
@@ -69,14 +70,14 @@ public class ECS implements ECSInterface {
             // build a byte[] of metadata, and send it via TCP to the server
             int mDatalen = msgType.length() + entry.getValue().host.length() + entry.getValue().port.length()
                         + entry.getValue().startHash.length() +
-                    entry.getValue().endHash.length() + 3;//3 for ","
+                    entry.getValue().endHash.length() + 4 + 1;//4 for ",", 1 for 0 -> byte-terminator
 
             byte[] mData = new byte[mDatalen];
 
             byte[] hostB = (entry.getValue().host + ",").getBytes();
             byte[] portB = (entry.getValue().port + ",").getBytes();
             byte[] srtRangeB = (entry.getValue().startHash + ",").getBytes();
-            byte[] endRangeB = (entry.getValue().endHash).getBytes();
+            byte[] endRangeB = (entry.getValue().endHash + ",").getBytes();
 
             System.arraycopy(msgType.getBytes(),0,mData,0,msgType.length());
             System.arraycopy(hostB,0,mData,msgType.length(),hostB.length);
@@ -86,7 +87,7 @@ public class ECS implements ECSInterface {
             System.arraycopy(endRangeB,0,mData,msgType.length() + hostB.length + portB.length
                             + srtRangeB.length,endRangeB.length);
 
-            System.out.println("MetaData byte array: " + new String(mData));//for debugging
+            //System.out.println("MetaData byte array: " + new String(mData));//for debugging
 
             sendViaTCP(entry.getValue().host,Integer.parseInt(entry.getValue().port),mData);
         }
@@ -121,46 +122,51 @@ public class ECS implements ECSInterface {
     @Override
     public void start(String host, int port)
     {
-        // send a TCP message that says, accept clients
-        byte[] byteMsg = {'E','C','S','-','S','T','A','R','T',0};
+        //Protocol: ECS-START0
+        byte[] byteMsg = createMessage("ECS-START");
         sendViaTCP(host, port, byteMsg);
     }
 
     @Override
     public void stop(String host, int port)
     {
-        byte[] byteMsg = {'E','C','S','-','S','T','O','P',0};//E for End
+        //Protocol: ECS-STOP0
+        byte[] byteMsg = createMessage("ECS-STOP");
         sendViaTCP(host, port, byteMsg);
     }
 
     @Override
     public void shutDown(String host, int port)
     {
-        byte[] byteMsg = {'E','C','S','-','S','H','U','T','D','O','W','N',0};//T for terminate
+        //Protocol: ECS-SHUTDOWN0
+        byte[] byteMsg = createMessage("ECS-SHUTDOWN");
         sendViaTCP(host, port, byteMsg);
     }
 
     @Override
     public void lockWrite(String host, int port)
     {
-        byte[] byteMsg = {'E','C','S','-','L','O','C','K','W','R','I','T','E',0};//R for read-only
+        //Protocol: ECS-LOCKWRITE0
+        byte[] byteMsg = createMessage("ECS-LOCKWRITE");
         sendViaTCP(host, port, byteMsg);
     }
 
     @Override
     public void unlockWrite(String host, int port)
     {
-        byte[] byteMsg = {'E','C','S','-','U','N','L','O','C','K','W','R','I','T','E',0};//W for read-write
+        //Protocol: ECS-UNLOCKWRITE0
+        byte[] byteMsg = createMessage("ECS-UNLOCKWRITE");
         sendViaTCP(host, port, byteMsg);
     }
 
     @Override
     public void moveData(String host, int port, String startRange, String endRange)
     {
-        //Protocol: ECS-M-<start-range>-<end-range>
+        //Protocol: ECS-MOVE-<start-range>-<end-range>-0
         String msgType = "ECS-MOVE-";
 
-        byte[] byteMsg = new byte[msgType.length() + (1+startRange.length()) + (2+endRange.length())];
+        byte[] byteMsg = new byte[msgType.length() + (1+startRange.length()) + (1+endRange.length()) + 2];//last +2
+        // for 0 terminator
 
         System.arraycopy(msgType.getBytes(),0,byteMsg,0,msgType.length());
 
@@ -172,11 +178,19 @@ public class ECS implements ECSInterface {
         int endRIdx = (startRIdx+startBytes.length) + 1;
         byte[] endBytes = endRange.getBytes();
         System.arraycopy(endBytes,0,byteMsg,endRIdx,endBytes.length);
-        byteMsg[byteMsg.length-1] = 0;
+        byteMsg[byteMsg.length-2] = '-';
 
-        //System.out.println("start: " + startRange + "\n" + "end: " + endRange + "\n" + "Byte Msg: " + new String(byteMsg));//for debugging
+        //System.out.println("Byte Msg: " + new String(byteMsg));//for debugging
 
         sendViaTCP(host, port, byteMsg);
+    }
+
+    public byte[] createMessage(String msgType)
+    {
+        byte[] byteMsg = new byte[msgType.length() + 1];
+        System.arraycopy(msgType.getBytes(),0,byteMsg,0,msgType.length());
+        //System.out.println("byte-message: " + new String(byteMsg));
+        return byteMsg;
     }
 
     @Override
@@ -210,14 +224,14 @@ public class ECS implements ECSInterface {
         //Metadata fake3 = new Metadata("128.100.13.222", "8002", "", "");
         Metadata fake4 = new Metadata("localhost", "8000", "10ab", "a24f");
 
-        ecs.lockWrite("localhost", 8000);
-        ecs.unlockWrite("localhost", 8000);
-        ecs.start("localhost", 8000);
+        /*ecs.start("localhost", 8000);
         ecs.stop("localhost", 8000);
         ecs.shutDown("localhost", 8000);
+        ecs.lockWrite("localhost", 8000);
+        ecs.unlockWrite("localhost", 8000);
         ecs.moveData("localhost", 8000,
                 "00000000000000000000000000000000",
-                "00000000000000000000000000000000");
-        ecs.initKVServer(fake4,100,"LRU", true);
+                "ffffffffffffffffffffffffffffffff");*/
+        //ecs.initKVServer(fake4,100,"LRU", true);
     }
 }
