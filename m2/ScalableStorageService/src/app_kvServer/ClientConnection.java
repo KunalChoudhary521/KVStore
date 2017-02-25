@@ -57,13 +57,22 @@ public class ClientConnection implements Runnable {
 			while(isOpen) {
 				try {
 					TextMessage latestMsg = receiveMessage();
-					logger.info("client sent"+latestMsg.getMsg());
-					if (latestMsg.getMsg().trim().contains("P")){
-						handle_put();
-					}
-					else if (latestMsg.getMsg().trim().contains("G")){
-						handle_get();
-					} else if(latestMsg.getMsg().trim().contains("ECS")){
+					logger.info("client sent" + latestMsg.getMsg());
+					if (latestMsg.getMsg().trim().charAt(0)== 'P') {
+						if (this.server.isStarted) {
+							handle_put();
+						} else {
+							byte[] message = {'S', 'T', 0};
+							sendMessage(message, 3);
+						}
+					} else if (latestMsg.getMsg().trim().charAt(0)== 'G') {
+						if (this.server.isStarted) {
+							handle_get();
+						} else {
+							byte[] message = {'S', 'T', 0};
+							sendMessage(message, 3);
+						}
+					} else if (latestMsg.getMsg().trim().contains("ECS")) {
 						handle_ecs(latestMsg.getMsg());
 					}
 				/* connection either terminated by the client or lost due to 
@@ -77,7 +86,7 @@ public class ClientConnection implements Runnable {
 					logger.error(ex.getMessage());
 				}
 			}
-			
+
 		} catch (IOException ioe) {
 			logger.error("Error! Connection could not be established!", ioe);
 			
@@ -97,19 +106,40 @@ public class ClientConnection implements Runnable {
 
 	private void handle_ecs(String msg) {
 		if(msg.contains("ECS-LOCKWRITE")){ //can only read
+			this.server.isReadOnly = true;
 			logger.info("ECS message: lockwrite");
 		}else if(msg.contains("ECS-UNLOCKWRITE")){ //can write now
+			this.server.isReadOnly = false;
 			logger.info("ECS message: unlockwrite");
 		} else if(msg.contains("ECS-SHUTDOWN")){ //terminate
+			this.server.shouldShutDown = true;
+			this.server.closeSocket();
 			logger.info("ECS message: shutdown");
 		} else if(msg.contains("ECS-START")){ //start
+			this.server.isStarted = true;
 			logger.info("ECS message: start");
 		} else if(msg.contains("ECS-STOP")){ //stop
+			this.server.isStarted = false;
 			logger.info("ECS message: stop");
-		} else if(msg.contains("ECS-MOVE")){ //must move all data that falls with the range to a new server
+		} else if(msg.contains("ECS-MOVE")){ //must move all data that falls within the range to a new server
 			logger.info("ECS message: move");
-		} else if(msg.contains("ECS-METADATA")){
+		} else if(msg.contains("ECS-METADATA")){ // must replace current metadata with the metadata being given
 			logger.info("ECS message: metadata");
+		} else if(msg.contains("ECS-DISCONNECT")){
+			this.isOpen = false;
+		}
+		if(this.isOpen) {
+			sendECSAck();
+		}
+	}
+
+	public void sendECSAck(){
+		byte[] ack = {'F','I','N'};
+		try {
+			this.sendMessage(ack, ack.length);
+		}
+		catch (Exception ex){
+			logger.info(ex);
 		}
 	}
 
@@ -156,32 +186,32 @@ public class ClientConnection implements Runnable {
 			int got_key = 0;
 
 			if(payload == null)
-            {
-                // was not found in cache find in file
-                got_key = 0;
-                logger.debug("not in cache, checking file");
-                String result = fileStoreHelper.FindFromFile(key);
-                logger.info("file returned"+result);
-                if(result != null){
-                	// PUT in the cache if there is space
+			{
+				// was not found in cache find in file
+				got_key = 0;
+				logger.debug("not in cache, checking file");
+				String result = fileStoreHelper.FindFromFile(key);
+				logger.info("file returned"+result);
+				if(result != null){
+					// PUT in the cache if there is space
 					logger.debug("putting in cache");
 					this.server.getKvcache().insertInCache(key,result);//is result Value?
 					logger.info("put in cache");
 
-                    got_key = 1;
-                    payload = result;
-                    length = payload.length();
-                }
-            } else {
-			    // was found in cache
-                got_key = 1;
-                length = payload.length();
-            }
+					got_key = 1;
+					payload = result;
+					length = payload.length();
+				}
+			} else {
+				// was found in cache
+				got_key = 1;
+				length = payload.length();
+			}
 
 
 			String length_str = Integer.toString(length);
 
-			
+
 			if (got_key == 1){
 				//creating response
 				int kl = key.length();
@@ -219,7 +249,7 @@ public class ClientConnection implements Runnable {
 		}
 		catch(Exception ex) {
 			logger.info(ex.getMessage());
-        }
+		}
 	}
 
 	/**
@@ -228,153 +258,164 @@ public class ClientConnection implements Runnable {
 	 * Builds back a message and sends it back to the client
 	 * */
 	public void handle_put(){
-		String [] client_msgs = new String[4];
-		
-		try{
-			for (int i =0; i<2; i++){
-				client_msgs[i] = this.receiveMessage().getMsg().trim();
+		if(this.server.isReadOnly)
+		{
+			byte[] message = new byte[2];
+			message[0] = 'W';
+			message[1] = 0;
+			try {
+				sendMessage(message, 1);
+			} catch(Exception ex){
+				logger.info(ex);
 			}
-			if(log) {
-				logger.info("Put, client wants to place " + client_msgs[1] + " bytes for key '" + client_msgs[0] + "'");
-			}
-			int kl = client_msgs[0].length();
-			int ll = client_msgs[1].length();
-		//validate key and payload lengths
-			if (kl>20){
-				byte [] message = new byte [2];
-				message[0]=(byte) 'F';
+		} else {
+			String [] client_msgs = new String[4];
+			try{
+				for (int i =0; i<2; i++){
+					client_msgs[i] = this.receiveMessage().getMsg().trim();
+				}
+				if(log) {
+					logger.info("Put, client wants to place " + client_msgs[1] + " bytes for key '" + client_msgs[0] + "'");
+				}
+				int kl = client_msgs[0].length();
+				int ll = client_msgs[1].length();
+				//validate key and payload lengths
+				if (kl>20){
+					byte [] message = new byte [2];
+					message[0]=(byte) 'F';
+					message[1] = (byte) 0;
+					this.sendMessage(message, 2);
+					throw new Exception("Put, client sent too long of a key, key = '"+client_msgs[0]+"', length = "+kl);
+				}
+				//check if this node is responsible for the key
+				String hash = md5.HashS(client_msgs[0]);
+				if(hash.compareTo(server.myMetadata.startHash) < 0 || hash.compareTo(server.myMetadata.endHash) > 0)
+				{
+					String message = "I!";
+					message+=server.getMetadata();
+					byte[] barray = new byte[message.length()];
+					for(int i = 0; i <message.length(); i++){
+						if(message.charAt(i) == '!'){
+							barray[i] = 0;
+						} else {
+							barray[i] = (byte) message.charAt(i);
+						}
+					}
+					sendMessage(barray, barray.length);
+					return;
+				}
+				if (Integer.valueOf(client_msgs[1].trim())>(120*1024)){
+					byte [] message = new byte [2];
+					message[0]=(byte) 'F';
+					message[1] = (byte) 0;
+					this.sendMessage(message, 2);
+					throw new Exception("Put, client sent too large a size, size = "+client_msgs[1]);
+				}
+				//GET the key from the file on disk populate below variables based on file
+				logger.info("key and length passed validation");
+				int got_key = 0;
+				if ((this.server.findInCache(client_msgs[0],log)!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
+					got_key = 1;
+				}
+				logger.debug("got_key="+got_key);
+
+				byte[] message = new byte[4+kl+ll];
+				if (got_key == 1){
+					message[0] = (byte) 'U';
+				}
+				else{
+					message[0] = (byte) 'S';
+				}
 				message[1] = (byte) 0;
-				this.sendMessage(message, 2);
-				throw new Exception("Put, client sent too long of a key, key = '"+client_msgs[0]+"', length = "+kl);
-			}
-			//check if this node is responsible for the key
-			String hash = md5.HashS(client_msgs[0]);
-			if(hash.compareTo(server.myMetadata.startHash) < 0 || hash.compareTo(server.myMetadata.endHash) > 0)
-			{
-				String message = "I!";
-				message+=server.getMetadata();
-				byte[] barray = new byte[message.length()];
-				for(int i = 0; i <message.length(); i++){
-					if(message.charAt(i) == '!'){
-						barray[i] = 0;
+				for (int i = 0; i<kl; i++){
+					message[2+i]=(byte) client_msgs[0].charAt(i);
+				}
+				message[2+kl]= (byte) 0;
+				for (int i = 0; i < ll; i++){
+					message[3+kl+i] = (byte) client_msgs[1].charAt(i);
+				}
+				message[3+kl+ll]=(byte) 0;
+
+				this.sendMessage(message, 4+kl+ll);
+				logger.info("acknowledgement sent, awaiting payload");
+				for (int i = 2; i<4; i++){
+					client_msgs[i] = this.receiveMessage().getMsg().trim();
+
+				}
+
+				if (client_msgs[2].contains("F")){
+					throw new Exception("Put, client sent a failure signal");
+				}
+				if(client_msgs[3].length() != Integer.parseInt(client_msgs[1].trim())){
+					throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
+				}
+
+				int cacheSuccess =0; //change based on insertion results
+				int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
+
+				if(got_key == 0 && !client_msgs[3].equals("null")) {
+					// PUT
+
+					this.server.addToCache(client_msgs[0],client_msgs[3]);
+					cacheSuccess = 1;
+
+
+					logger.debug("cached");
+					FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
+					if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
+					{
+						logger.info("put successfully");
+						fileSuccess = 1;
+					}
+				} else {
+					// UPDATE OR DELETE
+					if(client_msgs[3].equals("null")){
+						// DELETE
+						logger.debug("deleting");
+						FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(client_msgs[0]);
+
+						if(result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS){
+							logger.debug("deleted");
+							fileSuccess = 1;
+							this.server.getKvcache().deleteFromCache(client_msgs[0]);
+
+						}
 					} else {
-						barray[i] = (byte) message.charAt(i);
+						// UPDATE
+						logger.debug("updating");
+						FileStoreHelper.FileStoreStatusType result = fileStoreHelper.UpsertInFile(client_msgs[0], client_msgs[3]);
+
+						if(result == FileStoreHelper.FileStoreStatusType.UPSERT_SUCCESS){
+							fileSuccess = 1;
+							logger.debug("file updated");
+							this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[3]);
+							logger.debug("cache updated");
+						}
 					}
 				}
-				sendMessage(barray, barray.length);
-				return;
+
+
+				///
+				if (fileSuccess == 1){
+					byte [] ack = new byte[2];
+					ack[0] = (byte) 'S';
+					ack[1] = (byte) 0;
+					this.sendMessage(ack, 2);
+					throw new Exception("Put succeeded, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
+				}
+				else{
+					byte [] ack = new byte[2];
+					ack[0] = (byte) 'F';
+					ack[1] = (byte) 0;
+					this.sendMessage(ack, 2);
+					throw new Exception("Put failed, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
+				}
 			}
-			if (Integer.valueOf(client_msgs[1].trim())>(120*1024)){
-				byte [] message = new byte [2];
-				message[0]=(byte) 'F';
-				message[1] = (byte) 0;
-				this.sendMessage(message, 2);
-				throw new Exception("Put, client sent too large a size, size = "+client_msgs[1]);
-			}
-			//GET the key from the file on disk populate below variables based on file
-			logger.info("key and length passed validation");
-			int got_key = 0;
-			if ((this.server.findInCache(client_msgs[0],log)!=null) || fileStoreHelper.FindFromFile(client_msgs[0])!=null){
-				got_key = 1;
-			}
-			logger.debug("got_key="+got_key);
+			catch(Exception ex) {
+				logger.info(ex.getMessage());
 
-			byte[] message = new byte[4+kl+ll];
-			if (got_key == 1){
-				message[0] = (byte) 'U';
-			}
-			else{
-				message[0] = (byte) 'S';
-			}
-			message[1] = (byte) 0;
-			for (int i = 0; i<kl; i++){
-				message[2+i]=(byte) client_msgs[0].charAt(i);
-			}
-			message[2+kl]= (byte) 0;
-			for (int i = 0; i < ll; i++){
-				message[3+kl+i] = (byte) client_msgs[1].charAt(i);
-			}
-			message[3+kl+ll]=(byte) 0;
-
-			this.sendMessage(message, 4+kl+ll);
-			logger.info("acknowledgement sent, awaiting payload");
-			for (int i = 2; i<4; i++){
-				client_msgs[i] = this.receiveMessage().getMsg().trim();
-
-			}
-
-			if (client_msgs[2].contains("F")){
-				throw new Exception("Put, client sent a failure signal");
-			}
-			if(client_msgs[3].length() != Integer.parseInt(client_msgs[1].trim())){
-				throw new Exception("Put, client sent a payload of the incorrect size, expected "+client_msgs[1]+", got "+client_msgs[3].length());
-			}
-
-			int cacheSuccess =0; //change based on insertion results
-			int fileSuccess = 0; //initially always a failure, have to set it to 1 for success
-
-			if(got_key == 0 && !client_msgs[3].equals("null")) {
-                // PUT
-
-				this.server.addToCache(client_msgs[0],client_msgs[3]);
-				cacheSuccess = 1;
-
-
-				logger.debug("cached");
-                FileStoreHelper.FileStoreStatusType result = fileStoreHelper.PutInFile(client_msgs[0], client_msgs[3]);
-                if(result == FileStoreHelper.FileStoreStatusType.PUT_SUCCESS)
-                {
-                	logger.info("put successfully");
-                    fileSuccess = 1;
-                }
-            } else {
-			    // UPDATE OR DELETE
-                if(client_msgs[3].equals("null")){
-                    // DELETE
-					logger.debug("deleting");
-                    FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(client_msgs[0]);
-
-                    if(result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS){
-					logger.debug("deleted");
-                        fileSuccess = 1;
-                        this.server.getKvcache().deleteFromCache(client_msgs[0]);
-
-                    }
-                } else {
-                    // UPDATE
-					logger.debug("updating");
-                    FileStoreHelper.FileStoreStatusType result = fileStoreHelper.UpsertInFile(client_msgs[0], client_msgs[3]);
-
-                    if(result == FileStoreHelper.FileStoreStatusType.UPSERT_SUCCESS){
-                        fileSuccess = 1;
-						logger.debug("file updated");
-						this.server.getKvcache().insertInCache(client_msgs[0], client_msgs[3]);
-						logger.debug("cache updated");
-                    }
-                }
-            }
-
-
-			///
-			if (fileSuccess == 1){
-				byte [] ack = new byte[2];
-				ack[0] = (byte) 'S';
-				ack[1] = (byte) 0;
-				this.sendMessage(ack, 2);
-				throw new Exception("Put succeeded, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
-			}
-			else{
-				byte [] ack = new byte[2];
-				ack[0] = (byte) 'F';
-				ack[1] = (byte) 0;
-				this.sendMessage(ack, 2);
-				throw new Exception("Put failed, key = '"+client_msgs[0]+"' payload = '"+client_msgs[3]+"'");
 			}
 		}
-		catch(Exception ex) {
-			logger.info(ex.getMessage());
-
-        }
 	}
 
 	/**

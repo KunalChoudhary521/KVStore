@@ -14,6 +14,7 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class KVServer  {
   /**
@@ -31,6 +32,7 @@ public class KVServer  {
 	private int cacheSize;
 	private String strategy;
 	private boolean isRunning;
+	public boolean isStarted;
 	private ServerSocket socket;
 	private static Logger logger = Logger.getRootLogger();
 	private boolean log;
@@ -38,15 +40,22 @@ public class KVServer  {
 	private ArrayList<Metadata> serverMetadata;
 	private String host;
 
+	// Shutdown logic
+	public boolean shouldShutDown;
+
 	private String KVFileLocation;
 
 	private KVCache cache;
+	public boolean isReadOnly;
 
 	public KVServer(String host, int port, int cSize, String strat, String KVFLocation, boolean log) {
 		this.host = host;
 		this.port = port;
 		this.cacheSize = cSize;
 		this.strategy = strat;
+		this.isReadOnly = true;
+		this.isStarted = false;
+		this.shouldShutDown = false;
 		if(cSize <= 0) {//user wants no caching
 			this.cache = null;
 		}
@@ -164,9 +173,10 @@ public class KVServer  {
 			socket = new ServerSocket(port, 0, address);
 			logger.info("Server listening on " + address.toString()
                     +":" +  socket.getLocalPort());
+			String a = socket.getInetAddress().toString();
 			for(int i =0; i < serverMetadata.size(); i++){
 				Metadata md = serverMetadata.get(i);
-				if(socket.getInetAddress().toString().equals(md.host)){
+				if(a.contains(md.host)){
 					if(port == Integer.parseInt(md.port)){
 						myMetadata = md;
 						break;
@@ -256,6 +266,15 @@ public class KVServer  {
 
 		KVServer server = new KVServer(host, port, cacheSize, strategy, KVFileLocation, shouldLog);
 		server.Run();
+	}
+
+	public void closeSocket(){
+		this.isRunning = false;
+		try {
+			this.socket.close();
+		} catch (Exception ex){
+			logger.info(ex);
+		}
 	}
 
 

@@ -203,12 +203,20 @@ public class ECS implements ECSInterface {
         try {
             this.ecsSocket = new Socket(host, port);//KVServer must be ready to accept TCP request before ECS sends data
             OutputStream writeToSock = this.ecsSocket.getOutputStream();
+            InputStream input = this.ecsSocket.getInputStream();
 
             writeToSock.write(data,0,data.length);
             writeToSock.flush();
 
-            this.ecsSocket.close();
+            byte[] response = new byte[1024];
+            // wait for acknowledge message
+            input.read(response);
 
+            // disconnect
+            byte[] disconnectMsg = {'E','C','S','-','D','I','S','C','O','N','N','E','C','T',0};
+            writeToSock.write(disconnectMsg, 0, disconnectMsg.length);
+
+            this.ecsSocket.close();
         }
         catch (Exception ex)
         {
@@ -224,14 +232,12 @@ public class ECS implements ECSInterface {
         //Metadata fake3 = new Metadata("128.100.13.222", "8002", "", "");
         Metadata fake4 = new Metadata("localhost", "8000", "10ab", "a24f");
 
-        /*ecs.start("localhost", 8000);
-        ecs.stop("localhost", 8000);
+        //ecs.start("localhost", 8000);
+        //ecs.stop("localhost", 8000);
         ecs.shutDown("localhost", 8000);
-        ecs.lockWrite("localhost", 8000);
-        ecs.unlockWrite("localhost", 8000);
-        ecs.moveData("localhost", 8000,
-                "00000000000000000000000000000000",
-                "ffffffffffffffffffffffffffffffff");*/
+        //ecs.lockWrite("localhost", 8000);
+        //ecs.unlockWrite("localhost", 8000);
+        //ecs.moveData("localhost", 8000,                "00000000000000000000000000000000",                "ffffffffffffffffffffffffffffffff");
         //ecs.initKVServer(fake4,100,"LRU", true);
     }
 }
