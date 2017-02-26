@@ -251,8 +251,8 @@ public class ECS implements ECSInterface {
         //Metadata fake4 = new Metadata("localhost", "8003", "77777777777777777777777777777777", "99999999999999999999999999999998");
 
         // can uncomment this to see if KVServer recives metadata from ECS
-        ecs.initKVServer(fake1, 0, "LRU", true);
-        ecs.initKVServer(fake2, 0, "LRU", true);
+        //ecs.initKVServer(fake1, 0, "LRU", true);
+        //ecs.initKVServer(fake2, 0, "LRU", true);
         //ecs.initKVServer(fake1, 0, "LRU", true);
         //ecs.initKVServer(fake2, 0, "LRU", true);
 

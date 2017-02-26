@@ -163,10 +163,6 @@ public class ClientConnection implements Runnable {
 				endHash = "";
 			}
 			takeNewMetadata(newMetadata);
-
-			// TODO: push the metadata changes to the metadata file
-			// create and call a function on KVServer.java that locks metadataLock and writes to the file
-			
 		} else if(msg.contains("ECS-DISCONNECT")){
 			this.isOpen = false;
 		}

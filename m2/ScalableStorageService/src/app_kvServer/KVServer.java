@@ -259,6 +259,12 @@ public class KVServer  {
 			if(shouldLog){
 				logger.info("Creating a directory to place all key-value pairs");
 			}
+			File metadataFile = new File(file.getAbsolutePath() +"\\metadata");
+			try {
+                metadataFile.createNewFile();
+            } catch (Exception ex){
+
+            }
 		}
 
 		String KVFileLocation = file.getAbsolutePath();
@@ -300,15 +306,34 @@ public class KVServer  {
 			if(a.contains(md.host)){
 				if(port == Integer.parseInt(md.port)){
 					myMetadata = md;
+
+                    // TODO: push the metadata changes to the metadata file
+                    // create and call a function on KVServer.java that locks metadataLock and writes to the file
+
+                    File file = new File(KVFileLocation+"\\metadata");
+                    try {
+                        BufferedWriter writer = new BufferedWriter(new FileWriter(file, false));
+                        for(i =0; i < serverMetadata.size(); i++){
+                            Metadata m = serverMetadata.get(i);
+                            InetAddress address = InetAddress.getByName(m.host);
+                            String line = address.getHostAddress()+","+m.port+","+m.startHash+","+m.endHash+"\n";
+                            writer.write(line);
+                            writer.flush();
+                        }
+                        writer.close();
+                    } catch (Exception ex){
+                        logger.info(ex);
+                    }
+
 					break;
 				}
 			}
 		}
-		if(myMetadata.startHash.compareTo(myMetadata.endHash) > 0){
-			amIFirstServerInRing = true;
-		}
-
-
+		if(myMetadata != null) {
+            if (myMetadata.startHash.compareTo(myMetadata.endHash) > 0) {
+                amIFirstServerInRing = true;
+            }
+        }
 		metadataUnlock();
 	}
 
