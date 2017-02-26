@@ -303,9 +303,9 @@ public class KVStore implements KVCommInterface {
 					String msg = "Put, default client socket not connected: key = '" + key + "', value = ' " + value + "'";
 					logger.error(msg);
 					throw new Exception(msg);
-				} else if (server_mapping == null) {
+				} /*else if (server_mapping == null) {
 					get(key);
-				}
+				}*/
 				if (server_mapping != null){
 					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 						String st = (String) entry.getValue().get("start");
@@ -396,7 +396,7 @@ public class KVStore implements KVCommInterface {
 					update_Map();
 					disconnect();
 					con = true;
-					continue;
+					return put(key,value);
 				}else if(ret_vals[0].getMsg().trim().contains("W")){
 					disconnect();
 					con = true;
