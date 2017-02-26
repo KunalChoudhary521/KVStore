@@ -1,6 +1,7 @@
 package app_kvServer;
 
 
+import app_kvEcs.md5;
 import cache.FIFOCache;
 import cache.KVCache;
 import cache.LFUCache;
@@ -36,9 +37,13 @@ public class KVServer  {
 	private ServerSocket socket;
 	private static Logger logger = Logger.getRootLogger();
 	private boolean log;
-	public Metadata myMetadata;
-	private ArrayList<Metadata> serverMetadata;
 	private String host;
+
+	// metadata logic
+	private Metadata myMetadata;
+	private ArrayList<Metadata> serverMetadata;
+	ReentrantLock metaDataLock;
+	private boolean amIFirstServerInRing;
 
 	// Shutdown logic
 	public boolean shouldShutDown;
@@ -56,6 +61,9 @@ public class KVServer  {
 		this.isReadOnly = true;
 		this.isStarted = false;
 		this.shouldShutDown = false;
+		metaDataLock = new ReentrantLock();
+		amIFirstServerInRing = false;
+
 		if(cSize <= 0) {//user wants no caching
 			this.cache = null;
 		}
@@ -173,19 +181,10 @@ public class KVServer  {
 			socket = new ServerSocket(port, 0, address);
 			logger.info("Server listening on " + address.toString()
                     +":" +  socket.getLocalPort());
-			String a = socket.getInetAddress().toString();
-			for(int i =0; i < serverMetadata.size(); i++){
-				Metadata md = serverMetadata.get(i);
-				if(a.contains(md.host)){
-					if(port == Integer.parseInt(md.port)){
-						myMetadata = md;
-						break;
-					}
-				}
-			}
+
+			updateMetadata();
 
 			return true;
-
 		} catch (IOException e) {
 			logger.error("Error! Cannot open server socket:");
 			if(e instanceof BindException){
@@ -277,5 +276,75 @@ public class KVServer  {
 		}
 	}
 
+	// METADATA LOGIC
 
+	public ArrayList<Metadata> getAllMetadata(){
+		return this.serverMetadata;
+	}
+
+	public void metadataLock(){
+		this.metaDataLock.lock();
+	}
+
+	public void metadataUnlock(){
+		this.metaDataLock.unlock();
+	}
+
+	public void updateMetadata(){
+		String a = socket.getInetAddress().toString();
+		metadataLock();
+		Metadata firstServer = null;
+		for(int i =0; i < serverMetadata.size(); i++){
+			Metadata md = serverMetadata.get(i);
+
+			if(a.contains(md.host)){
+				if(port == Integer.parseInt(md.port)){
+					myMetadata = md;
+					break;
+				}
+			}
+		}
+		if(myMetadata.startHash.compareTo(myMetadata.endHash) > 0){
+			amIFirstServerInRing = true;
+		}
+
+
+		metadataUnlock();
+	}
+
+	public void takeNewMetadata(ArrayList<Metadata> newMetadata) {
+		metadataLock();
+		this.serverMetadata = newMetadata;
+		updateMetadata();
+		metadataUnlock();
+	}
+
+	public boolean amIResponsibleForThisHash(String hash){
+		boolean foundMatch = false;
+
+		this.metadataLock();
+		for(int i =0 ; i < serverMetadata.size(); i++){
+			Metadata curr = serverMetadata.get(i);
+			int hashIsGreaterThanStart = hash.compareTo(curr.startHash);
+			int hashIsLessThanEnd = hash.compareTo(curr.endHash);
+			if(hashIsGreaterThanStart >= 0 &&  hashIsLessThanEnd <=0){
+				if(myMetadata.host.equals(curr.host) && myMetadata.port.equals(curr.port)){
+					this.metadataUnlock();
+					return true;
+				} else {
+					this.metadataUnlock();
+					return false;
+				}
+			}
+		}
+		this.metadataUnlock();
+
+		if(foundMatch == false){
+			if(amIFirstServerInRing){
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 
 
 /**
@@ -125,12 +126,53 @@ public class ClientConnection implements Runnable {
 			logger.info("ECS message: move");
 		} else if(msg.contains("ECS-METADATA")){ // must replace current metadata with the metadata being given
 			logger.info("ECS message: metadata");
+			int i = "ECS-METADATA-".length();
+			String host = "", port = "", startHash = "", endHash = "";
+			ArrayList<Metadata> newMetadata = new ArrayList<Metadata>();
+			while(msg.charAt(i) != '\n'){
+				// get the host
+				while(msg.charAt(i) != ','){
+					host += msg.charAt(i);
+					i++;
+				}
+				i++; //move past comma
+				// get the host
+				while(msg.charAt(i) != ','){
+					port += msg.charAt(i);
+					i++;
+				}
+				i++; //move past comma
+				// get the host
+				while(msg.charAt(i) != ','){
+					startHash += msg.charAt(i);
+					i++;
+				}
+				i++; //move past comma
+
+				while(msg.charAt(i) != '-' && msg.charAt(i) != '\n'){
+					endHash += msg.charAt(i);
+					i++;
+				}
+				if(msg.charAt(i) == '-') {
+					i++;
+				}
+				newMetadata.add(new Metadata(host,port,startHash,endHash));
+				host = "";
+				port = "";
+				startHash = "";
+				endHash = "";
+			}
+			takeNewMetadata(newMetadata);
 		} else if(msg.contains("ECS-DISCONNECT")){
 			this.isOpen = false;
 		}
 		if(this.isOpen) {
 			sendECSAck();
 		}
+	}
+
+	private void takeNewMetadata(ArrayList<Metadata> newMetadata) {
+		this.server.takeNewMetadata(newMetadata);
 	}
 
 	public void sendECSAck(){
@@ -161,9 +203,12 @@ public class ClientConnection implements Runnable {
 
 			//check if this node is responsible for the key
 			String hash = md5.HashS(key);
-			if(hash.compareTo(server.myMetadata.startHash) < 0 || hash.compareTo(server.myMetadata.endHash) > 0)
-			{
+			if(log){
+				logger.info(hash);
+			}
 
+			if(!server.amIResponsibleForThisHash(hash))
+			{
 				String message = "I!";
 				message+=server.getMetadata();
 				byte[] barray = new byte[message.length()];
@@ -289,7 +334,11 @@ public class ClientConnection implements Runnable {
 				}
 				//check if this node is responsible for the key
 				String hash = md5.HashS(client_msgs[0]);
-				if(hash.compareTo(server.myMetadata.startHash) < 0 || hash.compareTo(server.myMetadata.endHash) > 0)
+				if(log){
+					logger.info(hash);
+				}
+
+				if(!server.amIResponsibleForThisHash(hash))
 				{
 					String message = "I!";
 					message+=server.getMetadata();
@@ -304,6 +353,7 @@ public class ClientConnection implements Runnable {
 					sendMessage(barray, barray.length);
 					return;
 				}
+
 				if (Integer.valueOf(client_msgs[1].trim())>(120*1024)){
 					byte [] message = new byte [2];
 					message[0]=(byte) 'F';
