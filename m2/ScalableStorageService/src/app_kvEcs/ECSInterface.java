@@ -2,13 +2,10 @@ package app_kvEcs;
 
 import app_kvServer.Metadata;
 
-import java.util.List;
-
-/**
- * Created by Haashir on 2/24/2017.
- */
 public interface ECSInterface {
-    public void initKVServer(Metadata m, int cacheSize, String stratgy, boolean log);
+    public void initKVServer(int numOfServers, int cSize, String strat, boolean log);
+    public void addServer(String host, int port, int cacheSize, String strategy, boolean log);
+    public void removeServer(String host, int port);
     public void start(String host, int port);
     public void stop(String host, int port);
     public void shutDown(String host, int port);
