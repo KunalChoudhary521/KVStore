@@ -46,13 +46,13 @@ public class KVServer  {
 	private boolean amIFirstServerInRing;
 
 	// Shutdown logic
-	public boolean shouldShutDown;
+	private boolean shouldShutDown;
 
 	private String KVFileLocation;
 
 	private KVCache cache;
 	public boolean isReadOnly;
-
+	private ArrayList<Socket> socketArray;
 	public KVServer(String host, int port, int cSize, String strat, String KVFLocation, boolean log) {
 		this.host = host;
 		this.port = port;
@@ -86,6 +86,7 @@ public class KVServer  {
 
 		serverMetadata = new ArrayList<Metadata>();
 
+		this.socketArray = new ArrayList<>();
 		this.buildMetadata();
 	}
 
@@ -133,9 +134,10 @@ public class KVServer  {
 
 		isRunning = InitializeServer();
 		if(socket != null) {
-			while(isRunning){
+			while(isRunning && !shouldShutDown){
 				try {
 					Socket client = socket.accept();
+					socketArray.add(client);
 					ClientConnection connection =
 							new ClientConnection(client,this, this.KVFileLocation, this.log);
 					new Thread(connection).start();
@@ -145,7 +147,7 @@ public class KVServer  {
 								+ client.getInetAddress().getHostName()
 								+ " on port " + client.getPort());
 					}
-				} catch (IOException e) {
+				} catch (Exception e) {
 					if(log) {
 						logger.error("Error! " +
 								"Unable to establish connection. \n", e);
@@ -378,4 +380,34 @@ public class KVServer  {
 
 		return false;
 	}
+
+	public void closeAllSockets()
+	{
+		for(int i = 0; i < socketArray.size(); i++)
+        {
+            try
+            {
+                socketArray.get(i).close();
+            }
+            catch (Exception ex)
+            {
+                logger.info(ex);
+            }
+        }
+
+        try
+        {
+            this.socket.close();
+        }
+        catch (Exception ex)
+        {
+            logger.info(ex);
+        }
+	}
+
+	public void Shutdown(boolean shutDown)
+    {
+        this.shouldShutDown = shutDown;
+    }
+
 }

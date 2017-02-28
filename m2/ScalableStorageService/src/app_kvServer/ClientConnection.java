@@ -116,8 +116,9 @@ public class ClientConnection implements Runnable {
 			this.server.isReadOnly = false;
 			logger.info("ECS message: unlockwrite");
 		} else if(msg.contains("ECS-SHUTDOWN")){ //terminate
-			this.server.shouldShutDown = true;
-			this.server.closeSocket();
+			this.server.Shutdown(true);
+			this.server.closeAllSockets();
+			isOpen = false;
 			logger.info("ECS message: shutdown");
 		} else if(msg.contains("ECS-START")){ //start
 			//rather than doing this, make boolean called canGet = false && canWrite = false
