@@ -117,6 +117,8 @@ public class ClientConnection implements Runnable {
 			this.server.closeSocket();
 			logger.info("ECS message: shutdown");
 		} else if(msg.contains("ECS-START")){ //start
+			//rather than doing this, make boolean called canGet = false && canWrite = false
+            //server should not accept any puts or gets from KVClient (m2-spec)
 			this.server.isStarted = true;
 			logger.info("ECS message: start");
 		} else if(msg.contains("ECS-STOP")){ //stop
