@@ -358,7 +358,7 @@ public class KVServer  {
 			Metadata curr = serverMetadata.get(i);
 			int hashIsGreaterThanStart = hash.compareTo(curr.startHash);
 			int hashIsLessThanEnd = hash.compareTo(curr.endHash);
-			if(hashIsGreaterThanStart >= 0 &&  hashIsLessThanEnd <=0){
+			if(hashIsGreaterThanStart > 0 &&  hashIsLessThanEnd <=0){
 				if(myMetadata.host.equals(curr.host) && myMetadata.port.equals(curr.port)){
 					this.metadataUnlock();
 					return true;
