@@ -96,6 +96,8 @@ public class KVServer  {
 				logger.info("No metadata file!");
 				throw new Exception("no metadata file");
 			}
+
+			logger.info("metadata file exists, populate metadata");
 			FileInputStream in = new FileInputStream(file);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
@@ -260,11 +262,15 @@ public class KVServer  {
 				logger.info("Creating a directory to place all key-value pairs");
 			}
 			File metadataFile = new File(file.getAbsolutePath() +"\\metadata");
-			try {
-                metadataFile.createNewFile();
-            } catch (Exception ex){
+			if(metadataFile.exists() == false) {
+				try {
+					metadataFile.createNewFile();
+				} catch (Exception ex) {
 
-            }
+				}
+			} else {
+
+			}
 		}
 
 		String KVFileLocation = file.getAbsolutePath();

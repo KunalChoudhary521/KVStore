@@ -130,24 +130,49 @@ public class KVStore implements KVCommInterface {
 	disconnects from current connection
 	 */
 	public void disconnect() {
+
 		if (con== true){
+			this.address = this.def_address;
+			this.port = this.def_port;
+			this.input = this.def_input;
+			this.output= this.def_output;
+			byte[] discon = new byte[2];
+			discon[0] = (byte) 'D';
+			discon[1] = 0;
+			try {
+				this.sendMessage(discon, 2);
+			}catch(Exception ex){
+				logger.info(ex);
+			}
 			String message = "try to close connection with " + this.def_address +":" + this.def_port
 					+ "at" + new Date().toString();
 			logger.info(message);
 
+
 			try{
 				tearDownConnection();
-				for (ClientSocketListener listener : listeners){
-					listener.handleStatus(SocketStatus.DISCONNECTED);
+				if (listeners != null) {
+					for (ClientSocketListener listener : listeners) {
+						listener.handleStatus(SocketStatus.DISCONNECTED);
+					}
 				}
 				logger.info("connection closed with " + this.def_address +":" + this.def_port
 						+ "at" + new Date().toString());
+
 			}catch(Exception ioe){
 				logger.warn("Unable to close connection!",ioe);
 			}
 
 		}
 		else {
+			byte[] discon = new byte[2];
+			discon[0] = (byte) 'D';
+			discon[1] = 0;
+			try {
+				this.sendMessage(discon, 2);
+			}catch(Exception ex){
+				logger.info(ex);
+			}
 			String message = "try to close connection with " + this.address + ":" + this.port
 					+ "at" + new Date().toString();
 			logger.info(message);
@@ -319,6 +344,12 @@ public class KVStore implements KVCommInterface {
 				}else{
 					this.address =this.def_address;
 					this.port = this.def_port;
+					if (this.def_input !=null){
+						this.input = this.def_input;
+					}
+					if (this.def_output != null){
+						this.output = this.def_output;
+					}
 				}
 				con = false;
 				connect();
@@ -627,6 +658,10 @@ public class KVStore implements KVCommInterface {
 								ret_vals[i] = this.receiveMessage();
 								if (ret_vals[i].getMsg().trim().contains("F")) {
 									break;
+								}
+								else if (ret_vals[i].getMsg().trim().contains("I")){
+									update_Map();
+									return get(key);
 								}
 								else if (ret_vals[i].getMsg().trim().contains("W")){
 									update_Map();

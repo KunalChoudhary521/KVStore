@@ -76,6 +76,9 @@ public class ClientConnection implements Runnable {
 					} else if (latestMsg.getMsg().trim().contains("ECS")) {
 						handle_ecs(latestMsg.getMsg());
 					}
+					else if(latestMsg.getMsg().trim().contains("D")){
+						isOpen = false;//client disconnect
+					}
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
 				} catch (IOException ioe) {
