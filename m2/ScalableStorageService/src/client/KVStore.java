@@ -335,7 +335,15 @@ public class KVStore implements KVCommInterface {
 					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 						String st = (String) entry.getValue().get("start");
 						String ed = (String) entry.getValue().get("end");
-						if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))) {
+						boolean hashIsGreaterThanStart = kh.compareTo(st)>0;
+						boolean hashIsLessThanEnd = kh.compareTo(ed)<=0;
+						boolean wraparound = st.compareTo(ed)>0;
+						boolean hashIsLessThanFs = "ffffffffffffffffffffffffffffffff".compareTo(kh) >=0;
+						boolean hashIsGtThanFs = "00000000000000000000000000000000".compareTo(kh) <=0;
+						if((hashIsGreaterThanStart &&  hashIsLessThanEnd)||(wraparound &&
+								(((hashIsGreaterThanStart&& hashIsLessThanFs)||
+										(hashIsLessThanEnd&& hashIsGtThanFs))))){
+							//if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
 							this.address = (String) entry.getValue().get("ip");
 							this.port = Integer.parseInt((String) entry.getValue().get("port"));
 							break;
@@ -620,7 +628,15 @@ public class KVStore implements KVCommInterface {
 					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 						String st = (String) entry.getValue().get("start");
 						String ed = (String) entry.getValue().get("end");
-						if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
+						boolean hashIsGreaterThanStart = kh.compareTo(st)>0;
+						boolean hashIsLessThanEnd = kh.compareTo(ed)<=0;
+						boolean wraparound = st.compareTo(ed)>0;
+						boolean hashIsLessThanFs = "ffffffffffffffffffffffffffffffff".compareTo(kh) >=0;
+						boolean hashIsGtThanFs = "00000000000000000000000000000000".compareTo(kh) <=0;
+						if((hashIsGreaterThanStart &&  hashIsLessThanEnd)||(wraparound &&
+								((hashIsGreaterThanStart&& hashIsLessThanFs)||
+										(hashIsLessThanEnd&& hashIsGtThanFs)))){
+						//if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
 							this.address = (String) entry.getValue().get("ip");
 							this.port = Integer.parseInt((String) entry.getValue().get("port"));
 							break;
