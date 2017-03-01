@@ -53,7 +53,7 @@ public class KVServer  {
 	private KVCache cache;
 	public boolean isReadOnly;
 	private ArrayList<Socket> socketArray;
-	public KVServer(String host, int port, int cSize, String strat, String KVFLocation, boolean log) {
+	public KVServer(String host, int port, int cSize, String strat, boolean log) {
 		this.host = host;
 		this.port = port;
 		this.cacheSize = cSize;
@@ -63,6 +63,34 @@ public class KVServer  {
 		this.shouldShutDown = false;
 		metaDataLock = new ReentrantLock();
 		amIFirstServerInRing = false;
+
+		String currPath = System.getProperty("user.dir");
+
+		logger.info(currPath);
+
+		File file = new File(""+port);
+
+		logger.info("KVStore directory's abs path: " + file.getAbsolutePath());
+		logger.info("Name of KVStore's directory " + file.getName());
+
+		if(!file.exists()){
+			file.mkdir();
+			if(log){
+				logger.info("Creating a directory to place all key-value pairs");
+			}
+			File metadataFile = new File(file.getAbsolutePath() +"\\metadata");
+			if(metadataFile.exists() == false) {
+				try {
+					metadataFile.createNewFile();
+				} catch (Exception ex) {
+
+				}
+			} else {
+
+			}
+		}
+
+		String KVFileLocation = file.getAbsolutePath();
 
 		if(cSize <= 0) {//user wants no caching
 			this.cache = null;
@@ -81,7 +109,8 @@ public class KVServer  {
 				this.cache = null;
 			}
 		}
-		this.KVFileLocation = KVFLocation;
+		this.KVFileLocation = KVFileLocation;
+
 		this.log = log;
 
 		serverMetadata = new ArrayList<Metadata>();
@@ -249,35 +278,9 @@ public class KVServer  {
 			System.out.println(ex.getMessage());
 		}
 
-		String currPath = System.getProperty("user.dir");
 
-		logger.info(currPath);
 
-		File file = new File(""+port);
-
-		logger.info("KVStore directory's abs path: " + file.getAbsolutePath());
-		logger.info("Name of KVStore's directory " + file.getName());
-
-		if(!file.exists()){
-			file.mkdir();
-			if(shouldLog){
-				logger.info("Creating a directory to place all key-value pairs");
-			}
-			File metadataFile = new File(file.getAbsolutePath() +"\\metadata");
-			if(metadataFile.exists() == false) {
-				try {
-					metadataFile.createNewFile();
-				} catch (Exception ex) {
-
-				}
-			} else {
-
-			}
-		}
-
-		String KVFileLocation = file.getAbsolutePath();
-
-		KVServer server = new KVServer(host, port, cacheSize, strategy, KVFileLocation, shouldLog);
+		KVServer server = new KVServer(host, port, cacheSize, strategy, shouldLog);
 		server.Run();
 	}
 
