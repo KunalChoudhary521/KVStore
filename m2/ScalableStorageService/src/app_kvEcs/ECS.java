@@ -13,14 +13,20 @@ public class ECS implements ECSInterface {
     private TreeMap<BigInteger, Metadata> hashRing;
     private Socket ecsSocket;
     private String fileName;
-
-    public ECS(String filename){
+    private boolean log;
+    public ECS(String filename, boolean log){
         this.fileName = filename;
+        this.log = log;
         hashRing = new TreeMap<>();
     }
 
     @Override
-    public void initService(int numOfServers, int cSize, String strat, boolean log)
+    public void initService(int numOfServers, int cSize, String strat){
+        initKVServer(numOfServers,cSize,strat,this.log);
+    }
+
+    @Override
+    public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
     {
         //Currently, numOfServers is not used
        // String fileName = "ecs.config";//needs to be command-line arg
@@ -192,23 +198,51 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void start(String host, int port)
+    public void startKVServer(String host, int port)
     {
         //Protocol: ECS-START0
         byte[] byteMsg = createMessage("ECS-START");
         sendViaTCP(host, port, byteMsg);
     }
+    /*Starts the storage service by calling
+    *startKVServer() on all KVServer instances
+    * that participate in the service.
+     */
+    @Override
+    public void start(){
+        //todo
+    }
+    /*Stops the service; all participating
+    *KVServers are stopped for processing
+    * client requests but the processes
+    * remain running.
+    * uses stopKVServer
+     */
 
     @Override
-    public void stop(String host, int port)
+    public void stop(){
+        //todo
+    }
+
+    @Override
+    public void stopKVServer(String host, int port)
     {
         //Protocol: ECS-STOP0
         byte[] byteMsg = createMessage("ECS-STOP");
         sendViaTCP(host, port, byteMsg);
     }
 
+    /*Stops all server instances and exits the
+     * remote processes.
+     */
+
     @Override
-    public void shutDown(String host, int port)
+    public void shutDown(){
+        //todo
+    }
+
+    @Override
+    public void shutDownKVServer(String host, int port)
     {
         //Protocol: ECS-SHUTDOWN0
         byte[] byteMsg = createMessage("ECS-SHUTDOWN");
@@ -323,7 +357,7 @@ public class ECS implements ECSInterface {
     }
 
     public static void main(String[] args){
-        ECS ecs = new ECS("ecs.config");
+        ECS ecs = new ECS("ecs.config", false);
 
         // use this for testing on ug machines
         //Metadata fake1 = new Metadata("128.100.13.222", "8000", "asfdsaf", "fdasfddas");
@@ -345,20 +379,20 @@ public class ECS implements ECSInterface {
         //ecs.initKVServer(fake1, 0, "LRU", true);
         //ecs.initKVServer(fake2, 0, "LRU", true);
 
-        ecs.start("localhost", 8000);
-        ecs.start("localhost", 8001);
-        //ecs.start("localhost", 8002);
-        //ecs.start("localhost", 8003);
+        ecs.startKVServer("localhost", 8000);
+        ecs.startKVServer("localhost", 8001);
+        //ecs.startKVServer("localhost", 8002);
+        //ecs.startKVServer("localhost", 8003);
 
-        //ecs.stop("localhost", 8000);
-        //ecs.stop("localhost", 8001);
-        //ecs.stop("localhost", 8002);
-        //ecs.stop("localhost", 8003);
+        //ecs.stopKVServer("localhost", 8000);
+        //ecs.stopKVServer("localhost", 8001);
+        //ecs.stopKVServer("localhost", 8002);
+        //ecs.stopKVServer("localhost", 8003);
 
-        //ecs.shutDown("localhost", 8000);
-        //ecs.shutDown("localhost", 8001);
-        //ecs.shutDown("localhost", 8002);
-        //ecs.shutDown("localhost", 8003);
+        //ecs.shutDownKVServer("localhost", 8000);
+        //ecs.shutDownKVServer("localhost", 8001);
+        //ecs.shutDownKVServer("localhost", 8002);
+        //ecs.shutDownKVServer("localhost", 8003);
 
         //ecs.lockWrite("localhost", 8000);
         //ecs.lockWrite("localhost", 8001);
@@ -379,7 +413,7 @@ public class ECS implements ECSInterface {
         //update & send each server's metadata to all servers
         //ecs.sendUpdatedMetadata();
 
-        ecs.initService(2,10,"LRU",true);
+        ecs.initKVServer(2,10,"LRU",true);
 
     }
 }

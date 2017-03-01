@@ -17,8 +17,8 @@ public class AdditionalTest extends TestCase {
 
 	public void setUp() {
 		kvClient = new KVStore("localhost", 9000);
-		ecs = new ECS("ecs.config");
-		ecs.initService(2,100,"LRU",false);
+		ecs = new ECS("ecs.config", false);
+		ecs.initService(2,100,"LRU");
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
@@ -140,8 +140,8 @@ public class AdditionalTest extends TestCase {
 	//perform put on stopped server
 	@Test
 	public void test_put_stopped() {
-		ecs.stop("localhost",8080);
-		ecs.stop("localhost",9000);
+		ecs.stop();
+
 		String key = "put_wrong_server";
 		String value = "boy";
 		KVMessage res = null;
@@ -197,11 +197,11 @@ public class AdditionalTest extends TestCase {
 			}
 		}
 		try {
-			ecs.start("localhost",8080);
-			ecs.stop("localhost",9000);
+			ecs.startKVServer("localhost",8080);
+			ecs.startKVServer("localhost",9000);
 			kvClient.put(key,value);
-			ecs.stop("localhost",8080);
-			ecs.stop("localhost",9000);
+			ecs.stopKVServer("localhost",8080);
+			ecs.stopKVServer("localhost",9000);
 			Runnable starter_obj = new ecs_starter(ecs);
 			start_time = System.nanoTime();
 			Thread th = new Thread (starter_obj);

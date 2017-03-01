@@ -16,11 +16,11 @@ public class ecs_starter implements Runnable{
     public void run(){
         try {
             TimeUnit.MILLISECONDS.sleep(3);
-            ecs.start("localhost", 8080);
-            ecs.start("localhost", 9000);
+            ecs.startKVServer("localhost", 8080);
+            ecs.startKVServer("localhost", 9000);
         }catch(Exception e){
-            ecs.start("localhost", 8080);
-            ecs.start("localhost", 9000);
+            ecs.startKVServer("localhost", 8080);
+            ecs.startKVServer("localhost", 9000);
         }
     }
 }

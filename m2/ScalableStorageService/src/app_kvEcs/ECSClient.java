@@ -12,7 +12,7 @@ public class ECSClient {
     private static Logger logger = Logger.getRootLogger();
     private static final String PROMPT = "ECSClient> ";
     private BufferedReader stdin;
-    private ECS client = null;
+    private ECS client = new ECS("ecs.config",false);;
     private boolean stop = false;
 
     public void run() {
@@ -40,7 +40,7 @@ public class ECSClient {
             printHelp();
         }else if (tokens[0].equals("initService")){
             try{
-                client.initService(Integer.getInteger(tokens[1]), Integer.getInteger(tokens[2]),tokens[3],Boolean.parseBoolean(tokens[4]));
+                client.initService(Integer.getInteger(tokens[1]), Integer.getInteger(tokens[2]),tokens[3]);
                 println ("initialized");
             }
             catch(Exception ex){
@@ -155,6 +155,7 @@ public class ECSClient {
     public static void main(String args[]){
         try {
             new LogSetup(System.getProperty("user.dir")+"/logs/client.log", Level.ALL);
+
             ECSClient app = new ECSClient();
             app.run();
         } catch (Exception ex){
