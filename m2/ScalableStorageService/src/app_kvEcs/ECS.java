@@ -12,19 +12,21 @@ public class ECS implements ECSInterface {
 
     private TreeMap<BigInteger, Metadata> hashRing;
     private Socket ecsSocket;
+    private String fileName;
 
-    public ECS(){
+    public ECS(String filename){
+        this.fileName = filename;
         hashRing = new TreeMap<>();
     }
 
     @Override
-    public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
+    public void initService(int numOfServers, int cSize, String strat, boolean log)
     {
         //Currently, numOfServers is not used
-        String fileName = "ecs.config";//needs to be command-line arg
+       // String fileName = "ecs.config";//needs to be command-line arg
         System.out.println("Current Directory: " +  System.getProperty("user.dir"));
 
-        File file = new File(System.getProperty("user.dir")+"\\"+fileName);
+        File file = new File(System.getProperty("user.dir")+"\\"+this.fileName);
         if(!file.exists())
         {
             //logger error: ecs.config not in ScalableStorageServer directory. Create one Please.
@@ -301,16 +303,35 @@ public class ECS implements ECSInterface {
         }
     }
 
+    @Override
+    /*
+    * Create a new KVServer with the specified cache size and replacement strategy and add it to the storage service at an arbitrary position.
+    *calls addService
+     */
+    public void addNode(int cacheSize, String strategy)
+    {
+    //toDo
+    }
+
+    @Override
+    /*
+    * Remove a server from the storage service at an arbitrary position.
+     */
+    public void removeNode()
+    {
+        //toDo
+    }
+
     public static void main(String[] args){
-        ECS ecs = new ECS();
+        ECS ecs = new ECS("ecs.config");
 
         // use this for testing on ug machines
         //Metadata fake1 = new Metadata("128.100.13.222", "8000", "asfdsaf", "fdasfddas");
 
 
         // use this for testing wrap around (create metadata file in the folder where the kvps are stored)
-        //Metadata fake1 = new Metadata("localhost", "8000", "f0000000000000000000000000000000", "c0000000000000000000000000000000");
-        //Metadata fake2 = new Metadata("localhost", "8001", "c0000000000000000000000000000001", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+        Metadata fake1 = new Metadata("localhost", "8000", "f0000000000000000000000000000000", "c0000000000000000000000000000000");
+        Metadata fake2 = new Metadata("localhost", "8001", "c0000000000000000000000000000001", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeef");
 
         // use this for testing on localhost
         //Metadata fake1 = new Metadata("localhost", "8000", "99999999999999999999999999999999", "33333333333333333333333333333332");
@@ -324,8 +345,8 @@ public class ECS implements ECSInterface {
         //ecs.initKVServer(fake1, 0, "LRU", true);
         //ecs.initKVServer(fake2, 0, "LRU", true);
 
-        //ecs.start("localhost", 8000);
-        //ecs.start("localhost", 8001);
+        ecs.start("localhost", 8000);
+        ecs.start("localhost", 8001);
         //ecs.start("localhost", 8002);
         //ecs.start("localhost", 8003);
 
@@ -344,8 +365,8 @@ public class ECS implements ECSInterface {
         //ecs.lockWrite("localhost", 8002);
         //ecs.lockWrite("localhost", 8003);
 
-        //ecs.unlockWrite("localhost", 8000);
-        //ecs.unlockWrite("localhost", 8001);
+        ecs.unlockWrite("localhost", 8000);
+        ecs.unlockWrite("localhost", 8001);
         //ecs.unlockWrite("localhost", 8002);
         //ecs.unlockWrite("localhost", 8003);
 
@@ -358,7 +379,7 @@ public class ECS implements ECSInterface {
         //update & send each server's metadata to all servers
         //ecs.sendUpdatedMetadata();
 
-        ecs.initKVServer(2,10,"LRU",true);
+        ecs.initService(2,10,"LRU",true);
 
     }
 }

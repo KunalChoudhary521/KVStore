@@ -39,6 +39,7 @@ public class LogSetup {
 		logger.addAppender(consoleAppender);
 		logger.addAppender(fileAppender);
 		logger.setLevel(level);
+		logger.setAdditivity(false);
 	}
 	
 	public static boolean isValidLevel(String levelString) {

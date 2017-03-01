@@ -13,7 +13,7 @@ public class InteractionTest extends TestCase {
 	private KVStore kvClient;
 	
 	public void setUp() {
-		kvClient = new KVStore("localhost", 50000);
+		kvClient = new KVStore("localhost", 8080);
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
@@ -99,7 +99,7 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testGet() {
-		String key = "foo";
+		String key = "getfoo";
 		String value = "bar";
 		KVMessage response = null;
 		Exception ex = null;
