@@ -8,7 +8,7 @@ public interface ECSInterface {
     public void addServer(String host, int port, int cacheSize, String strategy, boolean log);
     public void removeServer(String host, int port);
     public void addNode(int cacheSize, String strategy);
-    public void removeNode();
+    public void removeNode(String host, int port);
     public void start();
     public void startKVServer(String host, int port);
     public void stop();

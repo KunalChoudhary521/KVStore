@@ -90,7 +90,7 @@ public class ECSClient {
             }
         }else if(tokens[0].equals("removeNode")){
             try{
-                client.removeNode();
+                client.removeNode(tokens[1],Integer.parseInt(tokens[2]));
                 println ("removed");
             }
             catch(Exception ex){

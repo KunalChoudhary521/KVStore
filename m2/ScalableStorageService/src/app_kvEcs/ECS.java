@@ -351,7 +351,7 @@ public class ECS implements ECSInterface {
     /*
     * Remove a server from the storage service at an arbitrary position.
      */
-    public void removeNode()
+    public void removeNode(String host, int port)
     {
         //toDo
     }
