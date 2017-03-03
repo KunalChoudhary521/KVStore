@@ -311,40 +311,41 @@ public class KVServer  {
 		String a = socket.getInetAddress().toString();
 		metadataLock();
 		Metadata firstServer = null;
+
+		//find "this" KVServer's metadata and set it
 		for(int i =0; i < serverMetadata.size(); i++){
 			Metadata md = serverMetadata.get(i);
 
 			if(a.contains(md.host)){
 				if(port == Integer.parseInt(md.port)){
 					myMetadata = md;
-
-                    // TODO: push the metadata changes to the metadata file
-                    // create and call a function on KVServer.java that locks metadataLock and writes to the file
-
-                    File file = new File(KVFileLocation+"\\metadata");
-                    try {
-                        BufferedWriter writer = new BufferedWriter(new FileWriter(file, false));
-                        for(i =0; i < serverMetadata.size(); i++){
-                            Metadata m = serverMetadata.get(i);
-                            InetAddress address = InetAddress.getByName(m.host);
-                            String line = address.getHostAddress()+","+m.port+","+m.startHash+","+m.endHash+"\n";
-                            writer.write(line);
-                            writer.flush();
-                        }
-                        writer.close();
-                    } catch (Exception ex){
-                        logger.info(ex);
-                    }
-
 					break;
 				}
 			}
 		}
+
+		//can check if you are the first server in the hash ring
 		if(myMetadata != null) {
             if (myMetadata.startHash.compareTo(myMetadata.endHash) > 0) {
                 amIFirstServerInRing = true;
             }
         }
+
+        //since the ECS is the only thing that triggers a metadata update, write new metadata to file
+		File file = new File(KVFileLocation+"\\metadata");
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(file, false));
+			for(int i=0; i < serverMetadata.size(); i++){
+				Metadata m = serverMetadata.get(i);
+				InetAddress address = InetAddress.getByName(m.host);
+				String line = address.getHostAddress()+","+m.port+","+m.startHash+","+m.endHash+"\n";
+				writer.write(line);
+				writer.flush();
+			}
+			writer.close();
+		} catch (Exception ex){
+			logger.info(ex);
+		}
 		metadataUnlock();
 	}
 
