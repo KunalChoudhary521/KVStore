@@ -139,8 +139,8 @@ public class ECSClient {
         sb.append("\t arbitrary position.\n");
 
 
-        sb.append(PROMPT).append("removeNode");
-        sb.append("\t Remove a server from the storage service at an arbitrary position.\n");
+        sb.append(PROMPT).append("removeNode <Server IP> <Server Port>");
+        sb.append("\t Remove a server from the storage service.\n");
 
 
         System.out.println(sb.toString());

@@ -48,7 +48,7 @@ public class ECS implements ECSInterface {
             return;
         }
 
-        File file = new File(System.getProperty("user.dir")+"\\"+this.configFile);
+        File file = new File(System.getProperty("user.dir")+"/"+this.configFile);
 
         String line;
         int serversRan = 0;
@@ -253,7 +253,7 @@ public class ECS implements ECSInterface {
         //read from ecs.config and choose a server to run
         String newServerIP = null;
         int newServerPort = -1;
-        File file = new File(System.getProperty("user.dir")+"\\"+this.configFile);
+        File file = new File(System.getProperty("user.dir")+"/"+this.configFile);
         String line;
         try
         {
@@ -267,7 +267,7 @@ public class ECS implements ECSInterface {
                 {
                     newServerIP = address[0];
                     newServerPort = Integer.parseInt(address[1]);
-                    runningServers.add(newServerIP + ":" + newServerPort);//used to update ecs config file
+                    runningServers.add(newServerIP + ":" + newServerPort);//to update ecs config file
 
                     //server added to Consistent Hash Ring (RB-Tree)
                     addToRing(newServerIP, newServerPort);
@@ -304,11 +304,25 @@ public class ECS implements ECSInterface {
             return;
         }
 
-        Metadata dstServer = null;
+        Metadata dstServer = null, srcServer = null;
         try
         {
-            dstServer = hashRing.get(md5.HashBI(newServerIP+":"+newServerPort));
-            moveData(dstServer, dstServer.startHash,dstServer.endHash);
+            BigInteger newServerHash  =  md5.HashBI(newServerIP+":"+newServerPort);
+            if(hashRing.higherEntry(newServerHash) == null)//new Server is last in the ring
+            {
+                srcServer = hashRing.firstEntry().getValue();//successor is first server in the ring
+            }
+            else
+            {
+                srcServer = hashRing.higherEntry(newServerHash).getValue();
+            }
+
+            dstServer = hashRing.get(newServerHash);
+
+            //set write-lock on succesor
+            lockWrite(srcServer.host, Integer.parseInt(srcServer.port));
+
+            moveData(srcServer,dstServer, dstServer.startHash,dstServer.endHash);
         }
         catch (Exception ex)
         {
@@ -332,10 +346,11 @@ public class ECS implements ECSInterface {
 
             if(hashRing.isEmpty() || !hashRing.containsKey(currEndHash))
             {
-                //logger statement, nothing to remove
+                logger.info("removeFromRing:: Server " + host + ":" + port + " does not exist."
+                            + "Nothing removed from the Ring");
                 return;
             }
-            else if(hashRing.higherKey(currEndHash) == null)//no hash higher than currEndHash
+            else if(hashRing.higherKey(currEndHash) == null)//no server hash higher than currEndHash
             {
                 hashRing.firstEntry().getValue().startHash = hashRing.get(currEndHash).startHash;
             }
@@ -354,11 +369,62 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void removeNode(String host, int port)
+    public void removeNode(String hostToRmv, int portToRmv)//removing should not be random
     {
+        if(runningServers.size() == 0)
+        {
+            logger.info("removeNode:: No server is currently running");
+            return;
+        }
+        //TODO: last server is removed
+        else if(runningServers.size() == 1)
+        {
+            //Delete its directory (or only KVPairs & metadata)
+            logger.info("removeNode:: Only 1 sever is currently running");
+            return;
+        }
+        Metadata serverToRmv = null;
+        Metadata succServer = null;
 
-        runningServers.remove(host + ":" + port);
+        try
+        {
+            //find successor server
+            BigInteger serverToRmvHash = md5.HashBI(hostToRmv + ":" + portToRmv);
+            Metadata temp = hashRing.get(serverToRmvHash);
+            serverToRmv = new Metadata(temp.host,temp.port,temp.startHash, temp.endHash);
+
+            if(hashRing.higherEntry(serverToRmvHash) == null)
+            {
+                succServer = hashRing.firstEntry().getValue();//1st server in the ring
+            }
+            else
+            {
+                succServer = hashRing.higherEntry(serverToRmvHash).getValue();
+            }
+
+            removeFromRing(hostToRmv,portToRmv);
+            updatedMetadata();
+
+            //lockwrite server from where the KV-paris are being removed
+            lockWrite(hostToRmv, portToRmv);
+
+            sendMetadata(succServer.host, Integer.parseInt(succServer.port));
+
+            moveData(serverToRmv,succServer,serverToRmv.startHash,serverToRmv.endHash);
+
+            shutDownKVServer(serverToRmv.host,Integer.parseInt(serverToRmv.port));
+        }
+        catch (Exception ex)
+        {
+            logger.error("removeNode:: Could not find successor server of " + hostToRmv
+                    + ":" + portToRmv);
+        }
+
+        sendMetadataToAll();
+
+        runningServers.remove(hostToRmv + ":" + portToRmv);
         updateConfigFile();//mark removed server as available
+
     }
 
     public void startKVServer(String host, int port)
@@ -451,33 +517,12 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void moveData(Metadata dstServer, String startRange, String endRange)
+    public void moveData(Metadata srcServer, Metadata dstServer, String startRange, String endRange)
     {
-        Metadata srcServer = null;
-        //find successor/srcServer server
         try
         {
-            BigInteger newServerHash  =  md5.HashBI(dstServer.host + ":" + dstServer.port);//server recently added
-            if(hashRing.higherEntry(newServerHash) == null)//new Server is last in the ring
-            {
-                srcServer = hashRing.firstEntry().getValue();//successor is first server in the ring
-            }
-            else
-            {
-                srcServer = hashRing.higherEntry(newServerHash).getValue();
-            }
-
             //srcServer & dstServer should be running by now
-
             //make sure receiver is ready to receiver KV-pairs
-
-            /*
-            ECS might needs to wait until dstServer is ready to
-            receive KV-pairs before commanding fromServer to start sending.
-            */
-
-            //set write-lock on succesor
-            lockWrite(srcServer.host, Integer.parseInt(srcServer.port));
 
             String kvSender = "ECS-MOVE-KV-" +
                             dstServer.host + "-" + dstServer.port + "-" +
@@ -490,18 +535,19 @@ public class ECS implements ECSInterface {
 
             //wait for ACK from srcServer that transfer is complete
 
-            /*Throws port already in use exception
-            ServerSocket recvSock = new ServerSocket(Integer.parseInt(srcServer.port));
-            ecsSocket = recvSock.accept();
+            //Throws port already in use exception
             byte[] buffer = new byte[15];
             InputStream in = ecsSocket.getInputStream();
+
             int count;
             String ack;
             while((count = in.read(buffer)) >= 0)
             {
                 ack = new String(buffer);//expect from Server: DONE
-                if(ack.contains("DONE-TRANSFER"))
+                //logger.info("KVServer ACK buffer: " + ack);
+                if(ack.contains("FIN"))
                 {
+                    logger.info("Transfer done by " + srcServer.host + ":" + srcServer.port);
                     break;
                 }
             }
@@ -510,7 +556,7 @@ public class ECS implements ECSInterface {
 
             in.close();
             ecsSocket.close();
-            */
+
             //unlock write on successor server to re-allow put()
             unlockWrite(srcServer.host, Integer.parseInt(srcServer.port));
         }
@@ -549,10 +595,12 @@ public class ECS implements ECSInterface {
             input.read(response);
 
             // disconnect
-            byte[] disconnectMsg = {'E','C','S','-','D','I','S','C','O','N','N','E','C','T',0};
+            String disconnect = "ECS-DISCONNECT";
+            byte[] disconnectMsg = new byte[disconnect.length() + 1];//+1 for stream termination
+            System.arraycopy(disconnect.getBytes(),0,disconnectMsg,0,disconnect.length());
             writeToSock.write(disconnectMsg, 0, disconnectMsg.length);
 
-            this.ecsSocket.close();
+            //this.ecsSocket.close();
         }
         catch (Exception ex)
         {
@@ -596,5 +644,7 @@ public class ECS implements ECSInterface {
         //run KVClient and put key1,2,3,6
         //run KVServer2 @ port 8370
         ecs.addNode(10,"LRU");
+
+        ecs.removeNode("127.0.0.1", 9000);
     }
 }
