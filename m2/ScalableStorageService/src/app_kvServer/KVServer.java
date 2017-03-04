@@ -181,7 +181,7 @@ public class KVServer  {
 								+ " on port " + client.getPort());
 					}
 				} catch (Exception e) {
-					if(log) {
+					if(log && !shouldShutDown) {
 						logger.error("Error! " +
 								"Unable to establish connection. \n", e);
 					}

@@ -611,22 +611,6 @@ public class ECS implements ECSInterface {
         }
     }
 
-    public void runLocalServer(String host, int port, int cacheSize, String strategy)
-    {
-        String command = "java -jar ms2-server.jar " + host + " " + port +
-                " " + cacheSize + " " + strategy + " " + this.log;
-        try {
-            Process cmdProc = Runtime.getRuntime().exec(command);
-            //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
-            //cmdProc.destroy();
-            System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
-        }
-        catch (Exception ex) {
-            ex.printStackTrace();
-            System.out.println("Failed to run server locally");
-        }
-    }
-
     public static void main(String[] args){
         try
         {
@@ -640,13 +624,19 @@ public class ECS implements ECSInterface {
         //logger.error("H1");
 
         //Reset file ecs.config (make all NA --> A)
-        ecs.initKVServer(1,10,"LRU",true);
-        ecs.start();
-        ecs.unlockWrite("127.0.0.1",9000);
+        //ecs.initKVServer(1,10,"LRU",true);
+        //ecs.start();
+        //ecs.unlockWrite("localhost",8000);
+        //ecs.unlockWrite("localhost",8001);
+        //ecs.unlockWrite("localhost",8002);
         //run KVClient and put key1,2,3,6
         //run KVServer2 @ port 8370
-        ecs.addNode(10,"LRU");
+        //ecs.addNode(10,"LRU");
 
-        ecs.removeNode("127.0.0.1", 9000);
+        //ecs.removeNode("127.0.0.1", 9000);
+
+        ecs.shutDownKVServer("localhost", 8000);
+        ecs.shutDownKVServer("localhost", 8001);
+        ecs.shutDownKVServer("localhost", 8002);
     }
 }
