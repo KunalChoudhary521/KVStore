@@ -119,6 +119,10 @@ public class KVServer  {
 		this.buildMetadata();
 	}
 
+	public int getPort()
+	{
+		return this.port;
+	}
 	private void buildMetadata() {
 		File file = new File(this.KVFileLocation+"\\metadata");
 		try {
