@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -533,10 +534,8 @@ public class ECS implements ECSInterface {
             sendViaTCP(srcServer.host, Integer.parseInt(srcServer.port), senderMsg);
 
 
-            //wait for ACK from srcServer that transfer is complete
-
-            //Throws port already in use exception
-            byte[] buffer = new byte[15];
+            //wait for ACK from srcServer which signals that transfer is complete
+            byte[] buffer = new byte[100];
             InputStream in = ecsSocket.getInputStream();
 
             int count;
@@ -545,13 +544,12 @@ public class ECS implements ECSInterface {
             {
                 ack = new String(buffer);//expect from Server: DONE
                 //logger.info("KVServer ACK buffer: " + ack);
-                if(ack.contains("FIN"))
+                if(ack.contains("DONE-TRANSFER"))//"FIN"
                 {
                     logger.info("Transfer done by " + srcServer.host + ":" + srcServer.port);
                     break;
                 }
             }
-
             //Doesn't handle transfer failures, yet (network failure)
 
             in.close();
@@ -583,14 +581,14 @@ public class ECS implements ECSInterface {
     public void sendViaTCP(String host, int port, byte[] data)
     {
         try {
-            this.ecsSocket = new Socket(host, port);//KVServer must be ready to accept TCP request before ECS sends data
+            this.ecsSocket = new Socket(host, port);//KVServer must be ready before ECS sends data
             OutputStream writeToSock = this.ecsSocket.getOutputStream();
             InputStream input = this.ecsSocket.getInputStream();
 
             writeToSock.write(data,0,data.length);
             writeToSock.flush();
 
-            byte[] response = new byte[1024];
+            byte[] response = new byte[100];
             // wait for acknowledge message
             input.read(response);
 
@@ -600,7 +598,11 @@ public class ECS implements ECSInterface {
             System.arraycopy(disconnect.getBytes(),0,disconnectMsg,0,disconnect.length());
             writeToSock.write(disconnectMsg, 0, disconnectMsg.length);
 
-            //this.ecsSocket.close();
+            //for ECS-mOVE-KV, socket is closed in moveData after receiving DONE-TRANSFER Signal
+            if(!(new String(data)).contains("ECS-MOVE-KV"))
+            {
+                this.ecsSocket.close();
+            }
         }
         catch (Exception ex)
         {

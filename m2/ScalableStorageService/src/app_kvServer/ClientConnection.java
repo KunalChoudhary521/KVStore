@@ -230,9 +230,12 @@ public class ClientConnection implements Runnable {
 
 
             // send an ACK to ECS saying "DONE-TRANSFER" after moving
-            byte[] doneACK = "DONE-TRANSFER".getBytes();
+            String doneMsg = "DONE-TRANSFER";
+            byte[] doneACK = new byte[doneMsg.length() + 1];
+            System.arraycopy(doneMsg.getBytes(),0,doneACK,0,doneMsg.length());
             try
             {
+                sendMessage("FIN".getBytes(),3);//ECS gets out of sendViaTCP of ECS-MOVE-KV
                 this.sendMessage(doneACK,doneACK.length);
             }
             catch (Exception ex)
@@ -241,15 +244,34 @@ public class ClientConnection implements Runnable {
             }
 
             // delete the all of the files in the filtered list
+            /*
             for(int i =0; i < filesToSend.size(); i++)
             {
-                /*//Uncomment after moveData works correctly
+                //Uncomment after moveData works correctly
                 if(!filesToSend.get(i).delete())
                 {
                     logger.error("ECS-MOVE-KV:: Could not delete: " + filesToSend.get(i).getName());
                 }
-                */
+
             }
+            String serverDirPath = System.getProperty("user.dir") + this.server.getPort() + "/";
+            File myMetadataFile = new File(serverDirPath + "metadata");
+
+            File serverDir = new File(serverDirPath);
+            if(serverDir.isDirectory())
+            {
+                if ((serverDir.length() == 1) && (myMetadataFile.exists()))
+                {
+                    //remove server's metadata file & directory
+                    //myMetadataFile.delete();
+                    if(serverDir.delete())//deletes metadata file too
+                    {
+                        logger.info("KV-MOVE:: Successfully deleted " + this.server.getPort()
+                                    + "'s directory");
+                    }
+                }
+            }
+            */
 
             logger.info("ECS message: move\n");
 
