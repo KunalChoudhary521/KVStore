@@ -190,20 +190,6 @@ public class KVServer  {
 	}
 
 	/**
-	 * Stops the server
-	 * */
-	public void Stop(){
-		isRunning = false;
-		try {
-			socket.close();
-		} catch (IOException e) {
-			logger.error("Error! " +
-					"Unable to close socket on port: " + port, e);
-
-		}
-	}
-
-	/**
 	 * Initializes the server by trying to obtain a socket on the port
 	 * */
 	private boolean InitializeServer(){
@@ -282,15 +268,6 @@ public class KVServer  {
 
 		KVServer server = new KVServer(host, port, cacheSize, strategy, shouldLog);
 		server.Run();
-	}
-
-	public void closeSocket(){
-		this.isRunning = false;
-		try {
-			this.socket.close();
-		} catch (Exception ex){
-			logger.info(ex);
-		}
 	}
 
 	// METADATA LOGIC
