@@ -3,9 +3,7 @@ package app_kvServer;
 import app_kvEcs.md5;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 
@@ -43,7 +41,7 @@ public class ClientConnection implements Runnable {
 		this.server = server;
 		this.log = log;
 		this.fileStoreHelper = new FileStoreHelper(KVFileName, this.log);
-		String[] files = fileStoreHelper.GetFileHashes();
+		//String[] files = fileStoreHelper.getOutOfRangeFiles();
 	}
 	
 	/**
@@ -80,6 +78,28 @@ public class ClientConnection implements Runnable {
 						isOpen = false;//client disconnect
 					} else if (latestMsg.getMsg().trim().contains("KV-MOVE")){
 						 // the function that handles all of the data sent by a different KVServer
+                        String[] msgComponents = (latestMsg.getMsg()).split("-");
+                        String[] kvPairRecv = msgComponents[2].split(",");//need to parse XML to hash key
+                        String[] xmlKV;
+                        BufferedWriter kvOut;
+                        try
+                        {
+                            for (int i = 0; i < kvPairRecv.length; i++)
+                            {
+                                xmlKV = kvPairRecv[i].split("\"");
+                                //System.out.println("key: " + xmlKV[1]);
+                                kvOut = new BufferedWriter(new FileWriter(md5.HashS(xmlKV[1])));
+                                kvOut.write(kvPairRecv[i],0,kvPairRecv[i].length());
+                                kvOut.flush();
+
+                                kvOut.close();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.error("KV-MOVE:: Error will writing kvpairs to file");
+                        }
+
 					}
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
@@ -123,46 +143,113 @@ public class ClientConnection implements Runnable {
 			isOpen = false;
 			logger.info("ECS message: shutdown");
 		} else if(msg.contains("ECS-START")){ //start
-			//rather than doing this, make boolean called canGet = false && canWrite = false
             //server should not accept any puts or gets from KVClient (m2-spec)
 			this.server.isStarted = true;
 			logger.info("ECS message: start");
 		} else if(msg.contains("ECS-STOP")){ //stop
 			this.server.isStarted = false;
 			logger.info("ECS message: stop");
-		} else if(msg.contains("ECS-MOVE")){ //must move all data that falls within the range to a new server
+		} else if(msg.contains("ECS-MOVE-KV")) { //move data that falls in the range to a new server
 
-			// TODO
+            String[] params = msg.split("-");
 
-			// need to be told by the ECS which server you must send data to (get from message)
+            // need to be told by the ECS which server you must send data to (get from message)
+            // get the target server host and port (get from message)
+            String dstServerIP = params[3];
+            String dstServerPort = params[4];
 
-			// get the hash range from the message (get from message)
+            // get the hash range from the message (get from message)
+            String dstServerStart = params[5];
+            String dstServerEnd = params[6];
 
-			// get the target server host and port (get from message)
+            // pull all the files on the filesystem (fileStoreHelper)
+            // filter them based on the hash range given to you by the ECS
+            ArrayList<File> filesToSend = this.fileStoreHelper.getInRangeFiles(dstServerStart, dstServerEnd);
+            if (filesToSend.isEmpty()) {
+                logger.error("ECS-MOVE-KV :: No files to move");
+                //return;//return here?
+            }
 
-			// pull all the files on the filesystem (fileStoreHelper)
+            // open each file in the filtered list, and create a map of key value pairs
+            StringBuilder kvPairBuilder = new StringBuilder();
+            String kvPairContents = null;
+            kvPairBuilder.append("KV-MOVE-");
 
-			// filter them based on the hash range given to you by the ECS
+            BufferedReader currentFile;
+            try {
+                for (int i = 0; i < filesToSend.size(); i++)
+                {
+                    currentFile = new BufferedReader(new FileReader(filesToSend.get(i)));
+                    kvPairBuilder.append(currentFile.readLine());
+                    if(i < filesToSend.size() - 1)
+                    {
+                        kvPairBuilder.append(",");//don't put comma after the last entry
+                    }
 
-			// open each file in the filtered list, and create a map of key value pairs
+                }
+                kvPairContents = kvPairBuilder.toString();
 
-			// based on a server-server protocol, create a byte array of all the key value pairs that fall
-			// inside the hash range
-			// if you turn into a string, turn it into a byte array
 
-			// create a socket, and establish a connection with the target server
+            }
+            catch (Exception ex) {
+                logger.error("ECS-MOVE-KV :: Could not open file to send from Server");
+            }
 
-			// write the byte array to the output stream "KV-MOVE0<>,<>,<>0"
+            // based on a server-server protocol, create a byte array of all the key value pairs that fall
+            // inside the hash range
+            // if you turn into a string, turn it into a byte array
+            byte[] kvPairBArray = new byte[kvPairContents.length() + 1];//+1 for stream termination
+            System.arraycopy(kvPairContents.getBytes(), 0, kvPairBArray, 0, kvPairContents.length());
 
-			// implement a logic that each KVServer should be able to handle this particular server-server protocol
+            // implement a logic that each KVServer should be able to handle server-server protocol
+            logger.info("ECS-KV-MOVE:: KVPair message is ready to be sent!");
+            try
+            {
+                // create a socket, and establish a connection with the target server
+                Socket kvSenderSock = new Socket(dstServerIP,Integer.parseInt(dstServerPort));
 
-			// send an ACK to ECS saying "I'm done" after moving
+                Thread.sleep(2* 1000);//need a better way to make sure receiver is ready to receive
 
-			// sendMessage( kvMoveByteArray , kvMoveByteArray.length);
+                // write the byte array to the output stream "KV-MOVE-<>,<>,...,<>0"
+                OutputStream writeToSock = kvSenderSock.getOutputStream();
+                InputStream input = kvSenderSock.getInputStream();
 
-			// delete the all of the files in the filtered list
+                writeToSock.write(kvPairBArray,0,kvPairBArray.length);
+                writeToSock.flush();
 
-			logger.info("ECS message: move");
+                kvSenderSock.close();
+                //Do I need to send disconnect message to kill the thread on receiver side?
+            }
+            catch (Exception ex)
+            {
+                logger.error("ECS-MOVE-KV :: Failed to connect with KV pair receiver");
+            }
+
+
+            // send an ACK to ECS saying "DONE-TRANSFER" after moving
+            byte[] ackToECS = "DONE-TRANSFER".getBytes();
+            try
+            {
+                sendMessage(ackToECS,ackToECS.length);
+            }
+            catch (Exception ex)
+            {
+                logger.error("ECS-MOVE-KV:: Could not send ACK to ECS.");
+            }
+
+            // delete the all of the files in the filtered list
+            for(int i =0; i < filesToSend.size(); i++)
+            {
+                /*//Uncomment after moveData works correctly
+                if(!filesToSend.get(i).delete())
+                {
+                    logger.error("ECS-MOVE-KV:: Could not delete: " + filesToSend.get(i).getName());
+                }
+                */
+            }
+
+            logger.info("ECS message: move\n");
+
 		} else if(msg.contains("ECS-METADATA")){ // must replace current metadata with the metadata being given
 			logger.info("ECS message: metadata");
 			int i = "ECS-METADATA-".length();
@@ -246,7 +333,7 @@ public class ClientConnection implements Runnable {
 				logger.info(hash);
 			}
 
-			if(!server.amIResponsibleForThisHash(hash))
+			if(!server.isResponsible(hash))
 			{
 				String message = "I!";
 				message+=server.getMetadata();
@@ -377,8 +464,9 @@ public class ClientConnection implements Runnable {
 					logger.info(hash);
 				}
 
-				if(!server.amIResponsibleForThisHash(hash))
+				if(!server.isResponsible(hash))
 				{
+					//sending client the latest copy of metadata of this server
 					String message = "I!";
 					message+=server.getMetadata();
 					byte[] barray = new byte[message.length()];

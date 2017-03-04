@@ -1,7 +1,9 @@
 package app_kvEcs;
 
-import app_kvServer.KVServer;
 import app_kvServer.Metadata;
+import logger.LogSetup;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -13,6 +15,7 @@ import java.util.TreeMap;
 
 public class ECS implements ECSInterface {
 
+    private static Logger logger = Logger.getRootLogger();;
     private TreeMap<BigInteger, Metadata> hashRing;
     private Socket ecsSocket;
     private String configFile;
@@ -41,6 +44,7 @@ public class ECS implements ECSInterface {
         //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
         if(numOfServers <= 0)
         {
+            logger.error("initKVServer:: Invalid Number of Servers: " + numOfServers);
             return;
         }
 
@@ -69,13 +73,10 @@ public class ECS implements ECSInterface {
         }
         catch (Exception ex)
         {
-            System.out.println("ecs config file not found");
-            //logger error: ecs.config not in ScalableStorageServer directory. Create one Please.
-            /*file format:<IP>,<port>,<A or NA>
-              127.0.0.1,9000
-              127.0.0.1,9002
-            */
-            ex.printStackTrace();
+            logger.error("ecs.config not in ScalableStorageServer directory. Create one Please.\n" +
+                    "file format:<IP>,<port>,<A or NA>\n" +
+                    "127.0.0.1,9000,A\n" +
+                    "127.0.0.1,9002");
         }
 
         //run all servers in stopped state
@@ -126,8 +127,8 @@ public class ECS implements ECSInterface {
         }
         catch(Exception ex)
         {
-            System.out.println("ecs config file not found");
-            ex.printStackTrace();
+            logger.error("updateConfigFile:: ecs.config file not found");
+            //ex.printStackTrace();
         }
     }
     private void updatedMetadata()
@@ -241,15 +242,52 @@ public class ECS implements ECSInterface {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("addToRing:: Failed to add Server" + host + ":" + port + " to the Ring");
+            //ex.printStackTrace();
         }
     }
 
     @Override
-    public void addNode(String newServerIP, int newServerPort, int cacheSize, String strategy)
+    public void addNode(int cacheSize, String strategy)
     {
-        //need to read from ecs.config and choose a server to run
-        addToRing(newServerIP,newServerPort);
+        //read from ecs.config and choose a server to run
+        String newServerIP = null;
+        int newServerPort = -1;
+        File file = new File(System.getProperty("user.dir")+"\\"+this.configFile);
+        String line;
+        try
+        {
+            BufferedReader rdBuffer = new BufferedReader(new FileReader(file));
+            //read ecs.config until you have found a server to run
+            while(((line = rdBuffer.readLine()) != null))
+            {
+                String[] address = line.split(",");
+
+                if(address[2].equals("A"))//server is available/not in use
+                {
+                    newServerIP = address[0];
+                    newServerPort = Integer.parseInt(address[1]);
+                    runningServers.add(newServerIP + ":" + newServerPort);//used to update ecs config file
+
+                    //server added to Consistent Hash Ring (RB-Tree)
+                    addToRing(newServerIP, newServerPort);
+
+                    break;//no need to run anymore servers
+                }
+            }
+
+            rdBuffer.close();
+        }
+        catch (Exception ex)
+        {
+            logger.error("addNode:: Failed to read ecs.config file");
+            // ex.printStackTrace();
+        }
+
+        if((newServerIP == null) || (newServerPort < 0))//unable to find an available server to run
+        {
+            return;
+        }
 
         //sshServer(host, port, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
@@ -274,7 +312,8 @@ public class ECS implements ECSInterface {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("addNode:: Failed to find MD5 hash of: " + newServerIP + ":" + newServerPort);
+            //ex.printStackTrace();
         }
 
         sendMetadataToAll();
@@ -309,15 +348,9 @@ public class ECS implements ECSInterface {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("removeFromRing:: Failed to remove Server " + host + ":" + port + " from the Ring");
+            //ex.printStackTrace();
         }
-
-        //need to handle shutdown
-
-        /*  Call sendUpdatedMetadata() outside this function b/c:
-            -   There might have been multiple entries removed from hashRing.
-            -   Wait for Server to start via SSH (might be slow due to SSH)
-        */
     }
 
     @Override
@@ -355,7 +388,12 @@ public class ECS implements ECSInterface {
     @Override
     public void stop()
     {
-        //todo
+        Metadata temp;
+        for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
+        {
+            temp = entry.getValue();
+            stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(dis-allow get & put)
+        }
     }
 
     public void stopKVServer(String host, int port)
@@ -365,14 +403,18 @@ public class ECS implements ECSInterface {
         sendViaTCP(host, port, byteMsg);
     }
 
-
     /*
         Shutdowns all running KVServers
      */
     @Override
     public void shutDown()
     {
-        //todo
+        Metadata temp;
+        for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
+        {
+            temp = entry.getValue();
+            shutDownKVServer(temp.host,Integer.parseInt(temp.port));//terminate all KVServer instances
+        }
     }
 
 
@@ -426,19 +468,18 @@ public class ECS implements ECSInterface {
             }
 
             //srcServer & dstServer should be running by now
-            String kvReceiver = "ECS-RECV-KV-";//send this to toServer
-            byte[] recvMsg = createMessage(kvReceiver);
-            sendViaTCP(dstServer.host, Integer.parseInt(dstServer.port), recvMsg);
+
+            //make sure receiver is ready to receiver KV-pairs
 
             /*
-            ECS might needs to wait until toServer is ready to
+            ECS might needs to wait until dstServer is ready to
             receive KV-pairs before commanding fromServer to start sending.
             */
 
             //set write-lock on succesor
             lockWrite(srcServer.host, Integer.parseInt(srcServer.port));
 
-            String kvSender = "ECS-SEND-KV-" +
+            String kvSender = "ECS-MOVE-KV-" +
                             dstServer.host + "-" + dstServer.port + "-" +
                             startRange + "-" + endRange + "-";
 
@@ -448,6 +489,8 @@ public class ECS implements ECSInterface {
 
 
             //wait for ACK from srcServer that transfer is complete
+
+            /*Throws port already in use exception
             ServerSocket recvSock = new ServerSocket(Integer.parseInt(srcServer.port));
             ecsSocket = recvSock.accept();
             byte[] buffer = new byte[15];
@@ -457,22 +500,24 @@ public class ECS implements ECSInterface {
             while((count = in.read(buffer)) >= 0)
             {
                 ack = new String(buffer);//expect from Server: DONE
-                if(ack.equals("DONE"))
+                if(ack.contains("DONE-TRANSFER"))
                 {
                     break;
                 }
             }
-            //Doesn't handle transfer fails, yet (network failure)
+
+            //Doesn't handle transfer failures, yet (network failure)
 
             in.close();
             ecsSocket.close();
-
+            */
             //unlock write on successor server to re-allow put()
             unlockWrite(srcServer.host, Integer.parseInt(srcServer.port));
         }
         catch(Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("moveData:: Failed to moveData to " + dstServer.host + ":" + dstServer.port);
+            //ex.printStackTrace();
         }
     }
 
@@ -511,7 +556,7 @@ public class ECS implements ECSInterface {
         }
         catch (Exception ex)
         {
-            System.out.println("ECS failed to send data to KVServer: " + host + ":" + port);
+            logger.error("sendViaTCP:: ECS failed to send data to KVServer: " + host + ":" + port);
             ex.printStackTrace();
         }
     }
@@ -533,10 +578,23 @@ public class ECS implements ECSInterface {
     }
 
     public static void main(String[] args){
+        try
+        {
+            new LogSetup(System.getProperty("user.dir")+"/logs/ecs/ecs.log", Level.ALL);
+        }
+        catch (Exception ex)
+        {
+            System.out.println(ex.getMessage());
+        }
         ECS ecs = new ECS(true);
+        //logger.error("H1");
 
+        //Reset file ecs.config (make all NA --> A)
         ecs.initKVServer(1,10,"LRU",true);
         ecs.start();
-        //ecs.startKVServer("127.0.0.1", 8080);
+        ecs.unlockWrite("127.0.0.1",9000);
+        //run KVClient and put key1,2,3,6
+        //run KVServer2 @ port 8370
+        ecs.addNode(10,"LRU");
     }
 }

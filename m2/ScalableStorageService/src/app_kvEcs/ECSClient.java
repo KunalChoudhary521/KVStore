@@ -80,8 +80,7 @@ public class ECSClient {
             }
         }else if(tokens[0].equals("addNode")){
             try{
-                client.addNode(tokens[1],Integer.parseInt(tokens[2]),Integer.parseInt(tokens[3]),
-                        tokens[4]);
+                client.addNode(Integer.parseInt(tokens[1]), tokens[2]);
                 println ("added");
             }
             catch(Exception ex){
@@ -155,7 +154,7 @@ public class ECSClient {
 
     public static void main(String args[]){
         try {
-            new LogSetup(System.getProperty("user.dir")+"/logs/client.log", Level.ALL);
+            new LogSetup(System.getProperty("user.dir")+"/logs/ecs/ecsClient.log", Level.ALL);
 
             ECSClient app = new ECSClient();
             app.run();
