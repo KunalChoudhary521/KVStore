@@ -272,10 +272,6 @@ public class KVServer  {
 
 	// METADATA LOGIC
 
-	public ArrayList<Metadata> getAllMetadata(){
-		return this.serverMetadata;
-	}
-
 	public void metadataLock(){
 		this.metaDataLock.lock();
 	}

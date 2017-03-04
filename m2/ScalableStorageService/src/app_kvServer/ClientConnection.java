@@ -78,6 +78,8 @@ public class ClientConnection implements Runnable {
 					}
 					else if(latestMsg.getMsg().trim().contains("D")){
 						isOpen = false;//client disconnect
+					} else if (latestMsg.getMsg().trim().contains("KV-MOVE")){
+						 // the function that handles all of the data sent by a different KVServer
 					}
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
@@ -129,6 +131,37 @@ public class ClientConnection implements Runnable {
 			this.server.isStarted = false;
 			logger.info("ECS message: stop");
 		} else if(msg.contains("ECS-MOVE")){ //must move all data that falls within the range to a new server
+
+			// TODO
+
+			// need to be told by the ECS which server you must send data to (get from message)
+
+			// get the hash range from the message (get from message)
+
+			// get the target server host and port (get from message)
+
+			// pull all the files on the filesystem (fileStoreHelper)
+
+			// filter them based on the hash range given to you by the ECS
+
+			// open each file in the filtered list, and create a map of key value pairs
+
+			// based on a server-server protocol, create a byte array of all the key value pairs that fall
+			// inside the hash range
+			// if you turn into a string, turn it into a byte array
+
+			// create a socket, and establish a connection with the target server
+
+			// write the byte array to the output stream "KV-MOVE0<>,<>,<>0"
+
+			// implement a logic that each KVServer should be able to handle this particular server-server protocol
+
+			// send an ACK to ECS saying "I'm done" after moving
+
+			// sendMessage( kvMoveByteArray , kvMoveByteArray.length);
+
+			// delete the all of the files in the filtered list
+
 			logger.info("ECS message: move");
 		} else if(msg.contains("ECS-METADATA")){ // must replace current metadata with the metadata being given
 			logger.info("ECS message: metadata");
