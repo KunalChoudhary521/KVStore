@@ -258,7 +258,7 @@ public class KVServer  {
 		boolean shouldLog = Boolean.parseBoolean(args[4]);
 
 		try {
-			new LogSetup(System.getProperty("user.dir")+"/logs/server.log", Level.ALL);
+			new LogSetup(System.getProperty("user.dir")+"/logs/server/server.log", Level.ALL);
 		} catch (Exception ex)
 		{
 			System.out.println(ex.getMessage());
@@ -329,33 +329,39 @@ public class KVServer  {
 		metadataUnlock();
 	}
 
-	public boolean amIResponsibleForThisHash(String hash){
-		boolean foundMatch = false;
+	public boolean isResponsible(String clientHash)
+    {
+        String myStartHash = this.myMetadata.startHash;
+        String myEndHash = this.myMetadata.endHash;
+        String largestHash = new String(new char[32]).replace("\0", "f");//ffff...[32]
+        String smallestHash = new String(new char[32]).replace("\0", "0");//0000...[32]
 
-		this.metadataLock();
-		for(int i =0 ; i < serverMetadata.size(); i++){
-			Metadata curr = serverMetadata.get(i);
-			int hashIsGreaterThanStart = hash.compareTo(curr.startHash);
-			int hashIsLessThanEnd = hash.compareTo(curr.endHash);
-			if(hashIsGreaterThanStart > 0 &&  hashIsLessThanEnd <=0){
-				if(myMetadata.host.equals(curr.host) && myMetadata.port.equals(curr.port)){
-					this.metadataUnlock();
-					return true;
-				} else {
-					this.metadataUnlock();
-					return false;
-				}
-			}
-		}
-		this.metadataUnlock();
+        boolean result = false;
 
-		if(foundMatch == false){
-			if(amIFirstServerInRing){
-				return true;
-			}
-		}
+        if (myStartHash.compareTo(myEndHash) < 0)//start < end
+        {
+            if((clientHash.compareTo(myStartHash) >= 0) && (clientHash.compareTo(myEndHash) <= 0))
+            {
+                result = true;
+            }
+        }
+        else if(myStartHash.compareTo(myEndHash) > 0)//start > end
+        {
+            /* This server is the 1st in the ring.
+               Wrap-around case: start <= clientHash <= fff... || 000... <= clientHash <= end
+             */
+            if(((clientHash.compareTo(myStartHash) >= 0) && (clientHash.compareTo(largestHash) <= 0))
+                    || ((clientHash.compareTo(smallestHash) >= 0) && (clientHash.compareTo(myEndHash) <= 0)))
+            {
+                result = true;
+            }
+        }
+        else//start & end hash should never be equal to each other
+        {
+            logger.error("isResponsible :::: Start & End hash are equal!!\n");
+        }
 
-		return false;
+		return result;
 	}
 
 	public void closeAllSockets()
