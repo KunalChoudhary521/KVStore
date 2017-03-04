@@ -82,17 +82,20 @@ public class ClientConnection implements Runnable {
                         String[] kvPairRecv = msgComponents[2].split(",");//need to parse XML to hash key
                         String[] xmlKV;
                         BufferedWriter kvOut;
+                        String fileName = null;
                         try
                         {
                             for (int i = 0; i < kvPairRecv.length; i++)
                             {
                                 xmlKV = kvPairRecv[i].split("\"");
                                 //System.out.println("key: " + xmlKV[1]);
-                                kvOut = new BufferedWriter(new FileWriter(md5.HashS(xmlKV[1])));
+                                fileName = this.server.getPort() + "/" + md5.HashS(xmlKV[1]);
+                                kvOut = new BufferedWriter(new FileWriter(fileName));
                                 kvOut.write(kvPairRecv[i],0,kvPairRecv[i].length());
                                 kvOut.flush();
 
                                 kvOut.close();
+                                logger.info("Receiver KVServer has received KV-Pairs");
                             }
                         }
                         catch (Exception ex)
@@ -227,10 +230,10 @@ public class ClientConnection implements Runnable {
 
 
             // send an ACK to ECS saying "DONE-TRANSFER" after moving
-            byte[] ackToECS = "DONE-TRANSFER".getBytes();
+            byte[] doneACK = "DONE-TRANSFER".getBytes();
             try
             {
-                sendMessage(ackToECS,ackToECS.length);
+                this.sendMessage(doneACK,doneACK.length);
             }
             catch (Exception ex)
             {
@@ -302,7 +305,7 @@ public class ClientConnection implements Runnable {
 	}
 
 	public void sendECSAck(){
-		byte[] ack = {'F','I','N'};
+		byte[] ack = "FIN".getBytes();
 		try {
 			this.sendMessage(ack, ack.length);
 		}
