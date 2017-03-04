@@ -283,21 +283,62 @@ public class FileStoreHelper {
         return FileStoreStatusType.UPSERT_SUCCESS;
     }
 
-    public String[] GetFileHashes(){
-        originalFileLock.lock();
-        File[] files = new File(fileLocation).listFiles();
-        originalFileLock.unlock();
+    public ArrayList<File> getInRangeFiles(String startHash, String endHash)
+    {
+        File[] allFiles;
+        ArrayList<File> filesInRange = new ArrayList<>();
+        try
+        {
+            originalFileLock.lock();
+            allFiles = new File(fileLocation).listFiles();
+            originalFileLock.unlock();
 
-        ArrayList<String> fileNames = new ArrayList<String>();
-        for(int i =0; i<files.length;i++){
-            if(!(files[i].getName().equals("metadata"))) {
-                fileNames.add(files[i].getName());
+            for (int i = 0; i < allFiles.length; i++)
+            {
+                if (!(allFiles[i].getName().equals("metadata")) &&
+                        (isInRange(startHash,endHash,allFiles[i].getName())))
+                {
+                    filesInRange.add(allFiles[i]);
+                }
             }
         }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        return filesInRange;
+    }
 
-        String[] result = new String[fileNames.size()];
-        fileNames.toArray(result);
-        Arrays.sort(result);
+    public boolean isInRange(String myStartHash, String myEndHash, String clientHash)
+    {
+        String largestHash = new String(new char[32]).replace("\0", "f");//ffff...[32]
+        String smallestHash = new String(new char[32]).replace("\0", "0");//0000...[32]
+
+        boolean result = false;
+
+        if (myStartHash.compareTo(myEndHash) < 0)//start < end
+        {
+            if((clientHash.compareTo(myStartHash) >= 0) && (clientHash.compareTo(myEndHash) <= 0))
+            {
+                result = true;
+            }
+        }
+        else if(myStartHash.compareTo(myEndHash) > 0)//start > end
+        {
+            /* This server is the 1st in the ring.
+               Wrap-around case: start <= clientHash <= fff... || 000... <= clientHash <= end
+             */
+            if(((clientHash.compareTo(myStartHash) >= 0) && (clientHash.compareTo(largestHash) <= 0))
+                    || ((clientHash.compareTo(smallestHash) >= 0) && (clientHash.compareTo(myEndHash) <= 0)))
+            {
+                result = true;
+            }
+        }
+        else//start & end hash should never be equal to each other
+        {
+            logger.error("isResponsible :::: Start & End hash are equal!!\n");
+        }
+
         return result;
     }
 
