@@ -17,7 +17,7 @@ public class AdditionalTest extends TestCase {
 
 	public void setUp() {
 		kvClient = new KVStore("localhost", 9000);
-		ecs = new ECS("ecs.config", false);
+		ecs = new ECS(true);
 		ecs.initService(2,100,"LRU");
 		try {
 			kvClient.connect();

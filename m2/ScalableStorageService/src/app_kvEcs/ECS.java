@@ -518,22 +518,20 @@ public class ECS implements ECSInterface {
 
     public void runLocalServer(String host, int port, int cacheSize, String strategy)
     {
-        String command = "java -jar ms2-server.jar "+ host + " " + port +
-                " "+cacheSize +" " + strategy  + " " + this.log;
-        try
-        {
+        String command = "java -jar ms2-server.jar " + host + " " + port +
+                " " + cacheSize + " " + strategy + " " + this.log;
+        try {
             Process cmdProc = Runtime.getRuntime().exec(command);
             //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
             //cmdProc.destroy();
             System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             ex.printStackTrace();
             System.out.println("Failed to run server locally");
         }
-
     }
+
     public static void main(String[] args){
         ECS ecs = new ECS(true);
 
