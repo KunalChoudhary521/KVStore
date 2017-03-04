@@ -12,7 +12,7 @@ public class ECSClient {
     private static Logger logger = Logger.getRootLogger();
     private static final String PROMPT = "ECSClient> ";
     private BufferedReader stdin;
-    private ECS client = new ECS("ecs.config",false);;
+    private ECS client = new ECS(true);
     private boolean stop = false;
 
     public void run() {
@@ -80,7 +80,8 @@ public class ECSClient {
             }
         }else if(tokens[0].equals("addNode")){
             try{
-                client.addNode(Integer.parseInt(tokens[1]), tokens[2]);
+                client.addNode(tokens[1],Integer.parseInt(tokens[2]),Integer.parseInt(tokens[3]),
+                        tokens[4]);
                 println ("added");
             }
             catch(Exception ex){
@@ -90,7 +91,7 @@ public class ECSClient {
             }
         }else if(tokens[0].equals("removeNode")){
             try{
-                client.removeNode();
+                client.removeNode(tokens[1],Integer.parseInt(tokens[2]));
                 println ("removed");
             }
             catch(Exception ex){

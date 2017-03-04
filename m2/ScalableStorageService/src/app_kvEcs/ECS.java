@@ -1,10 +1,13 @@
 package app_kvEcs;
 
+import app_kvServer.KVServer;
 import app_kvServer.Metadata;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -12,79 +15,153 @@ public class ECS implements ECSInterface {
 
     private TreeMap<BigInteger, Metadata> hashRing;
     private Socket ecsSocket;
-    private String fileName;
+    private String configFile;
     private boolean log;
-    public ECS(String filename, boolean log){
-        this.fileName = filename;
+    private String currentMetaData;//only updated by updatedMetadata()
+    private ArrayList<String> runningServers;//<IP:Port>
+
+    public ECS(boolean log)
+    {
+        this.configFile = "ecs.config";//ECS shouldn't be standalone (Piazza =193)
         this.log = log;
         hashRing = new TreeMap<>();
+        runningServers = new ArrayList<>();
     }
 
     @Override
-    public void initService(int numOfServers, int cSize, String strat){
+    public void initService(int numOfServers, int cSize, String strat)
+    {
+        //logging is set to true in ECSClient.java
         initKVServer(numOfServers,cSize,strat,this.log);
     }
 
-    @Override
     public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
     {
         //Currently, numOfServers is not used
-       // String fileName = "ecs.config";//needs to be command-line arg
-        System.out.println("Current Directory: " +  System.getProperty("user.dir"));
-
-        File file = new File(System.getProperty("user.dir")+"\\"+this.fileName);
-        if(!file.exists())
+        //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
+        if(numOfServers <= 0)
         {
-            //logger error: ecs.config not in ScalableStorageServer directory. Create one Please.
-            /*file format:<IP>,<port>
-              127.0.0.1,9000
-              127.0.0.1,9002
-            */
             return;
         }
 
+        File file = new File(System.getProperty("user.dir")+"\\"+this.configFile);
+
         String line;
+        int serversRan = 0;
+
         try
         {
             BufferedReader rdBuffer = new BufferedReader(new FileReader(file));
-            while((line = rdBuffer.readLine()) != null)
+            while(((line = rdBuffer.readLine()) != null) && (serversRan < numOfServers))//only read numOfServers lines
             {
-                String[] ipAndPort = line.split(",");
-                addServer(ipAndPort[0],Integer.parseInt(ipAndPort[1]),cSize,strat,log);//also starts server via SSH
+                String[] address = line.split(",");
+
+                if(address[2].equals("A"))//server is available/not in use
+                {
+                    runningServers.add(address[0] + ":" + address[1]);//used to update ecs config file
+
+                    addToRing(address[0], Integer.parseInt(address[1]));
+                    serversRan++;
+                }
             }
+
+            rdBuffer.close();
         }
         catch (Exception ex)
         {
+            System.out.println("ecs config file not found");
+            //logger error: ecs.config not in ScalableStorageServer directory. Create one Please.
+            /*file format:<IP>,<port>,<A or NA>
+              127.0.0.1,9000
+              127.0.0.1,9002
+            */
             ex.printStackTrace();
         }
 
-        //Calls is made inside because all server have been added to the Metadata file
-        //sendUpdatedMetadata();
+        //run all servers in stopped state
+        Metadata temp;
+        for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
+        {
+            //sshServer(entry.getValue(),cacheSize,strat,this.log);//start via SSH
+            temp = entry.getValue();
+            //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
+
+            stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
+        }
+
+        updatedMetadata();
+        sendMetadataToAll();//send metadata to all KVServers
+
+        updateConfigFile();//edit config file (mark servers that are running)--> <IP>   <Port>  <NA>
     }
-    private void sendUpdatedMetadata()
+    private void updateConfigFile()
+    {
+        StringBuilder updatedFile = new StringBuilder();
+        String[] params;
+        BufferedReader reader = null;
+        try
+        {
+            //read the whole file in memory
+            reader = new BufferedReader(new FileReader(this.configFile));
+            String line;
+            while((line = reader.readLine()) != null)
+            {
+                params = line.split(",");
+                //edit those strings whose IP:Port is in runningServers
+                if(runningServers.contains(params[0] + ":" + params[1]))
+                {
+                    updatedFile.append(params[0] + "," + params[1] + "," + "NA" + "\n");//NA = non-available
+                }
+                else
+                {
+                    updatedFile.append(params[0] + "," + params[1] + "," + "A" + "\n");//A = available
+                }
+            }
+            reader.close();
+
+            //clear ecs.config and write updated data
+            FileWriter confFile = new FileWriter(this.configFile,false);//false clears old content in the file
+            confFile.write(updatedFile.toString());
+            confFile.close();
+        }
+        catch(Exception ex)
+        {
+            System.out.println("ecs config file not found");
+            ex.printStackTrace();
+        }
+    }
+    private void updatedMetadata()
     {
         //Protocol: ECS-METADATA-<IP_1>,<P_1>,<sR_1>,<eR_1>-...-<IP_N>,<P_N>,<sR_N>,<eR_N>0
-        String msg = "ECS-METADATA-";
+        String msg = "";
         int index = 1;
 
         //create byte array of all metadata
-        for(Map.Entry<BigInteger,Metadata> entry: hashRing.entrySet())
-        {
+        for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet()) {
             String host = entry.getValue().host;
             String port = entry.getValue().port;
             String srtRange = entry.getValue().startHash;
             String endRange = entry.getValue().endHash;
 
-            if(index != hashRing.size()) {
+            if (index != hashRing.size()) {
                 msg += host + "," + port + "," + srtRange + "," + endRange + "-";
-            } else {
+            }
+            else {
                 msg += host + "," + port + "," + srtRange + "," + endRange;
             }
             index++;
             //System.out.println("MetaData byte array: " + new String(mData));//for debugging
         }
 
+        currentMetaData = msg;
+    }
+
+    //Sends metadata to all servers
+    public void sendMetadataToAll()
+    {
         //Send Metadata contents to each running KVServer
+        String preface = "ECS-METADATA-";
+        String msg = preface + this.currentMetaData;
         byte[] mData = new byte[msg.length() + 1];
         System.arraycopy(msg.getBytes(),0,mData,0,msg.length());
 
@@ -92,18 +169,33 @@ public class ECS implements ECSInterface {
         {
             sendViaTCP(entry.getValue().host,Integer.parseInt(entry.getValue().port),mData);
         }
+
+        return;//for debugging
+    }
+    public void sendMetadata(String serverIP, int serverPort)
+    {
+        //Send Metadata contents to each running KVServer
+        String preface = "ECS-METADATA-";
+        String msg = preface + this.currentMetaData;
+        byte[] mData = new byte[msg.length() + 1];
+        System.arraycopy(msg.getBytes(),0,mData,0,msg.length());
+
+        sendViaTCP(serverIP,serverPort,mData);
+
         return;//for debugging
     }
 
-    private void sshServer(Metadata m, int cacheSize, String strategy, boolean log)
+    private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "rahmanz5", host = "ug222.eecg.toronto.edu";//128.100.13.<>
-        int port = 22;
+        String user = "rahmanz5", sshHost = "ug222.eecg.toronto.edu";//128.100.13.<>
+        int sshPort = 22;
 
-        mySsh.connectSsh(user,host,port);
+        mySsh.connectSsh(user,sshHost,sshPort);
 
-        String cmd = "java -jar ms2-server.jar "+ m.host + " " + m.port +" "+cacheSize +" " + strategy  + " " + log;
+        String cmd = "java -jar ms2-server.jar "+ ServerHost + " " + ServerPort +
+                    " "+cacheSize +" " + strategy  + " " + log;
+
         String directory = "cd ece419/m2/ScalableStorageService";
 
         mySsh.runServer(directory, cmd);
@@ -111,8 +203,8 @@ public class ECS implements ECSInterface {
         mySsh.session.disconnect();//can be moved to destructor
     }
 
-    @Override
-    public void addServer(String host, int port, int cacheSize, String strategy, boolean log)
+
+    public void addToRing(String host, int port)
     {
         Metadata temp = new Metadata(host, Integer.toString(port));
         BigInteger currEndHash;
@@ -151,16 +243,47 @@ public class ECS implements ECSInterface {
         {
             ex.printStackTrace();
         }
-        //this.sshServer(m,cacheSize,strategy,log);//start server via SSH
-
-        /*  Call sendUpdatedMetadata() outside this function because:
-            -   There might have been multiple entries added to hashRing.
-            -   Wait for Server to start via SSH (might be slow due to SSH)
-        */
     }
 
     @Override
-    public void removeServer(String host, int port)
+    public void addNode(String newServerIP, int newServerPort, int cacheSize, String strategy)
+    {
+        //need to read from ecs.config and choose a server to run
+        addToRing(newServerIP,newServerPort);
+
+        //sshServer(host, port, cacheSize, strategy,log);//start via SSH
+        //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
+        startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
+
+        lockWrite(newServerIP, newServerPort);
+
+        updatedMetadata();
+        sendMetadata(newServerIP,newServerPort);//send updated Metadata only to new added server
+
+        if(hashRing.size() == 1)
+        {
+            //newly added server is the only one. No need to move any KV-pairs
+            return;
+        }
+
+        Metadata dstServer = null;
+        try
+        {
+            dstServer = hashRing.get(md5.HashBI(newServerIP+":"+newServerPort));
+            moveData(dstServer, dstServer.startHash,dstServer.endHash);
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+
+        sendMetadataToAll();
+
+        runningServers.add(newServerIP + ":" + newServerPort);
+        updateConfigFile();//mark servers as running
+    }
+
+    public void removeFromRing(String host, int port)
     {
         BigInteger currEndHash;
 
@@ -198,6 +321,13 @@ public class ECS implements ECSInterface {
     }
 
     @Override
+    public void removeNode(String host, int port)
+    {
+
+        runningServers.remove(host + ":" + port);
+        updateConfigFile();//mark removed server as available
+    }
+
     public void startKVServer(String host, int port)
     {
         //Protocol: ECS-START0
@@ -209,22 +339,25 @@ public class ECS implements ECSInterface {
     * that participate in the service.
      */
     @Override
-    public void start(){
-        //todo
+    public void start()
+    {
+        Metadata temp;
+        for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
+        {
+            temp = entry.getValue();
+            startKVServer(temp.host,Integer.parseInt(temp.port));//send start message(allow get & put)
+        }
     }
-    /*Stops the service; all participating
-    *KVServers are stopped for processing
-    * client requests but the processes
-    * remain running.
+
+    /*Stops all KVServers (don't allow get & put)
     * uses stopKVServer
      */
-
     @Override
-    public void stop(){
+    public void stop()
+    {
         //todo
     }
 
-    @Override
     public void stopKVServer(String host, int port)
     {
         //Protocol: ECS-STOP0
@@ -232,28 +365,31 @@ public class ECS implements ECSInterface {
         sendViaTCP(host, port, byteMsg);
     }
 
-    /*Stops all server instances and exits the
-     * remote processes.
-     */
 
+    /*
+        Shutdowns all running KVServers
+     */
     @Override
-    public void shutDown(){
+    public void shutDown()
+    {
         //todo
     }
 
-    @Override
+
     public void shutDownKVServer(String host, int port)
     {
         //Protocol: ECS-SHUTDOWN0
         byte[] byteMsg = createMessage("ECS-SHUTDOWN");
         sendViaTCP(host, port, byteMsg);
 
+        /*Should be done in stop()
         try {
             hashRing.remove(md5.HashS(host));
             sendUpdatedMetadata();
         } catch (Exception ex){
             ex.printStackTrace();
         }
+        */
     }
 
     @Override
@@ -273,28 +409,71 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void moveData(String host, int port, String startRange, String endRange)
+    public void moveData(Metadata dstServer, String startRange, String endRange)
     {
-        //Protocol: ECS-MOVE-<start-range>-<end-range>-0
-        String msgType = "ECS-MOVE-";
+        Metadata srcServer = null;
+        //find successor/srcServer server
+        try
+        {
+            BigInteger newServerHash  =  md5.HashBI(dstServer.host + ":" + dstServer.port);//server recently added
+            if(hashRing.higherEntry(newServerHash) == null)//new Server is last in the ring
+            {
+                srcServer = hashRing.firstEntry().getValue();//successor is first server in the ring
+            }
+            else
+            {
+                srcServer = hashRing.higherEntry(newServerHash).getValue();
+            }
 
-        byte[] byteMsg = new byte[msgType.length() + (1+startRange.length()) + (1+endRange.length()) + 2];//last +2 for 0 terminator
+            //srcServer & dstServer should be running by now
+            String kvReceiver = "ECS-RECV-KV-";//send this to toServer
+            byte[] recvMsg = createMessage(kvReceiver);
+            sendViaTCP(dstServer.host, Integer.parseInt(dstServer.port), recvMsg);
 
-        System.arraycopy(msgType.getBytes(),0,byteMsg,0,msgType.length());
+            /*
+            ECS might needs to wait until toServer is ready to
+            receive KV-pairs before commanding fromServer to start sending.
+            */
 
-        int startRIdx = msgType.length()+1;
-        byte[] startBytes = startRange.getBytes();
-        System.arraycopy(startBytes,0,byteMsg,startRIdx,startBytes.length);
-        byteMsg[startRIdx+startBytes.length] = '-';
+            //set write-lock on succesor
+            lockWrite(srcServer.host, Integer.parseInt(srcServer.port));
 
-        int endRIdx = (startRIdx+startBytes.length) + 1;
-        byte[] endBytes = endRange.getBytes();
-        System.arraycopy(endBytes,0,byteMsg,endRIdx,endBytes.length);
-        byteMsg[byteMsg.length-2] = '-';
+            String kvSender = "ECS-SEND-KV-" +
+                            dstServer.host + "-" + dstServer.port + "-" +
+                            startRange + "-" + endRange + "-";
 
-        //System.out.println("Byte Msg: " + new String(byteMsg));//for debugging
 
-        sendViaTCP(host, port, byteMsg);
+            byte[] senderMsg = createMessage(kvSender);
+            sendViaTCP(srcServer.host, Integer.parseInt(srcServer.port), senderMsg);
+
+
+            //wait for ACK from srcServer that transfer is complete
+            ServerSocket recvSock = new ServerSocket(Integer.parseInt(srcServer.port));
+            ecsSocket = recvSock.accept();
+            byte[] buffer = new byte[15];
+            InputStream in = ecsSocket.getInputStream();
+            int count;
+            String ack;
+            while((count = in.read(buffer)) >= 0)
+            {
+                ack = new String(buffer);//expect from Server: DONE
+                if(ack.equals("DONE"))
+                {
+                    break;
+                }
+            }
+            //Doesn't handle transfer fails, yet (network failure)
+
+            in.close();
+            ecsSocket.close();
+
+            //unlock write on successor server to re-allow put()
+            unlockWrite(srcServer.host, Integer.parseInt(srcServer.port));
+        }
+        catch(Exception ex)
+        {
+            ex.printStackTrace();
+        }
     }
 
     public byte[] createMessage(String msgType)
@@ -337,83 +516,29 @@ public class ECS implements ECSInterface {
         }
     }
 
-    @Override
-    /*
-    * Create a new KVServer with the specified cache size and replacement strategy and add it to the storage service at an arbitrary position.
-    *calls addService
-     */
-    public void addNode(int cacheSize, String strategy)
+    public void runLocalServer(String host, int port, int cacheSize, String strategy)
     {
-    //toDo
-    }
+        String command = "java -jar ms2-server.jar "+ host + " " + port +
+                " "+cacheSize +" " + strategy  + " " + this.log;
+        try
+        {
+            Process cmdProc = Runtime.getRuntime().exec(command);
+            //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
+            //cmdProc.destroy();
+            System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+            System.out.println("Failed to run server locally");
+        }
 
-    @Override
-    /*
-    * Remove a server from the storage service at an arbitrary position.
-     */
-    public void removeNode()
-    {
-        //toDo
     }
-
     public static void main(String[] args){
-        ECS ecs = new ECS("ecs.config", false);
+        ECS ecs = new ECS(true);
 
-        // use this for testing on ug machines
-        //Metadata fake1 = new Metadata("128.100.13.222", "8000", "asfdsaf", "fdasfddas");
-
-
-        // use this for testing wrap around (create metadata file in the folder where the kvps are stored)
-        Metadata fake1 = new Metadata("localhost", "8000", "f0000000000000000000000000000000", "c0000000000000000000000000000000");
-        Metadata fake2 = new Metadata("localhost", "8001", "c0000000000000000000000000000001", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeef");
-
-        // use this for testing on localhost
-        //Metadata fake1 = new Metadata("localhost", "8000", "99999999999999999999999999999999", "33333333333333333333333333333332");
-        //Metadata fake2 = new Metadata("localhost", "8001", "33333333333333333333333333333333", "55555555555555555555555555555554");
-        //Metadata fake3 = new Metadata("localhost", "8002", "55555555555555555555555555555555", "77777777777777777777777777777776");
-        //Metadata fake4 = new Metadata("localhost", "8003", "77777777777777777777777777777777", "99999999999999999999999999999998");
-
-        // can uncomment this to see if KVServer receives metadata from ECS
-        //ecs.initKVServer(fake1, 0, "LRU", true);
-        //ecs.initKVServer(fake2, 0, "LRU", true);
-        //ecs.initKVServer(fake1, 0, "LRU", true);
-        //ecs.initKVServer(fake2, 0, "LRU", true);
-
-        ecs.startKVServer("localhost", 8000);
-        ecs.startKVServer("localhost", 8001);
-        //ecs.startKVServer("localhost", 8002);
-        //ecs.startKVServer("localhost", 8003);
-
-        //ecs.stopKVServer("localhost", 8000);
-        //ecs.stopKVServer("localhost", 8001);
-        //ecs.stopKVServer("localhost", 8002);
-        //ecs.stopKVServer("localhost", 8003);
-
-        //ecs.shutDownKVServer("localhost", 8000);
-        //ecs.shutDownKVServer("localhost", 8001);
-        //ecs.shutDownKVServer("localhost", 8002);
-        //ecs.shutDownKVServer("localhost", 8003);
-
-        //ecs.lockWrite("localhost", 8000);
-        //ecs.lockWrite("localhost", 8001);
-        //ecs.lockWrite("localhost", 8002);
-        //ecs.lockWrite("localhost", 8003);
-
-        ecs.unlockWrite("localhost", 8000);
-        ecs.unlockWrite("localhost", 8001);
-        //ecs.unlockWrite("localhost", 8002);
-        //ecs.unlockWrite("localhost", 8003);
-
-
-        // TODO: incomplete on KVServer side
-        //ecs.moveData("localhost", 8000,                "00000000000000000000000000000000",                "ffffffffffffffffffffffffffffffff");
-
-        ecs.removeServer("127.0.0.1",9002);
-
-        //update & send each server's metadata to all servers
-        //ecs.sendUpdatedMetadata();
-
-        ecs.initKVServer(2,10,"LRU",true);
-
+        ecs.initKVServer(1,10,"LRU",true);
+        ecs.start();
+        //ecs.startKVServer("127.0.0.1", 8080);
     }
 }
