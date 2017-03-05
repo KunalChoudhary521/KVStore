@@ -101,10 +101,17 @@ public class ECS implements ECSInterface {
         Metadata temp;
         for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
         {
-            //sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
+            sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
             temp = entry.getValue();
             //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
             //stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
+        }
+
+        try {
+            Thread.sleep(7000);
+        } catch (Exception ex)
+        {
+            logger.info(ex);
         }
 
         updatedMetadata();
@@ -309,9 +316,15 @@ public class ECS implements ECSInterface {
         }
 
 
-        //sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
+        sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
 
+        try {
+            Thread.sleep(7000);
+        } catch (Exception ex)
+        {
+            logger.info(ex);
+        }
 
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 
