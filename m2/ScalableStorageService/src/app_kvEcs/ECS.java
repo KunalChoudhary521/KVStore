@@ -102,7 +102,7 @@ public class ECS implements ECSInterface {
             temp = entry.getValue();
             //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
 
-            stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
+       //     stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
         }
 
         updatedMetadata();
