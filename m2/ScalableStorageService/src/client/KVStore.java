@@ -433,12 +433,8 @@ public class KVStore implements KVCommInterface {
 					throw new Exception(msg);
 				} else if (ret_vals[0].getMsg().trim().contains("I")) {
 					update_Map();
-					disconnect();
-					con = true;
 					return put(key,value);
 				}else if(ret_vals[0].getMsg().trim().contains("W")){
-					disconnect();
-					con = true;
 					TimeUnit.MILLISECONDS.sleep(30);
 					return put(key,value);
 					/*
@@ -446,8 +442,6 @@ public class KVStore implements KVCommInterface {
 					return new Message(key, value, KVMessage.StatusType.SERVER_WRITE_LOCK);
 					 */
 				}else if (ret_vals[0].getMsg().trim().contains("ST")){
-					disconnect();
-					con = true;
 					TimeUnit.MILLISECONDS.sleep(30);
 					return put(key,value);
 					/*
@@ -681,13 +675,10 @@ public class KVStore implements KVCommInterface {
 								}
 								else if (ret_vals[i].getMsg().trim().contains("W")){
 									update_Map();
-									disconnect();
-									con = true;
+									TimeUnit.MILLISECONDS.sleep(30);
 									return get(key);
 								}
 								else if(ret_vals[i].getMsg().trim().contains("ST")){
-									disconnect();
-									con = true;
 									TimeUnit.MILLISECONDS.sleep(30);
 									return get(key);
 								}
