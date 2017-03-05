@@ -29,6 +29,10 @@ public class ECS implements ECSInterface {
         hashRing = new TreeMap<>();
         runningServers = new ArrayList<>();
     }
+    public ArrayList<String> getRunningServers()
+    {
+        return this.runningServers;
+    }
 
     @Override
     public void initService(int numOfServers, int cSize, String strat)
