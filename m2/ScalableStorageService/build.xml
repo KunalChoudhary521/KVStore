@@ -25,6 +25,10 @@
   <property name="ecsmanifest.file" value="ECS_MANIFEST.MF"/>
   <property name="ecsmain.class" value="app_kvEcs.ECSClient"/>
 
+    <!-- Configuration for perf_test application -->
+  <property name="perf_test.file"      value="pef_test.jar"/>
+  <property name="perf_testmanifest.file" value="PERF_TEST_MANIFEST.MF"/>
+  <property name="perf_testmain.class" value="perf_test.perf_runner"/>
 
 
   <!-- path to libraries-->
