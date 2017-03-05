@@ -38,7 +38,21 @@ public class ECS implements ECSInterface {
         //logging is set to true in ECSClient.java
         initKVServer(numOfServers,cSize,strat,this.log);
     }
-
+    public void runLocalServer(String host, int port, int cacheSize, String strategy)
+    {
+        String command = "java -jar ms2-server.jar " + host + " " + port +
+                " " + cacheSize + " " + strategy + " " + this.log;
+        try {
+            Process cmdProc = Runtime.getRuntime().exec(command);
+            //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
+            //cmdProc.destroy();
+            System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+            System.out.println("Failed to run server locally");
+        }
+    }
     public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
     {
         //Currently, numOfServers is not used
@@ -86,7 +100,7 @@ public class ECS implements ECSInterface {
         {
             //sshServer(entry.getValue(),cacheSize,strat,this.log);//start via SSH
             temp = entry.getValue();
-            //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
+            runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
 
             stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
         }
@@ -291,7 +305,7 @@ public class ECS implements ECSInterface {
         }
 
         //sshServer(host, port, cacheSize, strategy,log);//start via SSH
-        //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
+        runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 
         lockWrite(newServerIP, newServerPort);

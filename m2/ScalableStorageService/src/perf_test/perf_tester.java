@@ -37,22 +37,46 @@ public class perf_tester implements Runnable{
         }
     }
     public void run(){
+        int last_cs = cache_sizes[0];
+        String last_st=strats[0];
         for (String st:strats){
             for (int cs:cache_sizes){
                 int cur_servs=0;
                 for (int serv:servers_to_con){
                     for (int cl: clients_to_con){
-                        test(cl,serv,cs,st,cur_servs);
+                        test(cl,serv,cs,st,cur_servs,last_cs, last_st);
                         cur_servs = serv;
+                        last_cs = cs;
+                        last_st = st;
                     }
                 }
             }
         }
     }
-    private void test(int clients, int num_servers, int cache_size, String strategies,int cur_servs){
+    private void test(int clients, int num_servers, int cache_size, String strategies,int cur_servs, int last_cs, String last_strat){
         Random rg = new Random(3);
         long start_time = 0;
         long elapsed_time = 0;
+        if (last_cs != cache_size){
+            start_time=System.nanoTime();
+            for (int i = 0; i<(cur_servs-num_servers);i++) {
+                ecs.removeNode("localhost",8080+num_servers-i);
+                elapsed_time = System.nanoTime() - start_time;
+                String to_store = Integer.toString(cur_servs).concat(",-").concat(Integer.toString(num_servers - cur_servs)).concat(strategies).concat(Integer.toString(cache_size)).concat(Long.toString(elapsed_time));
+                expand_res.println(to_store);
+            }
+            cur_servs = 0;
+        }
+        else if(last_strat != strategies){
+            start_time=System.nanoTime();
+            for (int i = 0; i<(cur_servs-num_servers);i++) {
+                ecs.removeNode("localhost",8080+num_servers-i);
+                elapsed_time = System.nanoTime() - start_time;
+                String to_store = Integer.toString(cur_servs).concat(",-").concat(Integer.toString(num_servers - cur_servs)).concat(strategies).concat(Integer.toString(cache_size)).concat(Long.toString(elapsed_time));
+                expand_res.println(to_store);
+            }
+            cur_servs = 0;
+        }
         if(cur_servs<num_servers) {
             start_time=System.nanoTime();
             ecs.initService(num_servers-cur_servs,cache_size,strategies);
