@@ -211,7 +211,7 @@ public class ClientConnection implements Runnable {
                 // create a socket, and establish a connection with the target server
                 Socket kvSenderSock = new Socket(dstServerIP,Integer.parseInt(dstServerPort));
 
-                Thread.sleep(2* 1000);//need a better way to make sure receiver is ready to receive
+                //Thread.sleep(2* 1000);//need a better way to make sure receiver is ready to receive
 
                 // write the byte array to the output stream "KV-MOVE-<>,<>,...,<>0"
                 OutputStream writeToSock = kvSenderSock.getOutputStream();
