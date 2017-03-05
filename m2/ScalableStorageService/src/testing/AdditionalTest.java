@@ -16,18 +16,19 @@ public class AdditionalTest extends TestCase {
 
 
 	public void setUp() {
-		kvClient = new KVStore("localhost", 9000);
+		/*kvClient = new KVStore("localhost", 9000);
 		ecs = new ECS(true);
-		ecs.initService(2,100,"LRU");
+		ecs.initService(1,100,"LRU");
+
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
-		}
+		}*/
 	}
 
 	public void tearDown() {
 		kvClient.disconnect();
-		//ecs.;
+		ecs.shutDown();
 	}
 	// TODO add your test cases, at least 3
 
@@ -285,19 +286,74 @@ public class AdditionalTest extends TestCase {
 		assertTrue(ex == null && res.getValue().equals(value));
 	}
 
+	// initKVServer
+	// connect to an available server
+	// if no exception is thrown, pass
 	@Test
-	public void testStub8() {
+	public void testECSinitKVServer() {
+		ecs.initKVServer(1, 100, "LRU", false);
+		String info[] = ecs.addNode(100, "LRU").split(":");
+
+		try {
+			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+		} catch(Exception ex)
+		{
+			assertNull(ex);
+		}
 		assertTrue(true);
 	}
 
+	// initKVServer
+	// add a node
+	// try to connect to the node that was added
+	// if no exception is thrown, you pass
 	@Test
-	public void testStub9() {
+	public void testECSAddNode() {
+		ecs.initKVServer(1, 100, "LRU", false);
+		String info[] = ecs.addNode(100, "LRU").split(":");
+
+		try {
+			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+		} catch(Exception ex)
+		{
+			assertNull(ex);
+		}
 		assertTrue(true);
 	}
 
+	// initKVServer
+	// add a node
+	// connect to it to verify it was added
+	// remove the node
+	// try connect to the removed node
+	// if an exception is thrown, pass the test
 	@Test
-	public void testStub10() {
-		assertTrue(true);
+	public void testECSRemoveNode() {
+		ecs.initKVServer(1, 100, "LRU", false);
+		String info[] = ecs.addNode(100, "LRU").split(":");
+
+		try {
+			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+		} catch(Exception ex)
+		{
+			assertNull(ex);
+		}
+
+		try{
+			kvClient.disconnect();
+		} catch(Exception ex)
+		{
+			assertNull(ex);
+		}
+
+		ecs.removeNode(info[0], Integer.parseInt(info[1]));
+
+		try {
+			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+		} catch(Exception ex)
+		{
+			assertNotNull(ex);
+		}
 	}
 }
 

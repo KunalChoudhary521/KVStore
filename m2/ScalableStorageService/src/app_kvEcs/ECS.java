@@ -275,7 +275,7 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void addNode(int cacheSize, String strategy)
+    public String addNode(int cacheSize, String strategy)
     {
         //read from ecs.config and choose a server to run
         String newServerIP = null;
@@ -313,7 +313,7 @@ public class ECS implements ECSInterface {
 
         if((newServerIP == null) || (newServerPort < 0))//unable to find an available server to run
         {
-            return;
+            return null;
         }
 
 
@@ -337,7 +337,7 @@ public class ECS implements ECSInterface {
         if(hashRing.size() == 1)
         {
             //newly added server is the only one. No need to move any KV-pairs
-            return;
+            return null;
         }
 
         Metadata dstServer = null, srcServer = null;
@@ -370,6 +370,8 @@ public class ECS implements ECSInterface {
 
         runningServers.add(newServerIP + ":" + newServerPort);
         updateConfigFile();//mark servers as running
+
+        return newServerIP+":"+newServerPort;
     }
 
     public void removeFromRing(String host, int port)
