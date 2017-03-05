@@ -36,6 +36,8 @@ public class ECS implements ECSInterface {
     public void initService(int numOfServers, int cSize, String strat)
     {
         //logging is set to true in ECSClient.java
+        String line  = ""+numOfServers +", "+cSize+", "+strat;
+        logger.info(line);
         initKVServer(numOfServers,cSize,strat,this.log);
     }
     public void runLocalServer(String host, int port, int cacheSize, String strategy)
@@ -64,6 +66,8 @@ public class ECS implements ECSInterface {
         }
 
         File file = new File(System.getProperty("user.dir")+"/"+this.configFile);
+
+        logger.info(System.getProperty("user.dir"));
 
         String line;
         int serversRan = 0;
