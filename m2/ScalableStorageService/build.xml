@@ -26,7 +26,7 @@
   <property name="ecsmain.class" value="app_kvEcs.ECSClient"/>
 
     <!-- Configuration for perf_test application -->
-  <property name="perf_test.file"      value="pef_test.jar"/>
+  <property name="perf_testjar.file"      value="pef_test.jar"/>
   <property name="perf_testmanifest.file" value="PERF_TEST_MANIFEST.MF"/>
   <property name="perf_testmain.class" value="perf_test.perf_runner"/>
 
@@ -66,6 +66,8 @@
     <delete file="${servermanifest.file}" />
     <delete file="${ecsjar.file}" />
     <delete file="${ecsmanifest.file}" />
+	<delete file="${perf_testjar.file}" />
+    <delete file="${perf_testmanifest.file}" />
   </target>
 
   <target name="cleanall" depends="clean"/>
@@ -133,9 +135,26 @@
       <zipgroupfileset dir="${lib.dir}" includes="**/*.jar" />
     </jar>
   </target>
+   <!-- build perf_test jar -->
+  <target name="build-perf_test-jar" depends="build">
+    <delete file="${perf_testjar.file}" />
+    <delete file="${perf_testmanifest.file}" />
+
+    <manifest file="${perf_testmanifest.file}" >
+      <attribute name="built-by" value="${user.name}" />
+      <attribute name="Main-Class" value="${perf_testmain.class}" />
+      <attribute name="Class-Path" value="${project.classpath}"/>
+    </manifest>
+
+    <jar destfile="${perf_testjar.file}" basedir="${build.dir}" 
+        manifest="${perf_testmanifest.file}">
+      <fileset dir="${build.dir}" includes="**/*.class" />
+      <zipgroupfileset dir="${lib.dir}" includes="**/*.jar" />
+    </jar>
+  </target>
 
   <!-- generate separate jar files for client, server and ECS application -->
-  <target name="build-jar" depends="build-client-jar, build-server-jar, build-ecs-jar" />
+  <target name="build-jar" depends="build-client-jar, build-server-jar, build-ecs-jar, build-perf_test-jar" />
 
   <!-- run test cases -->
   <target name="test" depends="build">
