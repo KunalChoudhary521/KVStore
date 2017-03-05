@@ -1,20 +1,29 @@
 package perf_test;
 
 import app_kvEcs.ECS;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import client.KVStore;
 
 import java.io.File;
 import java.io.PrintWriter;
+import org.apache.commons.io.FileUtils;
+
+import static org.apache.commons.io.FileUtils.readFileToString;
 
 /**
  * Created by yy on 2017-03-03.
  */
 public class perf_tester implements Runnable{
-    private long [] gets = new long[20];
-    private long [] puts = new long[20];
-    private KVStore [] clients;
+    private long gets = 0;
+    private long puts = 0;
+    private KVStore [] clients=new KVStore[100];
     //private KVServer [] servers;
+    String keys = null;
+    List<String> keys_l = null;
     private PrintWriter res;
     private PrintWriter expand_res;
     private File key_file;
@@ -32,6 +41,9 @@ public class perf_tester implements Runnable{
             expand_res.println("curr_servers,increase_by,strategy,cache_size,time elapsed");
             res.println("servers,clients,cache_size,strategy,get/put,time elapsed");
             ecs = new ECS(false);//ECS("ecs.config", false);
+            keys = readFileToString(key_file);
+            keys_l = new ArrayList<String>(Arrays.asList(keys.split("\r\n")));
+            keys = null;
         }catch(Exception ex){
             System.out.println(ex);
         }
@@ -103,22 +115,42 @@ public class perf_tester implements Runnable{
         }
         for (int i = 0; i<20; i++){
             try {
+                String key = "key".concat(Integer.toString(rg.nextInt()));
                 start_time = System.nanoTime();
-                this.clients[rg.nextInt(clients)].put("key".concat(Integer.toString(rg.nextInt())), "val");
+                this.clients[rg.nextInt(clients)].put(key, "val");
                 elapsed_time=System.nanoTime()-start_time;
-                String to_store = Integer.toString(num_servers).concat(",").concat(Integer.toString(clients)).concat(Integer.toString(cache_size)).concat(strategies).concat("put").concat(Long.toString(elapsed_time));
-                res.println(to_store);
+                keys_l.add(key);
+                puts += elapsed_time;
+
             }catch(Exception ex){
                 System.out.println(ex);
             }
         }
+        puts/=20;
+        String to_store = Integer.toString(num_servers).concat(",").concat(Integer.toString(clients)).concat(Integer.toString(cache_size)).concat(strategies).concat("put").concat(Long.toString(puts));
+        res.println(to_store);
+        puts =0;
         for (int i = 0; i<20; i++){
             try {
+                String key = keys_l.get(rg.nextInt(keys_l.size()));
                 start_time = System.nanoTime();
-                this.clients[rg.nextInt(clients)].get("key".concat(Integer.toString(rg.nextInt())));
+                this.clients[rg.nextInt(clients)].get(key);
                 elapsed_time=System.nanoTime()-start_time;
-                String to_store = Integer.toString(num_servers).concat(",").concat(Integer.toString(clients)).concat(Integer.toString(cache_size)).concat(strategies).concat("get").concat(Long.toString(elapsed_time));
-                res.println(to_store);
+                gets+=elapsed_time;
+
+            }catch(Exception ex){
+                System.out.println(ex);
+            }
+        }
+        gets/=20;
+        to_store = Integer.toString(num_servers).concat(",").concat(Integer.toString(clients)).concat(Integer.toString(cache_size)).concat(strategies).concat("get").concat(Long.toString(gets));
+        res.println(to_store);
+        gets =0;
+        for (int i = 0; i<clients; i++){
+            try {
+                this.clients[i] = new KVStore("localhost", 8080 + rg.nextInt(num_servers));
+                this.clients[i].disconnect();
+                this.clients[i]=null;
             }catch(Exception ex){
                 System.out.println(ex);
             }
