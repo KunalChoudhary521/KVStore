@@ -102,6 +102,26 @@ public class ECSClient {
                 //        Time.valueOf(LocalTime.now()));
                 println("remove failed. "+ex.getMessage());
             }
+        }else if(tokens[0].equals("unlockWrite")){
+            try{
+                client.unlockWrite(tokens[1],Integer.parseInt(tokens[2]));
+                println ("unlocked write on " + tokens[1]  + ", " + tokens[2]);
+            }
+            catch(Exception ex){
+                //logger.error("Get failed"+"at"+
+                //        Time.valueOf(LocalTime.now()));
+                println("remove failed. "+ex.getMessage());
+            }
+        }else if(tokens[0].equals("lockWrite")){
+            try{
+                client.lockWrite(tokens[1],Integer.parseInt(tokens[2]));
+                println ("locked write on " + tokens[1]  + ", " + tokens[2]);
+            }
+            catch(Exception ex){
+                //logger.error("Get failed"+"at"+
+                //        Time.valueOf(LocalTime.now()));
+                println("remove failed. "+ex.getMessage());
+            }
         }else{
             //logger.error("unknown command at"+Time.valueOf(LocalTime.now()));
             printError("Unknown command");
@@ -146,6 +166,11 @@ public class ECSClient {
         sb.append(PROMPT).append("removeNode <Server IP> <Server Port>");
         sb.append("\t Remove a server from the storage service.\n");
 
+        sb.append(PROMPT).append("unlockWrite <Server IP> <Server Port>");
+        sb.append("\t Enables puts on a server in the storage service.\n");
+
+        sb.append(PROMPT).append("lockWrite <Server IP> <Server Port>");
+        sb.append("\t Disables puts on a server in the storage service.\n");
 
         System.out.println(sb.toString());
     }

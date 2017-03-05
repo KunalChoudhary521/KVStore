@@ -4,7 +4,7 @@ import app_kvServer.Metadata;
 
 public interface ECSInterface {
     public void initService(int numOfServers, int cSize, String strat);
-    public void addNode(int cacheSize, String strategy);
+    public String addNode(int cacheSize, String strategy);
     public void removeNode(String host, int port);
     public void start();
     public void stop();

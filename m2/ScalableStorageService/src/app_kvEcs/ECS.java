@@ -7,8 +7,6 @@ import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Map;
@@ -103,16 +101,10 @@ public class ECS implements ECSInterface {
         Metadata temp;
         for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
         {
-            sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
+            //sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
             temp = entry.getValue();
             //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
             //stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
-        }
-
-        try{
-            Thread.sleep(7000);
-        } catch (Exception ex){
-            logger.info(ex);
         }
 
         updatedMetadata();
@@ -216,7 +208,7 @@ public class ECS implements ECSInterface {
     private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "milwidya", sshHost = "ug180.eecg.toronto.edu";//128.100.13.<>
+        String user = "rahmanz5", sshHost = "ug222.eecg.toronto.edu";//128.100.13.<>
         int sshPort = 22;
 
         mySsh.connectSsh(user,sshHost,sshPort);
@@ -275,7 +267,7 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void addNode(int cacheSize, String strategy)
+    public String addNode(int cacheSize, String strategy)
     {
         //read from ecs.config and choose a server to run
         String newServerIP = null;
@@ -313,19 +305,13 @@ public class ECS implements ECSInterface {
 
         if((newServerIP == null) || (newServerPort < 0))//unable to find an available server to run
         {
-            return;
+            return null;
         }
 
 
-        sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
-        //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
+        //sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
 
-        try{
-            Thread.sleep(7000);
-        } catch (Exception ex){
-            logger.info(ex);
-        }
 
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 
@@ -337,7 +323,7 @@ public class ECS implements ECSInterface {
         if(hashRing.size() == 1)
         {
             //newly added server is the only one. No need to move any KV-pairs
-            return;
+            return null;
         }
 
         Metadata dstServer = null, srcServer = null;
@@ -370,6 +356,8 @@ public class ECS implements ECSInterface {
 
         runningServers.add(newServerIP + ":" + newServerPort);
         updateConfigFile();//mark servers as running
+
+        return newServerIP+":"+newServerPort;
     }
 
     public void removeFromRing(String host, int port)
@@ -481,7 +469,6 @@ public class ECS implements ECSInterface {
         {
             temp = entry.getValue();
             startKVServer(temp.host,Integer.parseInt(temp.port));//send start message(allow get & put)
-            unlockWrite(temp.host, Integer.parseInt(temp.port));
         }
     }
 
@@ -527,14 +514,8 @@ public class ECS implements ECSInterface {
         byte[] byteMsg = createMessage("ECS-SHUTDOWN");
         sendViaTCP(host, port, byteMsg);
 
-        /*Should be done in stop()
-        try {
-            hashRing.remove(md5.HashS(host));
-            sendUpdatedMetadata();
-        } catch (Exception ex){
-            ex.printStackTrace();
-        }
-        */
+        runningServers.remove(host + ":" + port);
+        updateConfigFile();//mark removed server as available
     }
 
     @Override
@@ -672,12 +653,12 @@ public class ECS implements ECSInterface {
         ecs.unlockWrite("127.0.0.1",8080);
         //run KVClient and put key1,2,3,6
         //run KVServer2 @ port 8370
-        ecs.addNode(10,"LRU");
+        //ecs.addNode(10,"LRU");
 
-        ecs.removeNode("127.0.0.1", 8080);//removeNode also shuts down this server
+        //ecs.removeNode("127.0.0.1", 8080);//removeNode also shuts down this server
 
-        //ecs.shutDownKVServer("127.0.0.1", 8080);//rem
-        ecs.shutDownKVServer("127.0.0.1", 8081);
+        ecs.shutDownKVServer("127.0.0.1", 8080);
+        //ecs.shutDownKVServer("127.0.0.1", 8081);
         System.out.println("Test Done");
     }
 }
