@@ -440,7 +440,7 @@ public class KVStore implements KVCommInterface {
 					disconnect();
 					con = true;
 					TimeUnit.MILLISECONDS.sleep(30);
-					continue;
+					return put(key,value);
 					/*
 					EITHER wait and retry or
 					return new Message(key, value, KVMessage.StatusType.SERVER_WRITE_LOCK);
@@ -449,7 +449,7 @@ public class KVStore implements KVCommInterface {
 					disconnect();
 					con = true;
 					TimeUnit.MILLISECONDS.sleep(30);
-					continue;
+					return put(key,value);
 					/*
 					EITHER wait and retry or
 					return new Message(key, value, KVMessage.StatusType.SERVER_STOPPED);
@@ -689,7 +689,7 @@ public class KVStore implements KVCommInterface {
 									disconnect();
 									con = true;
 									TimeUnit.MILLISECONDS.sleep(30);
-									continue;
+									return get(key);
 								}
 							}
 							if (ret_vals[0].getMsg().trim().contains("F")) {
