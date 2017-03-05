@@ -278,7 +278,7 @@ public class KVStore implements KVCommInterface {
 			} 
 			
 			/* only read valid characters, i.e. letters and numbers */
-			if((read > 31 && read < 127)) {
+			if((read > 0 && read < 127)) {
 				bufferBytes[index] = read;
 				index++;
 			}
@@ -375,7 +375,7 @@ public class KVStore implements KVCommInterface {
 				int kl = key.length();
 				int vl;
 				if (value != null)
-					vl = value.length();
+					vl = value.trim().length();
 				else
 					vl = 0;
 				//validate that key isn't too long to store
