@@ -19,7 +19,7 @@ public class AdditionalTest extends TestCase {
 
 
 	public void setUp() {
-		ECS ecs = new ECS(true);
+		ecs = new ECS(false);
 		ecs.initService(2,10,"LRU");
 		ecs.start();
 		ecs.unlockWrite("127.0.0.1",8080);
@@ -29,7 +29,14 @@ public class AdditionalTest extends TestCase {
 	}
 
 	public void tearDown() {
-		ecs.shutDown();
+		try{
+			ecs.stop();
+			ecs.removeNode("127.0.0.1",8080);
+			ecs.removeNode("127.0.0.1",9000);
+			ecs.shutDown();
+		}catch(Exception ex){
+		//donothing
+		}
 	}
 	// TODO add your test cases, at least 3
 
@@ -253,7 +260,7 @@ public class AdditionalTest extends TestCase {
 	@Test
 	public void testECSinitKVServer() {
 		ecs = null;
-		ecs = new ECS(true);//logging
+		ecs = new ECS(false);//logging
 	    ecs.initKVServer(1, 10, "LRU", true);
         String serverIPPort = ecs.getRunningServers().get(0);
         String[] info = serverIPPort.split(":");

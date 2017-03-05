@@ -14,7 +14,7 @@ public class InteractionTest extends TestCase {
 	private KVStore kvClient;
 	
 	public void setUp() {
-		ecs = new ECS(true);
+		ecs = new ECS(false);
 		ecs.initService(2,10,"LRU");
 		ecs.start();
 		ecs.unlockWrite("127.0.0.1",8080);
@@ -28,7 +28,13 @@ public class InteractionTest extends TestCase {
 
 	public void tearDown() {
 		kvClient.disconnect();
-		ecs.shutDown();
+		try{
+			ecs.removeNode("127.0.0.1",8080);
+			ecs.removeNode("127.0.0.1",9000);
+			ecs.shutDown();
+		}catch(Exception ex){
+			//donothing;
+		}
 	}
 	
 	
