@@ -68,7 +68,7 @@ public class FileStoreHelper {
                 logger.info("Opening streams");
             }
 
-            File file = new File(fileLocation+"\\"+fileName);
+            File file = new File(fileLocation+"/"+fileName);
 
             if(!file.exists()){
                 return null;
@@ -164,7 +164,7 @@ public class FileStoreHelper {
                 logger.info("Opening stream for writing");
             }
 
-            File file = new File(fileLocation+"\\"+fileName);
+            File file = new File(fileLocation+"/"+fileName);
 
             if(file.exists()){
                 throw new Exception("File already exists, do upsert not put");
@@ -216,7 +216,7 @@ public class FileStoreHelper {
 
             originalFileLock.lock();
 
-            File file = new File(fileLocation+"\\"+fileName);
+            File file = new File(fileLocation+"/"+fileName);
 
             if(file.exists()){
                 file.delete();
@@ -258,7 +258,7 @@ public class FileStoreHelper {
                 logger.info("Opening streams");
             }
 
-            File file = new File(fileLocation+"\\"+fileName);
+            File file = new File(fileLocation+"/"+fileName);
 
             if(!file.exists()){
                 throw new Exception("File does not exist");
