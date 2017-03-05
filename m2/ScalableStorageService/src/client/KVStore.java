@@ -422,7 +422,7 @@ public class KVStore implements KVCommInterface {
 				this.sendMessage(message, 4 + kl + ll);
 				for (int i = 0; i < 3; i++) {
 					ret_vals[i] = this.receiveMessage();
-					if (ret_vals[0].getMsg().trim().contains("F"))
+					if (ret_vals[0].getMsg().trim().contains("F") ||ret_vals[0].getMsg().trim().contains("I")||ret_vals[0].getMsg().trim().contains("W")||ret_vals[0].getMsg().trim().contains("ST"))
 						break;
 				}
 				if (ret_vals[0].getMsg().trim().contains("F")) {
@@ -433,21 +433,21 @@ public class KVStore implements KVCommInterface {
 					throw new Exception(msg);
 				} else if (ret_vals[0].getMsg().trim().contains("I")) {
 					update_Map();
+					disconnect();
+					con = true;
 					return put(key,value);
 				}else if(ret_vals[0].getMsg().trim().contains("W")){
-					TimeUnit.MILLISECONDS.sleep(30);
+					Thread.sleep(7);
+					disconnect();
+					con = true;
 					return put(key,value);
-					/*
-					EITHER wait and retry or
-					return new Message(key, value, KVMessage.StatusType.SERVER_WRITE_LOCK);
-					 */
+
 				}else if (ret_vals[0].getMsg().trim().contains("ST")){
-					TimeUnit.MILLISECONDS.sleep(30);
+					Thread.sleep(7);
+					disconnect();
+					con = true;
 					return put(key,value);
-					/*
-					EITHER wait and retry or
-					return new Message(key, value, KVMessage.StatusType.SERVER_STOPPED);
-					 */
+
 				}
 				if (!ret_vals[1].getMsg().trim().equals(key) ||
 						!ret_vals[2].getMsg().trim().equals(length)) {
@@ -597,6 +597,16 @@ public class KVStore implements KVCommInterface {
 									update_Map();
 									return get(key);
 								}
+								else if (ret_vals[i].getMsg().trim().contains("W")){
+									//update_Map();
+	Thread.sleep(7);//								TimeUnit.MILLISECONDS.sleep(1);
+									return get(key);
+								}
+								else if(ret_vals[i].getMsg().trim().contains("ST")){
+logger.fatal("going to sleep");
+	Thread.sleep(7);//								TimeUnit.MILLISECONDS.sleep(1);logger.fatal("getting again");
+									return get(key);
+								}
 							}
 							if (ret_vals[0].getMsg().trim().contains("F")) {
 								String msg = "Get, server sent F when validating key: '" + key + "'";
@@ -666,20 +676,27 @@ public class KVStore implements KVCommInterface {
 							this.sendMessage(message, 3 + key.length());
 							for (int i = 0; i < 4; i++) {
 								ret_vals[i] = this.receiveMessage();
+logger.fatal("got"+ret_vals[i].getMsg().trim());
 								if (ret_vals[i].getMsg().trim().contains("F")) {
 									break;
 								}
 								else if (ret_vals[i].getMsg().trim().contains("I")){
 									update_Map();
+									disconnect();
+									con = true;
 									return get(key);
 								}
 								else if (ret_vals[i].getMsg().trim().contains("W")){
-									update_Map();
-									TimeUnit.MILLISECONDS.sleep(30);
+									Thread.sleep(7);
+									disconnect();
+									con = true;
 									return get(key);
 								}
 								else if(ret_vals[i].getMsg().trim().contains("ST")){
-									TimeUnit.MILLISECONDS.sleep(30);
+									logger.fatal("going to sleep");
+									Thread.sleep(7);
+									disconnect();
+									con = true;
 									return get(key);
 								}
 							}

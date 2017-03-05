@@ -124,7 +124,7 @@ public class KVServer  {
 		return this.port;
 	}
 	private void buildMetadata() {
-		File file = new File(this.KVFileLocation+"\\metadata");
+		File file = new File(this.KVFileLocation+"/metadata");
 		try {
 			if (!file.exists()) {
 				logger.info("No metadata file!");
@@ -309,7 +309,7 @@ public class KVServer  {
         }
 
         //since the ECS is the only thing that triggers a metadata update, write new metadata to file
-		File file = new File(KVFileLocation+"\\metadata");
+		File file = new File(KVFileLocation+"/metadata");
 		try {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(file, false));
 			for(int i=0; i < serverMetadata.size(); i++){

@@ -111,6 +111,13 @@ public class ECS implements ECSInterface {
             //stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
         }
 
+        try {
+            Thread.sleep(7000);
+        } catch (Exception ex)
+        {
+            logger.info(ex);
+        }
+
         updatedMetadata();
 
         sendMetadataToAll();//send metadata to all KVServers
@@ -212,7 +219,7 @@ public class ECS implements ECSInterface {
     private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "rahmanz5", sshHost = "ug222.eecg.toronto.edu";//128.100.13.<>
+        String user = "milwidya", sshHost = "ug180.eecg.toronto.edu";//128.100.13.<>
         int sshPort = 22;
 
         mySsh.connectSsh(user,sshHost,sshPort);
@@ -316,6 +323,12 @@ public class ECS implements ECSInterface {
         sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
 
+        try {
+            Thread.sleep(7000);
+        } catch (Exception ex)
+        {
+            logger.info(ex);
+        }
 
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 

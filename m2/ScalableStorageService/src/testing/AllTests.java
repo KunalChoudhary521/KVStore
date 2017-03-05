@@ -1,5 +1,6 @@
 package testing;
 
+import app_kvEcs.ECS;
 import java.io.IOException;
 
 import org.apache.log4j.Level;
@@ -15,7 +16,11 @@ public class AllTests {
 	static {
 		try {
 			new LogSetup("logs/testing/test.log", Level.ERROR);
-			KVServer localhost = new KVServer("localhost", 50000, 100, "LRU",false);
+			ECS ecs = new ECS(true);
+			ecs.initService(2,10,"LRU");
+			ecs.start();
+			ecs.unlockWrite("127.0.0.1",8080);
+			ecs.unlockWrite("127.0.0.1",9000);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -24,8 +29,8 @@ public class AllTests {
 	
 	public static Test suite() {
 		TestSuite clientSuite = new TestSuite("Basic Storage ServerTest-Suite");
-		clientSuite.addTestSuite(ConnectionTest.class);
-		clientSuite.addTestSuite(InteractionTest.class); 
+	//	clientSuite.addTestSuite(ConnectionTest.class);
+	//	clientSuite.addTestSuite(InteractionTest.class); 
 		clientSuite.addTestSuite(AdditionalTest.class); 
 		return clientSuite;
 	}
