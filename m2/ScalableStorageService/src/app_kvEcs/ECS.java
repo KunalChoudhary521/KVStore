@@ -29,6 +29,10 @@ public class ECS implements ECSInterface {
         hashRing = new TreeMap<>();
         runningServers = new ArrayList<>();
     }
+    public ArrayList<String> getRunningServers()
+    {
+        return this.runningServers;
+    }
 
     @Override
     public void initService(int numOfServers, int cSize, String strat)
@@ -101,7 +105,7 @@ public class ECS implements ECSInterface {
         Metadata temp;
         for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
         {
-            //sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
+            sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
             temp = entry.getValue();
             //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
             //stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
@@ -309,7 +313,7 @@ public class ECS implements ECSInterface {
         }
 
 
-        //sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
+        sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
 
 
