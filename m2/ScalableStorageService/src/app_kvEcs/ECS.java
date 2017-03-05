@@ -634,23 +634,27 @@ public class ECS implements ECSInterface {
         {
             System.out.println(ex.getMessage());
         }
+    }
+
+    public void TransferAndRemoveTest()
+    {
+
         ECS ecs = new ECS(true);
         //logger.error("H1");
 
         //Reset file ecs.config (make all NA --> A)
-        //ecs.initKVServer(1,10,"LRU",true);
-        //ecs.start();
-        //ecs.unlockWrite("localhost",8000);
-        //ecs.unlockWrite("localhost",8001);
-        //ecs.unlockWrite("localhost",8002);
+
+        ecs.initKVServer(1,10,"LRU",true);
+        ecs.start();
+        ecs.unlockWrite("127.0.0.1",8080);
         //run KVClient and put key1,2,3,6
         //run KVServer2 @ port 8370
-        //ecs.addNode(10,"LRU");
+        ecs.addNode(10,"LRU");
 
-        //ecs.removeNode("127.0.0.1", 9000);
+        ecs.removeNode("127.0.0.1", 8080);
 
-        ecs.shutDownKVServer("localhost", 8000);
-        ecs.shutDownKVServer("localhost", 8001);
-        ecs.shutDownKVServer("localhost", 8002);
+        ecs.shutDownKVServer("127.0.0.1", 8080);
+        ecs.shutDownKVServer("127.0.0.1", 8081);
+        System.out.println("Test Done");
     }
 }
