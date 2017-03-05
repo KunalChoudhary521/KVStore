@@ -656,9 +656,9 @@ public class ECS implements ECSInterface {
         //run KVServer2 @ port 8370
         ecs.addNode(10,"LRU");
 
-        ecs.removeNode("127.0.0.1", 8080);
+        ecs.removeNode("127.0.0.1", 8080);//removeNode also shuts down this server
 
-        ecs.shutDownKVServer("127.0.0.1", 8080);
+        //ecs.shutDownKVServer("127.0.0.1", 8080);//rem
         ecs.shutDownKVServer("127.0.0.1", 8081);
         System.out.println("Test Done");
     }
