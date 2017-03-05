@@ -634,11 +634,12 @@ public class ECS implements ECSInterface {
         {
             System.out.println(ex.getMessage());
         }
+
+        TransferAndRemoveTest();
     }
 
-    public void TransferAndRemoveTest()
+    public static void TransferAndRemoveTest()
     {
-
         ECS ecs = new ECS(true);
         //logger.error("H1");
 
