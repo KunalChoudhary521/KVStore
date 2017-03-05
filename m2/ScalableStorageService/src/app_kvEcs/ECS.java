@@ -36,6 +36,8 @@ public class ECS implements ECSInterface {
     public void initService(int numOfServers, int cSize, String strat)
     {
         //logging is set to true in ECSClient.java
+        String line  = ""+numOfServers +", "+cSize+", "+strat;
+        logger.info(line);
         initKVServer(numOfServers,cSize,strat,this.log);
     }
     public void runLocalServer(String host, int port, int cacheSize, String strategy)
@@ -46,7 +48,7 @@ public class ECS implements ECSInterface {
             Process cmdProc = Runtime.getRuntime().exec(command);
             //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
             //cmdProc.destroy();
-            System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
+            //System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
         }
         catch (Exception ex) {
             ex.printStackTrace();
@@ -64,6 +66,8 @@ public class ECS implements ECSInterface {
         }
 
         File file = new File(System.getProperty("user.dir")+"/"+this.configFile);
+
+        logger.info(System.getProperty("user.dir"));
 
         String line;
         int serversRan = 0;
@@ -652,9 +656,9 @@ public class ECS implements ECSInterface {
         //run KVServer2 @ port 8370
         ecs.addNode(10,"LRU");
 
-        ecs.removeNode("127.0.0.1", 8080);
+        ecs.removeNode("127.0.0.1", 8080);//removeNode also shuts down this server
 
-        ecs.shutDownKVServer("127.0.0.1", 8080);
+        //ecs.shutDownKVServer("127.0.0.1", 8080);//rem
         ecs.shutDownKVServer("127.0.0.1", 8081);
         System.out.println("Test Done");
     }
