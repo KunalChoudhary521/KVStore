@@ -1,5 +1,6 @@
 package testing;
 
+import app_kvEcs.ECS;
 import org.junit.Test;
 
 import client.KVStore;
@@ -9,10 +10,15 @@ import common.messages.KVMessage.StatusType;
 
 
 public class InteractionTest extends TestCase {
-
+	private ECS ecs;
 	private KVStore kvClient;
 	
 	public void setUp() {
+		ecs = new ECS(true);
+		ecs.initService(2,10,"LRU");
+		ecs.start();
+		ecs.unlockWrite("127.0.0.1",8080);
+		ecs.unlockWrite("127.0.0.1",9000);
 		kvClient = new KVStore("localhost", 8080);
 		try {
 			kvClient.connect();
@@ -22,6 +28,7 @@ public class InteractionTest extends TestCase {
 
 	public void tearDown() {
 		kvClient.disconnect();
+		ecs.shutDown();
 	}
 	
 	

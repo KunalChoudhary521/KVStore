@@ -13,21 +13,20 @@ import junit.framework.TestCase;
 public class AdditionalTest extends TestCase {
 	private KVStore kvClient;
 	private ECS ecs;
+	private KVStore kvClient2;
 
 
 	public void setUp() {
-		/*kvClient = new KVStore("localhost", 9000);
-		ecs = new ECS(true);
-		ecs.initService(1,100,"LRU");
-
-		try {
-			kvClient.connect();
-		} catch (Exception e) {
-		}*/
+		ECS ecs = new ECS(true);
+		ecs.initService(2,10,"LRU");
+		ecs.start();
+		ecs.unlockWrite("127.0.0.1",8080);
+		ecs.unlockWrite("127.0.0.1",9000);
+		kvClient = new KVStore("localhost", 9000);
+		kvClient2=new KVStore("localhost", 8080);
 	}
 
 	public void tearDown() {
-		kvClient.disconnect();
 		ecs.shutDown();
 	}
 	// TODO add your test cases, at least 3
@@ -35,31 +34,25 @@ public class AdditionalTest extends TestCase {
 	//connect to 1 server perform put on different server
 	@Test
 	public void test_put_wrong_server() {
-		ecs.start();
 		String key = "key1342";
 		String value = "boy";
 		KVMessage res = null;
 		KVMessage res2 = null;
 		Exception ex = null;
-		KVStore kvClient2=new KVStore("localhost", 8080);
+
 
 		try{
 			kvClient2.connect();
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			res = kvClient.put(key,value);
 			res2 = kvClient2.get(key);
 			kvClient2.put(key,"null");
 			kvClient2.disconnect();
+			kvClient.disconnect();
 		}
 		catch(Exception e){
 			ex = e;
@@ -71,7 +64,7 @@ public class AdditionalTest extends TestCase {
 	//connect to 1 server perform get on different server
 	@Test
 	public void test_get_wrong_server() {
-		ecs.start();
+
 		String key = "key1342";
 		String value = "boy";
 		KVMessage res = null;
@@ -81,20 +74,15 @@ public class AdditionalTest extends TestCase {
 		try{
 			kvClient2.connect();
 			kvClient2.put(key,value);
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			res = kvClient.get(key);
 			kvClient2.put(key,"null");
 			kvClient2.disconnect();
+			kvClient.disconnect();
 		}
 		catch(Exception e){
 			ex = e;
@@ -114,16 +102,9 @@ public class AdditionalTest extends TestCase {
 		long start_time=0;
 		long end_time=0;
 		try{
-
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			Runnable unlocker_obj = new unlocker(ecs);
@@ -133,6 +114,7 @@ public class AdditionalTest extends TestCase {
 			res = kvClient.put(key, value);
 			end_time = System.nanoTime();
 			kvClient.put(key,"null");
+			kvClient.disconnect();
 		}catch(Exception e){
 			ex = e;
 		}
@@ -150,16 +132,9 @@ public class AdditionalTest extends TestCase {
 		long start_time=0;
 		long end_time=0;
 		try{
-
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			Runnable starter_obj = new ecs_starter(ecs);
@@ -169,6 +144,7 @@ public class AdditionalTest extends TestCase {
 			res = kvClient.put(key, value);
 			end_time = System.nanoTime();
 			kvClient.put(key,"null");
+			kvClient.disconnect();
 		}catch(Exception e){
 			ex = e;
 		}
@@ -178,7 +154,6 @@ public class AdditionalTest extends TestCase {
 	//perform get on stopped server
 	@Test
 	public void test_get_stopped() {
-
 		String key = "put_wrong_server";
 		String value = "boy";
 		KVMessage res = null;
@@ -186,16 +161,9 @@ public class AdditionalTest extends TestCase {
 		long start_time=0;
 		long end_time=0;
 		try{
-
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			ecs.startKVServer("localhost",8080);
@@ -209,6 +177,7 @@ public class AdditionalTest extends TestCase {
 			res = kvClient.get(key);
 			end_time = System.nanoTime();
 			kvClient.put(key,"null");
+			kvClient.disconnect();
 		}catch(Exception e){
 			ex = e;
 		}
@@ -228,21 +197,16 @@ public class AdditionalTest extends TestCase {
 
 		try{
 			kvClient2.connect();
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			res = kvClient.put(key,value);
 			res2 = kvClient2.get(key);
 			kvClient2.put(key,"null");
 			kvClient2.disconnect();
+			kvClient.disconnect();
 		}
 		catch(Exception e){
 			ex = e;
@@ -264,20 +228,15 @@ public class AdditionalTest extends TestCase {
 		try{
 			kvClient2.connect();
 			kvClient2.put(key,value);
-			kvClient.disconnect();
 			kvClient.connect();
 		}catch(Exception ex2){
-			try {
-				kvClient.connect();
-			}
-			catch(Exception ex3){
-				System.out.println("connection error");
-			}
+			System.out.println("connection error");
 		}
 		try {
 			res = kvClient.get(key);
 			kvClient2.put(key,"null");
 			kvClient2.disconnect();
+			kvClient.disconnect();
 		}
 		catch(Exception e){
 			ex = e;
@@ -296,11 +255,13 @@ public class AdditionalTest extends TestCase {
 
 		try {
 			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+			kvClient.connect();
+			kvClient.disconnect();
 		} catch(Exception ex)
 		{
 			assertNull(ex);
 		}
-		assertTrue(true);
+
 	}
 
 	// initKVServer
@@ -314,11 +275,12 @@ public class AdditionalTest extends TestCase {
 
 		try {
 			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+			kvClient.connect();
+			kvClient.disconnect();
 		} catch(Exception ex)
 		{
 			assertNull(ex);
 		}
-		assertTrue(true);
 	}
 
 	// initKVServer
@@ -334,6 +296,7 @@ public class AdditionalTest extends TestCase {
 
 		try {
 			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+			kvClient.connect();
 		} catch(Exception ex)
 		{
 			assertNull(ex);
@@ -350,6 +313,8 @@ public class AdditionalTest extends TestCase {
 
 		try {
 			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
+			kvClient.connect();
+			kvClient.disconnect();
 		} catch(Exception ex)
 		{
 			assertNotNull(ex);

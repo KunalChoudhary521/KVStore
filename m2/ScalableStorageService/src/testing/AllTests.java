@@ -16,11 +16,7 @@ public class AllTests {
 	static {
 		try {
 			new LogSetup("logs/testing/test.log", Level.ERROR);
-			ECS ecs = new ECS(true);
-			ecs.initService(2,10,"LRU");
-			ecs.start();
-			ecs.unlockWrite("127.0.0.1",8080);
-			ecs.unlockWrite("127.0.0.1",9000);
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
