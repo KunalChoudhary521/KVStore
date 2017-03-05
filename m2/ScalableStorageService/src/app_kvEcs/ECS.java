@@ -100,7 +100,7 @@ public class ECS implements ECSInterface {
         {
             //sshServer(entry.getValue(),cacheSize,strat,this.log);//start via SSH
             temp = entry.getValue();
-            //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
+            runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
 
        //     stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
         }
