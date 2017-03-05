@@ -9,6 +9,8 @@ import junit.framework.TestCase;
 
 import junit.framework.TestCase;
 
+import java.util.ArrayList;
+
 
 public class AdditionalTest extends TestCase {
 	private KVStore kvClient;
@@ -291,8 +293,12 @@ public class AdditionalTest extends TestCase {
 	// if no exception is thrown, pass
 	@Test
 	public void testECSinitKVServer() {
-		ecs.initKVServer(1, 100, "LRU", false);
-		String info[] = ecs.addNode(100, "LRU").split(":");
+		ecs = null;
+		ecs = new ECS(true);//logging
+	    ecs.initKVServer(1, 10, "LRU", true);
+        String serverIPPort = ecs.getRunningServers().get(0);
+        String[] info = serverIPPort.split(":");
+		//String info[] = ecs.addNode(100, "LRU").split(":");
 
 		try {
 			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
@@ -300,6 +306,7 @@ public class AdditionalTest extends TestCase {
 		{
 			assertNull(ex);
 		}
+		ecs.shutDown();
 		assertTrue(true);
 	}
 
