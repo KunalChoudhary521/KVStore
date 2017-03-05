@@ -16,7 +16,7 @@ import java.util.TreeMap;
 
 public class ECS implements ECSInterface {
 
-    private static Logger logger = Logger.getRootLogger();;
+    private static Logger logger = Logger.getRootLogger();
     private TreeMap<BigInteger, Metadata> hashRing;
     private Socket ecsSocket;
     private String configFile;
@@ -98,6 +98,7 @@ public class ECS implements ECSInterface {
                     "127.0.0.1,9002");
         }
 
+
         //run all servers in stopped state
         Metadata temp;
         for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
@@ -108,7 +109,14 @@ public class ECS implements ECSInterface {
             //stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
         }
 
+        try{
+            Thread.sleep(7000);
+        } catch (Exception ex){
+            logger.info(ex);
+        }
+
         updatedMetadata();
+
         sendMetadataToAll();//send metadata to all KVServers
 
         updateConfigFile();//edit config file (mark servers that are running)--> <IP>   <Port>  <NA>
@@ -186,6 +194,7 @@ public class ECS implements ECSInterface {
 
         for(Map.Entry<BigInteger, Metadata> entry: hashRing.entrySet())
         {
+            System.out.println(entry.getValue().host +", "+entry.getValue().port);
             sendViaTCP(entry.getValue().host,Integer.parseInt(entry.getValue().port),mData);
         }
 
@@ -307,8 +316,17 @@ public class ECS implements ECSInterface {
             return;
         }
 
-        //sshServer(host, port, cacheSize, strategy,log);//start via SSH
-        runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
+
+        sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
+        //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
+        //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
+
+        try{
+            Thread.sleep(7000);
+        } catch (Exception ex){
+            logger.info(ex);
+        }
+
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 
         lockWrite(newServerIP, newServerPort);

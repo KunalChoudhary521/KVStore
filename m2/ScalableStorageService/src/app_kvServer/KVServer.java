@@ -78,7 +78,7 @@ public class KVServer  {
 			if(log){
 				logger.info("Creating a directory to place all key-value pairs");
 			}
-			File metadataFile = new File(file.getAbsolutePath() +"\\metadata");
+			File metadataFile = new File(file.getAbsolutePath() +"/metadata");
 			if(metadataFile.exists() == false) {
 				try {
 					metadataFile.createNewFile();
