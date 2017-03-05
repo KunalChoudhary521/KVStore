@@ -36,11 +36,15 @@ public class ECSClient {
     private void handleCommand(String cmdLine) {
         String[] tokens = cmdLine.split("\\s+");
 
+        for(int i =0;i<tokens.length;i++){
+            System.out.println(tokens[i]);
+        }
+
         if(tokens[0].equals("help")) {
             printHelp();
         }else if (tokens[0].equals("initService")){
             try{
-                client.initService(Integer.getInteger(tokens[1]), Integer.getInteger(tokens[2]),tokens[3]);
+                client.initService(Integer.parseInt(tokens[1]), Integer.parseInt(tokens[2]),tokens[3]);
                 println ("initialized");
             }
             catch(Exception ex){
