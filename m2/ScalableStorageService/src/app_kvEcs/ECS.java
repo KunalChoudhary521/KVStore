@@ -46,7 +46,7 @@ public class ECS implements ECSInterface {
             Process cmdProc = Runtime.getRuntime().exec(command);
             //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
             //cmdProc.destroy();
-            System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
+            //System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
         }
         catch (Exception ex) {
             ex.printStackTrace();
