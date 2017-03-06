@@ -388,13 +388,12 @@ public class ECS implements ECSInterface {
             logger.info("removeNode:: No server is currently running");
             return;
         }
-        //TODO: last server is removed
-        else if(runningServers.size() == 1)
+        /*else if(runningServers.size() == 1)
         {
             //Delete its directory (or only KVPairs & metadata)
             logger.info("removeNode:: Only 1 sever is currently running");
             return;
-        }
+        }*/
         Metadata serverToRmv = null;
         Metadata succServer = null;
 
