@@ -42,24 +42,8 @@ public class ECS implements ECSInterface {
         logger.info(line);
         initKVServer(numOfServers,cSize,strat,this.log);
     }
-    public void runLocalServer(String host, int port, int cacheSize, String strategy)
-    {
-        String command = "java -jar ms2-server.jar " + host + " " + port +
-                " " + cacheSize + " " + strategy + " " + this.log;
-        try {
-            Process cmdProc = Runtime.getRuntime().exec(command);
-            //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
-            //cmdProc.destroy();
-            //System.out.println("Running: " + host + ":" + port + " " + cmdProc.isAlive());
-        }
-        catch (Exception ex) {
-            ex.printStackTrace();
-            System.out.println("Failed to run server locally");
-        }
-    }
     public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
     {
-        //Currently, numOfServers is not used
         //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
         if(numOfServers <= 0)
         {
@@ -105,17 +89,11 @@ public class ECS implements ECSInterface {
         Metadata temp;
         for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
         {
-            sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start via SSH
+            sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start
+            // via SSH
             temp = entry.getValue();
             //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
-            //stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
-        }
-
-        try {
-            Thread.sleep(7000);
-        } catch (Exception ex)
-        {
-            logger.info(ex);
+            stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
         }
 
         updatedMetadata();
@@ -219,7 +197,7 @@ public class ECS implements ECSInterface {
     private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "milwidya", sshHost = "ug180.eecg.toronto.edu";//128.100.13.<>
+        String user = "choudh65", sshHost = "ug232.eecg.toronto.edu";//128.100.13.<>
         int sshPort = 22;
 
         mySsh.connectSsh(user,sshHost,sshPort);
@@ -323,13 +301,6 @@ public class ECS implements ECSInterface {
         sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
 
-        try {
-            Thread.sleep(7000);
-        } catch (Exception ex)
-        {
-            logger.info(ex);
-        }
-
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 
         lockWrite(newServerIP, newServerPort);
@@ -371,7 +342,7 @@ public class ECS implements ECSInterface {
 
         sendMetadataToAll();
 
-        runningServers.add(newServerIP + ":" + newServerPort);
+        //runningServers.add(newServerIP + ":" + newServerPort);
         updateConfigFile();//mark servers as running
 
         return newServerIP+":"+newServerPort;
@@ -522,6 +493,7 @@ public class ECS implements ECSInterface {
             temp = entry.getValue();
             shutDownKVServer(temp.host,Integer.parseInt(temp.port));//terminate all KVServer instances
         }
+        updateConfigFile();//mark removed server as available
     }
 
 
@@ -532,7 +504,7 @@ public class ECS implements ECSInterface {
         sendViaTCP(host, port, byteMsg);
 
         runningServers.remove(host + ":" + port);
-        updateConfigFile();//mark removed server as available
+
     }
 
     @Override
