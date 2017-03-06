@@ -11,14 +11,20 @@ import junit.framework.TestCase;
 public class ConnectionTest extends TestCase {
 	private ECS ecs;
 	public void setUp() {
-		ecs = new ECS(true);
+		ecs = new ECS(false);
 		ecs.initService(2,10,"LRU");
 		ecs.start();
 		ecs.unlockWrite("127.0.0.1",8080);
 		ecs.unlockWrite("127.0.0.1",9000);
 	}
 	public void tearDown() {
+		try{
+		ecs.removeNode("127.0.0.1",8080);
+		ecs.removeNode("127.0.0.1",9000);
 		ecs.shutDown();
+		}catch (Exception ex){
+		//donothing
+		}
 	}
 	public void testConnectionSuccess() {
 		

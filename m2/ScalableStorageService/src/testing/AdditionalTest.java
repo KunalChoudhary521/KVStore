@@ -29,7 +29,6 @@ public class AdditionalTest extends TestCase {
 	}
 
 	public void tearDown() {
-	//
 	}
 	// TODO add your test cases, at least 3
 
@@ -268,7 +267,6 @@ public class AdditionalTest extends TestCase {
 	    ecs.initKVServer(numOfServers, 10, "LRU", true);
         String serverIPPort;
         String[] info;
-
 
 		try {
 		    for(int i = 0; i < numOfServers; i++)//try to connect to each running server
