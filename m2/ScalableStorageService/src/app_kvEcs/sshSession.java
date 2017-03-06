@@ -30,7 +30,7 @@ public class sshSession
             this.session.connect(10000);//program ends if client doesn't connect in this many milliseconds
             System.out.println("Connected to " + user + "@" + host + ":" + port);
 
-            Thread.sleep(3* 1000);
+            Thread.sleep(2* 1000);
         }
         catch(Exception ex)
         {
@@ -54,7 +54,7 @@ public class sshSession
             sendCmds.close();
 
             do {
-                Thread.sleep(3 *1000);
+                Thread.sleep(2 *1000);
             }while(this.channel.isEOF());//wait for channel to to be empty
 
         }
