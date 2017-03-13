@@ -244,7 +244,7 @@ public class ClientConnection implements Runnable {
             }
 
             // delete the all of the files in the filtered list
-            /*
+			/*
             for(int i =0; i < filesToSend.size(); i++)
             {
                 //Uncomment after moveData works correctly
@@ -271,7 +271,7 @@ public class ClientConnection implements Runnable {
                     }
                 }
             }
-            */
+			*/
 
             logger.info("ECS message: move\n");
 

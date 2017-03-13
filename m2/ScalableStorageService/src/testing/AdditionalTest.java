@@ -19,77 +19,88 @@ public class AdditionalTest extends TestCase {
 
 
 	public void setUp() {
-		/*ecs = new ECS(true);
-		ecs.initService(2,10,"LRU");
-		ecs.start();
-		ecs.unlockWrite("127.0.0.1",8080);
-		ecs.unlockWrite("127.0.0.1",8081);
-		kvClient = new KVStore("localhost", 9000);
-		kvClient2 = new KVStore("localhost", 8080);*/
+		ecs = new ECS(true);
 	}
 
 	public void tearDown() {
+		//ecs.shutDown();
 	}
 	// TODO add your test cases, at least 3
 
 	//connect to 1 server perform put on different server
 	@Test
 	public void test_put_wrong_server() {
-		String key = "key1342";
+	    ecs = new ECS(true);
+	    ecs.initKVServer(2,10,"LRU", true);
+
+		String key = "key6";
 		String value = "boy";
 		KVMessage res = null;
 		KVMessage res2 = null;
 		Exception ex = null;
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
 
+		ecs.start();
+        ecs.unlockWrite(s1[0], Integer.parseInt(s1[1]));
 
-		try{
-			kvClient2.connect();
-			kvClient.connect();
-		}catch(Exception ex2){
-			System.out.println("connection error");
-		}
 		try {
-			res = kvClient.put(key,value);
-			res2 = kvClient2.get(key);
-			kvClient2.put(key,"null");
-			kvClient2.disconnect();
-			kvClient.disconnect();
+		    kvClient = new KVStore(s1[0], Integer.parseInt(s1[1]));
+
+		    kvClient.connect();
+		    //KVMessage k = kvClient.put(key,value);
+		    res = kvClient.get(key);
+            //ecs.shutDown();
 		}
 		catch(Exception e){
 			ex = e;
 		}
 
-		assertTrue(ex == null && res2.getValue().equals(value)&& res.getStatus()==StatusType.PUT_SUCCESS);
+		//assertTrue(ex == null && res2.getValue().equals(value)&& res.getStatus()==StatusType.PUT_SUCCESS);
+
+        ecs.shutDown();
 	}
 
-	//connect to 1 server perform get on different server
+	/*  kvClient2 tries to get from the wrong server, but the wrong server
+        sends it the correct metadata and directs it to the right server
+        to successfully retrieve the key-value pair
+    */
 	@Test
 	public void test_get_wrong_server() {
+        ecs = new ECS(true);
+        ecs.initKVServer(2,10,"LRU", true);
 
-		String key = "key1342";
-		String value = "boy";
-		KVMessage res = null;
-		Exception ex = null;
-		KVStore kvClient2=new KVStore("localhost", 8080);
+        String key = "key6";
+        String value = "boy";
+        KVMessage res = null;
+        KVMessage res2 = null;
+        Exception ex = null;
+        String[] s1 = ecs.getRunningServers().get(0).split(":");
+        String[] s2 = ecs.getRunningServers().get(1).split(":");
 
-		try{
-			kvClient2.connect();
-			kvClient2.put(key,value);
-			kvClient.connect();
-		}catch(Exception ex2){
-			System.out.println("connection error");
-		}
-		try {
-			res = kvClient.get(key);
-			kvClient2.put(key,"null");
-			kvClient2.disconnect();
-			kvClient.disconnect();
-		}
-		catch(Exception e){
-			ex = e;
-		}
+        ecs.start();
+        ecs.unlockWrite(s1[0], Integer.parseInt(s1[1]));
+        ecs.unlockWrite(s2[0], Integer.parseInt(s2[1]));
 
-		assertTrue(ex == null && res.getValue().equals(value));
+        try {
+            kvClient = new KVStore(s2[0], Integer.parseInt(s2[1]));
+            kvClient.connect();
+            res = kvClient.put(key,value);
+            kvClient.disconnect();
+
+            kvClient2 = new KVStore(s1[0], Integer.parseInt(s1[1]));
+            kvClient.connect();
+            res2 = kvClient.get(key);
+            kvClient.disconnect();
+
+        }
+        catch(Exception e){
+            ex = e;
+        }
+
+        assertTrue(ex == null &&  res.getStatus()==StatusType.PUT_SUCCESS &&
+                res2.getStatus()==StatusType.GET_SUCCESS);
+
+        ecs.shutDown();
 	}
 	//perform put on locked server
 	@Test
@@ -309,42 +320,16 @@ public class AdditionalTest extends TestCase {
 	}
 
 	// initKVServer
-	// add a node
-	// connect to it to verify it was added
-	// remove the node
-	// try connect to the removed node
-	// if an exception is thrown, pass the test
+    //Then try to remove that server
+
 	@Test
 	public void testECSRemoveNode() {
         ecs = new ECS(true);//logging
 		ecs.initKVServer(1, 100, "LRU", false);
-		String info[] = ecs.addNode(100, "LRU").split(":");
 
-		try {
-			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
-			kvClient.connect();
-		} catch(Exception ex)
-		{
-			assertNull(ex);
-		}
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
 
-		try{
-			kvClient.disconnect();
-		} catch(Exception ex)
-		{
-			assertNull(ex);
-		}
-
-		ecs.removeNode(info[0], Integer.parseInt(info[1]));
-
-		try {
-			kvClient = new KVStore(info[0], Integer.parseInt(info[1]));
-			kvClient.connect();
-			kvClient.disconnect();
-		} catch(Exception ex)
-		{
-			assertNotNull(ex);
-		}
+        ecs.removeNode(s1[0], Integer.parseInt(s1[1]));
 
         ecs.shutDown();
 	}
