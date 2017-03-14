@@ -13,7 +13,7 @@ public class InteractionTest extends TestCase {
 	private ECS ecs;
 	private KVStore kvClient;
 	
-	public void setUp() {
+	/*public void setUp() {
 		ecs = new ECS(false);
 		ecs.initService(2,10,"LRU");
 		ecs.start();
@@ -35,23 +35,34 @@ public class InteractionTest extends TestCase {
 		}catch(Exception ex){
 			//donothing;
 		}
-	}
+	}*/
 	
 	
 	@Test
 	public void testPut() {
+		ecs = new ECS(true);
+		ecs.initKVServer(1,10,"LRU",false);
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
+
 		String key = "putfoo";
 		String value = "putbar";
 		KVMessage response = null;
 		Exception ex = null;
 
 		try {
+			kvClient.connect();
 			response = kvClient.put(key, value);
+			
 		} catch (Exception e) {
 			ex = e;
 		}
 		try{
 			kvClient.put(key,"null");
+			kvClient.disconnect();
+			ecs.shutDown();
 		}catch(Exception ex2){
 		//donothing
 		}
@@ -60,7 +71,13 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testPutDisconnected() {
-		kvClient.disconnect();
+		ecs = new ECS(true);
+		ecs.initKVServer(1,10,"LRU",false);
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
+
 		String key = "foo";
 		String value = "bar";
 		Exception ex = null;
@@ -70,7 +87,7 @@ public class InteractionTest extends TestCase {
 		} catch (Exception e) {
 			ex = e;
 		}
-
+		ecs.shutDown();
 		assertNotNull(ex);
 	}
 
@@ -80,10 +97,19 @@ public class InteractionTest extends TestCase {
 		String initialValue = "initial";
 		String updatedValue = "updated";
 		
+		ecs = new ECS(true);
+		ecs.initKVServer(1,10,"LRU",false);
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
+		
+		
 		KVMessage response = null;
 		Exception ex = null;
 
 		try {
+			kvClient.connect();
 			kvClient.put(key, initialValue);
 			response = kvClient.put(key, updatedValue);
 			
@@ -92,6 +118,8 @@ public class InteractionTest extends TestCase {
 		}
 		try{
 			kvClient.put(key,"null");
+			kvClient.disconnect();
+			ecs.shutDown();
 		}catch(Exception ex2){
 			//donothing
 		}
@@ -101,6 +129,13 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testDelete() {
+		ecs = new ECS(true);
+		ecs.initKVServer(1,10,"LRU",false);
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
+
 		String key = "deleteTestValue";
 		String value = "toDelete";
 		
@@ -108,8 +143,11 @@ public class InteractionTest extends TestCase {
 		Exception ex = null;
 
 		try {
+			kvClient.connect();
 			kvClient.put(key, value);
 			response = kvClient.put(key, "null");
+			kvClient.disconnect();
+			ecs.shutDown();
 			
 		} catch (Exception e) {
 			ex = e;
@@ -123,11 +161,22 @@ public class InteractionTest extends TestCase {
 		String key = "getfoo";
 		String value = "bar";
 		KVMessage response = null;
+
+		ecs = new ECS(true);
+		ecs.initKVServer(1,10,"LRU",false);
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
+
 		Exception ex = null;
 
 			try {
+				kvClient.connect();
 				kvClient.put(key, value);
 				response = kvClient.get(key);
+				kvClient.disconnect();
+				ecs.shutDown();
 			} catch (Exception e) {
 				ex = e;
 			}
@@ -137,12 +186,23 @@ public class InteractionTest extends TestCase {
 
 	@Test
 	public void testGetUnsetValue() {
+		ecs = new ECS(true);
+		ecs.initKVServer(1,10,"LRU",false);
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
+
+
 		String key = "an unset value";
 		KVMessage response = null;
 		Exception ex = null;
 
 		try {
+			kvClient.connect();
 			response = kvClient.get(key);
+			kvClient.disconnect();
+			ecs.shutDown();
 		} catch (Exception e) {
 			ex = e;
 		}
