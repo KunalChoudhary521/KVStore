@@ -38,6 +38,10 @@ public class KVServer  {
 	private static Logger logger = Logger.getRootLogger();
 	private boolean log;
 	private String host;
+	private int port_r1;
+	private int port_r2;
+	private String host_r1;
+	private String host_r2;
 
 	// metadata logic
 	private Metadata myMetadata;
@@ -138,7 +142,7 @@ public class KVServer  {
 			String line = null;
 			while((line = reader.readLine()) != null){
 				List<String> items = Arrays.asList(line.split(","));
-				serverMetadata.add(new Metadata(items.get(0), items.get(1), items.get(2), items.get(3)));
+				serverMetadata.add(new Metadata(items.get(0), items.get(1), items.get(2), items.get(3), items.get(4)));
 			}
 			reader.close();
 			in.close();
@@ -151,7 +155,7 @@ public class KVServer  {
 		String metadata = serverMetadata.size()+"!";
 		for(int i =0; i < serverMetadata.size(); i++){
 			Metadata item = serverMetadata.get(i);
-			metadata+= item.host + ":" + item.port +"," + item.startHash + "," + item.endHash +"!";
+			metadata+= item.host + ":" + item.port +"," + item.startHash_g + "," + item.startHash_p+","+item.endHash +"!";
 		}
 		return metadata;
 	}
@@ -187,6 +191,8 @@ public class KVServer  {
 					}
 				}
 			}
+
+
 		}
 		if(log) {
 			logger.info("Server stopped.");
@@ -200,8 +206,11 @@ public class KVServer  {
 		logger.info("Initialize server ...");
 
 		try {
-			InetAddress address = InetAddress.getByName(host);
-			socket = new ServerSocket(port, 0, address);
+			System.setProperty("sun.net.useExclusiveBind", "false");
+			InetSocketAddress address = new InetSocketAddress(host, port);
+			socket = new ServerSocket();
+			socket.setReuseAddress(true);
+			socket.bind(address,0);//new ServerSocket(port, 0, address);
 			logger.info("Server listening on " + address.toString()
                     +":" +  socket.getLocalPort());
 
@@ -303,7 +312,7 @@ public class KVServer  {
 
 		//can check if you are the first server in the hash ring
 		if(myMetadata != null) {
-            if (myMetadata.startHash.compareTo(myMetadata.endHash) > 0) {
+            if (myMetadata.startHash_p.compareTo(myMetadata.endHash) > 0) {
                 amIFirstServerInRing = true;
             }
         }
@@ -315,7 +324,7 @@ public class KVServer  {
 			for(int i=0; i < serverMetadata.size(); i++){
 				Metadata m = serverMetadata.get(i);
 				InetAddress address = InetAddress.getByName(m.host);
-				String line = address.getHostAddress()+","+m.port+","+m.startHash+","+m.endHash+"\n";
+				String line = address.getHostAddress()+","+m.port+","+m.startHash_g+","+m.startHash_p+","+m.endHash+"\n";
 				writer.write(line);
 				writer.flush();
 			}
@@ -333,10 +342,12 @@ public class KVServer  {
 		metadataUnlock();
 	}
 
-	public boolean isResponsible(String clientHash)
+	public boolean isResponsible(String clientHash, String caller)
     {
-        String myStartHash = this.myMetadata.startHash;
+        String myStartHash;
         String myEndHash = this.myMetadata.endHash;
+        if (caller.equalsIgnoreCase("get")){myStartHash= this.myMetadata.startHash_g;}
+        else{myStartHash= this.myMetadata.startHash_p;}
         String largestHash = new String(new char[32]).replace("\0", "f");//ffff...[32]
         String smallestHash = new String(new char[32]).replace("\0", "0");//0000...[32]
 

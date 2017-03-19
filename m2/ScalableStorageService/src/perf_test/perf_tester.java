@@ -54,6 +54,11 @@ public class perf_tester implements Runnable{
         for (String st:strats){
             for (int cs:cache_sizes){
                 int cur_servs=0;
+                try{
+                    ecs.shutDown();
+                }catch(Exception ex){
+                    //do nothing
+                }
                 for (int serv:servers_to_con){
                     for (int cl: clients_to_con){
                         test(cl,serv,cs,st,cur_servs,last_cs, last_st);
@@ -111,7 +116,7 @@ public class perf_tester implements Runnable{
                 this.clients[i].connect();
             }catch(Exception ex){
                 System.out.println(ex);
-            }
+            }ecs.getRunningServers();
         }
         for (int i = 0; i<20; i++){
             try {

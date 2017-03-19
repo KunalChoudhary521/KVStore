@@ -66,9 +66,9 @@ public class KVStore implements KVCommInterface {
 			HashMap curr = new HashMap();
 			curr.put("ip", addr[0]);
 			curr.put("port",addr[1]);
-			curr.put("end", ip_port_start_end[2]);
+			curr.put("end", ip_port_start_end[3]);
 
-			curr.put("start",ip_port_start_end[1]);
+			curr.put("start",ip_port_start_end[2]);
 
 			this.server_mapping.add(curr);
 		}
@@ -637,8 +637,12 @@ public class KVStore implements KVCommInterface {
 					}
 				}else{
 					Iterator svm = server_mapping.iterator();
+					HashMap [] can_get={null,null,null};
 					while (svm.hasNext()){
+						can_get[2]=can_get[1];
+						can_get[1]=can_get[0];
 						HashMap entry =(HashMap<String, Object>) svm.next();
+						can_get[0] =entry;
 						String st = (String) entry.get("start");
 						String ed = (String) entry.get("end");
 						boolean hashIsGreaterThanStart = kh.compareTo(st)>0;
@@ -651,15 +655,23 @@ public class KVStore implements KVCommInterface {
 										(hashIsLessThanEnd&& hashIsGtThanFs)))){
 							//if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
 							int i = this.rg.nextInt(3);
-							while (i>0){
+							/*while (i>0){
 								if (svm.hasNext()){
 									entry = (HashMap<String, Object>) svm.next();
 								}else{
 									svm = server_mapping.iterator();
 									entry=(HashMap<String, Object>) svm.next();
 								}
+							}*/
+							if (can_get[1]==null){
+								can_get[1]= (HashMap<String,Object>) server_mapping.last();
 							}
-							int ent_to_use = i+this.rg.nextInt(3);
+							if (can_get[2]== null){
+								server_mapping.remove(can_get[1]);
+								can_get[2] = (HashMap<String,Object>) server_mapping.last();
+								server_mapping.add(can_get[1]);
+							}
+							entry = can_get[i];
 
 							this.address = (String) entry.get("ip");
 							this.port = Integer.parseInt((String) entry.get("port"));

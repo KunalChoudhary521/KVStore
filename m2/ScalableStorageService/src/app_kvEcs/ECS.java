@@ -45,7 +45,7 @@ public class ECS implements ECSInterface {
     public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
     {
         //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
-        if(numOfServers <= 0)
+        if(numOfServers <= 2)
         {
             logger.error("initKVServer:: Invalid Number of Servers: " + numOfServers);
             return;
@@ -148,14 +148,15 @@ public class ECS implements ECSInterface {
         for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet()) {
             String host = entry.getValue().host;
             String port = entry.getValue().port;
-            String srtRange = entry.getValue().startHash;
+            String srtRange_g = entry.getValue().startHash_g;
+            String srtRange_p = entry.getValue().startHash_p;
             String endRange = entry.getValue().endHash;
 
             if (index != hashRing.size()) {
-                msg += host + "," + port + "," + srtRange + "," + endRange + "-";
+                msg += host + "," + port + "," + srtRange_g + "," + srtRange_p+ ","+ endRange + "-";
             }
             else {
-                msg += host + "," + port + "," + srtRange + "," + endRange;
+                msg += host + "," + port + "," + srtRange_g + "," + srtRange_p+ "," +endRange;
             }
             index++;
             //System.out.println("MetaData byte array: " + new String(mData));//for debugging
@@ -217,7 +218,7 @@ public class ECS implements ECSInterface {
     {
         Metadata temp = new Metadata(host, Integer.toString(port));
         BigInteger currEndHash;
-        Metadata nextServer, prevServer;
+        Metadata nextServer, next_nextServer, next_next_nextServer;
 
         try
         {
@@ -227,7 +228,58 @@ public class ECS implements ECSInterface {
 
             if(hashRing.isEmpty())
             {
-                temp.startHash = currEndHash.add(new BigInteger("1",10)).toString(16);
+                temp.startHash_g = currEndHash.add(new BigInteger("1",10)).toString(16);
+                temp.startHash_p = temp.startHash_g;
+            }
+            else if (hashRing.size()==1){
+                if (hashRing.higherKey(currEndHash) == null){
+                    nextServer = hashRing.firstEntry().getValue();
+
+                    temp.startHash_g = nextServer.startHash_g;
+                    temp.startHash_p = nextServer.startHash_p;
+
+                    nextServer.startHash_p=currEndHash.add(new BigInteger("1",10)).toString(16);
+
+
+                }
+                else{
+                    nextServer = hashRing.higherEntry(currEndHash).getValue();
+
+                    temp.startHash_g = nextServer.startHash_g;
+                    temp.startHash_p = nextServer.startHash_p;
+
+                    nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);
+
+                }
+            }
+            else if(hashRing.size() ==2){
+                if(hashRing.higherKey(currEndHash) == null)//no hash higher than currEndHash
+                {
+                    nextServer = hashRing.firstEntry().getValue();
+                    next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
+
+                    temp.startHash_g = nextServer.startHash_g;
+                    temp.startHash_p = nextServer.startHash_p;
+
+                    nextServer.startHash_p=currEndHash.add(new BigInteger("1",10)).toString(16);
+                    nextServer.startHash_g=next_nextServer.startHash_g;
+                    next_nextServer.startHash_g=temp.startHash_p;
+
+                }
+                else//server in the first position or somewhere in the middle
+                {
+                    nextServer = hashRing.higherEntry(currEndHash).getValue();
+                    next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+                    next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
+
+                    temp.startHash_g = nextServer.startHash_g;
+                    temp.startHash_p = nextServer.startHash_p;
+
+                    nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);
+                    nextServer.startHash_g=next_nextServer.startHash_g;
+                    next_nextServer.startHash_g=temp.startHash_p;
+                    next_next_nextServer.startHash_g = nextServer.startHash_p;
+                }
             }
             else if(hashRing.containsKey(currEndHash))
             {
@@ -235,15 +287,34 @@ public class ECS implements ECSInterface {
             }
             else if(hashRing.higherKey(currEndHash) == null)//no hash higher than currEndHash
             {
-                prevServer = hashRing.firstEntry().getValue();
-                temp.startHash = prevServer.startHash;
-                prevServer.startHash = currEndHash.add(new BigInteger("1",10)).toString(16);
+                nextServer = hashRing.firstEntry().getValue();
+                next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
+                next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.firstKey())).getValue();
+
+                temp.startHash_g = nextServer.startHash_g;
+                temp.startHash_p = nextServer.startHash_p;
+
+                nextServer.startHash_p=currEndHash.add(new BigInteger("1",10)).toString(16);
+                nextServer.startHash_g=next_nextServer.startHash_g;
+                next_nextServer.startHash_g=temp.startHash_p;
+                next_next_nextServer.startHash_g = nextServer.startHash_p;
+
+
+
             }
             else//server in the first position or somewhere in the middle
             {
                 nextServer = hashRing.higherEntry(currEndHash).getValue();
-                temp.startHash = nextServer.startHash;
-                nextServer.startHash = currEndHash.add(new BigInteger("1",10)).toString(16);
+                next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+                next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
+
+                temp.startHash_g = nextServer.startHash_g;
+                temp.startHash_p = nextServer.startHash_p;
+
+                nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);
+                nextServer.startHash_g=next_nextServer.startHash_g;
+                next_nextServer.startHash_g=temp.startHash_p;
+                next_next_nextServer.startHash_g = nextServer.startHash_p;
             }
 
             hashRing.put(currEndHash, temp);// put into the hash ring
@@ -332,7 +403,7 @@ public class ECS implements ECSInterface {
             //set write-lock on succesor
             lockWrite(srcServer.host, Integer.parseInt(srcServer.port));
 
-            moveData(srcServer,dstServer, dstServer.startHash,dstServer.endHash);
+            moveData(srcServer,dstServer, dstServer.startHash_g,dstServer.endHash);
         }
         catch (Exception ex)
         {
@@ -364,11 +435,15 @@ public class ECS implements ECSInterface {
             }
             else if(hashRing.higherKey(currEndHash) == null)//no server hash higher than currEndHash
             {
-                hashRing.firstEntry().getValue().startHash = hashRing.get(currEndHash).startHash;
+                hashRing.higherEntry(hashRing.firstKey()).getValue().startHash_g = hashRing.firstEntry().getValue().startHash_g;
+                hashRing.firstEntry().getValue().startHash_p = hashRing.get(currEndHash).startHash_p;
+                hashRing.firstEntry().getValue().startHash_g = hashRing.get(currEndHash).startHash_g;
             }
             else //server in the first position or somewhere in the middle
             {
-                hashRing.higherEntry(currEndHash).getValue().startHash = hashRing.get(currEndHash).startHash;
+                hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue().startHash_g = hashRing.higherEntry((currEndHash)).getValue().startHash_g;
+                hashRing.higherEntry(currEndHash).getValue().startHash_p = hashRing.get(currEndHash).startHash_p;
+                hashRing.higherEntry(currEndHash).getValue().startHash_g = hashRing.get(currEndHash).startHash_g;
             }
 
             hashRing.remove(currEndHash);
@@ -383,9 +458,9 @@ public class ECS implements ECSInterface {
     @Override
     public void removeNode(String hostToRmv, int portToRmv)//removing should not be random
     {
-        if(runningServers.size() == 0)
+        if(runningServers.size() < 4)
         {
-            logger.info("removeNode:: No server is currently running");
+            logger.info("removeNode:: Only 3 servers currently running, cannot remove");
             return;
         }
         /*else if(runningServers.size() == 1)
@@ -402,7 +477,7 @@ public class ECS implements ECSInterface {
             //find successor server
             BigInteger serverToRmvHash = md5.HashBI(hostToRmv + ":" + portToRmv);
             Metadata temp = hashRing.get(serverToRmvHash);
-            serverToRmv = new Metadata(temp.host,temp.port,temp.startHash, temp.endHash);
+            serverToRmv = new Metadata(temp.host,temp.port,temp.startHash_g,temp.startHash_p, temp.endHash);
 
             if(hashRing.higherEntry(serverToRmvHash) == null)
             {
@@ -421,7 +496,7 @@ public class ECS implements ECSInterface {
 
             sendMetadata(succServer.host, Integer.parseInt(succServer.port));
 
-            moveData(serverToRmv,succServer,serverToRmv.startHash,serverToRmv.endHash);
+            moveData(serverToRmv,succServer,serverToRmv.startHash_g,serverToRmv.endHash);
 
             shutDownKVServer(serverToRmv.host,Integer.parseInt(serverToRmv.port));
         }

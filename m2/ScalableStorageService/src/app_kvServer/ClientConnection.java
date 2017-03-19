@@ -278,7 +278,7 @@ public class ClientConnection implements Runnable {
 		} else if(msg.contains("ECS-METADATA")){ // must replace current metadata with the metadata being given
 			logger.info("ECS message: metadata");
 			int i = "ECS-METADATA-".length();
-			String host = "", port = "", startHash = "", endHash = "";
+			String host = "", port = "", startHash_g = "", startHash_p = "", endHash="";
 			ArrayList<Metadata> newMetadata = new ArrayList<Metadata>();
 			while(msg.charAt(i) != '\n'){
 				// get the host
@@ -295,11 +295,16 @@ public class ClientConnection implements Runnable {
 				i++; //move past comma
 				// get the host
 				while(msg.charAt(i) != ','){
-					startHash += msg.charAt(i);
+					startHash_g += msg.charAt(i);
 					i++;
 				}
 				i++; //move past comma
 
+				while(msg.charAt(i) != '-' && msg.charAt(i) != '\n'){
+					startHash_p += msg.charAt(i);
+					i++;
+				}
+				i++;
 				while(msg.charAt(i) != '-' && msg.charAt(i) != '\n'){
 					endHash += msg.charAt(i);
 					i++;
@@ -307,10 +312,11 @@ public class ClientConnection implements Runnable {
 				if(msg.charAt(i) == '-') {
 					i++;
 				}
-				newMetadata.add(new Metadata(host,port,startHash,endHash));
+				newMetadata.add(new Metadata(host,port,startHash_g,startHash_p,endHash));
 				host = "";
 				port = "";
-				startHash = "";
+				startHash_g = "";
+				startHash_p = "";
 				endHash = "";
 			}
 			takeNewMetadata(newMetadata);
@@ -358,7 +364,7 @@ public class ClientConnection implements Runnable {
 				logger.info(hash);
 			}
 
-			if(!server.isResponsible(hash))
+			if(!server.isResponsible(hash, "get"))
 			{
 				String message = "I!";
 				message+=server.getMetadata();
@@ -489,7 +495,7 @@ public class ClientConnection implements Runnable {
 					logger.info(hash);
 				}
 
-				if(!server.isResponsible(hash))
+				if(!server.isResponsible(hash,"put"))
 				{
 					//sending client the latest copy of metadata of this server
 					String message = "I!";
