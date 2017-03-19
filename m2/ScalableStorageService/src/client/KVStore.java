@@ -4,8 +4,10 @@ package client;
 import app_kvClient.ClientSocketListener;
 import app_kvClient.ClientSocketListener.SocketStatus;
 import app_kvClient.TextMessage;
+import app_kvClient.meta_comp;
 import common.messages.KVMessage;
 import org.apache.log4j.Logger;
+import java.util.Random;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public class KVStore implements KVCommInterface {
 
-	
+
 	/**
 	 * Initialize KVStore with address and port of KVServer
 	 * @param address the address of the KVServer
@@ -26,9 +28,10 @@ public class KVStore implements KVCommInterface {
 	public KVStore(String address, int port) {
 		this.def_address = address;
 		this.def_port = port;
-
+		this.rg = new Random(3);
 	}
-	private HashMap<String,HashMap> server_mapping = null;
+	private Random rg;
+	private SortedSet server_mapping;//HashMap<String,HashMap> server_mapping = null;
 	private Socket clientSocket;
 	private OutputStream output;
 	private InputStream input;
@@ -46,13 +49,15 @@ public class KVStore implements KVCommInterface {
 	private static final int BUFFER_SIZE = 1024;
 	private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
 
-/*
-	Updates the client's map of servers
 
-	 */
+	/*
+        Updates the client's map of servers
+         */
 	private void update_Map() throws Exception{
+		Comparator comparator = new meta_comp();
 		Integer len = Integer.valueOf(receiveMessage().getMsg().trim());
-		this.server_mapping = new HashMap(len);
+		this.server_mapping = new TreeSet<HashMap>(comparator);//HashMap(len);
+
 		for (int i=0; i<len; i++){
 			String serv = receiveMessage().getMsg().trim();
 			String [] ip_port_start_end = serv.split(",");
@@ -65,7 +70,7 @@ public class KVStore implements KVCommInterface {
 
 			curr.put("start",ip_port_start_end[1]);
 
-			this.server_mapping.put(Integer.toString(i),curr);
+			this.server_mapping.add(curr);
 		}
 
 	}
@@ -202,61 +207,61 @@ public class KVStore implements KVCommInterface {
 	disconnects from current connection
 	 */
 	private void tearDownConnection() throws IOException{
-    	setRunning(false);
-    	String message = "tearing down connection "+this.def_address +":"+this.def_port+"at"+new Date().toString();
-    	logger.info(message);
-    	if (def_clientSocket != null){
-    		logger.debug("closing input at"+new Date().toString());
-    		def_input.close();
+		setRunning(false);
+		String message = "tearing down connection "+this.def_address +":"+this.def_port+"at"+new Date().toString();
+		logger.info(message);
+		if (def_clientSocket != null){
+			logger.debug("closing input at"+new Date().toString());
+			def_input.close();
 			logger.debug("closing output at"+new Date().toString());
-    		def_output.close();
+			def_output.close();
 			logger.debug("closing socket at"+new Date().toString());
-    		def_clientSocket.close();
-    		def_clientSocket =null;
-    		message = "connection:"+this.def_address +":"+this.def_port
-    				+ "closed at" + new Date().toString();
-    		logger.info(message);
-    	}
-    	server_mapping = null;
-    }
+			def_clientSocket.close();
+			def_clientSocket =null;
+			message = "connection:"+this.def_address +":"+this.def_port
+					+ "closed at" + new Date().toString();
+			logger.info(message);
+		}
+		server_mapping = null;
+	}
 
-    /*
+	/*
     returns running state of client
      */
-    public boolean isRunning() {
+	public boolean isRunning() {
 		return running;
 	}
 
 	/*sets client to running state given by run*/
-    public void setRunning(boolean run) {
+	public void setRunning(boolean run) {
 		logger.info("run state now"+run+"at"+new Date().toString());
-    	running = run;
+		running = run;
 	}
-   /*adds ClientSocketListener listener to the list*/
-    public void addListener(ClientSocketListener listener){
+	/*adds ClientSocketListener listener to the list*/
+	public void addListener(ClientSocketListener listener){
 		listeners.add(listener);
 	}
 
 	/*sends len bytes over the socket based on M0*/
-    public void sendMessage(byte[] msg, int len) throws IOException {
+	public void sendMessage(byte[] msg, int len) throws IOException {
 		String message = new String(msg,0,len);
-    	logger.info("Send message:\t '" + message + "'");
-    	output.write(msg, 0, len);
+		logger.info("Send message:\t '" + message + "'");
+		output.write(msg, 0, len);
 		output.flush();
 		logger.info("sent message:\t '" + message + ";");
-    }
+	}
 
-    /*removes a message from the socket. Stops reading at
+	/*removes a message from the socket. Stops reading at
     0 byte based on M0
      */
-    private TextMessage receiveMessage() throws IOException {
-		
+	private TextMessage receiveMessage() throws IOException {
+
 		int index = 0;
 		byte[] msgBytes = null, tmp = null;
 		byte[] bufferBytes = new byte[BUFFER_SIZE];//need to add in BUFFER_SIZE constant
-		
+
 		/* read first char from stream */
-		byte read = (byte) input.read();	
+		byte read = (byte) input.read();
 		boolean reading = true;
 		logger.info("client recieving message at "+ new Date().toString());
 		while(read != 0 && reading) {/* carriage return */
@@ -275,24 +280,24 @@ public class KVStore implements KVCommInterface {
 				msgBytes = tmp;
 				bufferBytes = new byte[BUFFER_SIZE];
 				index = 0;
-			} 
-			
+			}
+
 			/* only read valid characters, i.e. letters and numbers */
 			if((read > 0 && read < 127)) {
 				bufferBytes[index] = read;
 				index++;
 			}
-			
+
 			/* stop reading is DROP_SIZE is reached */
 			if(msgBytes != null && msgBytes.length + index >= DROP_SIZE) {
 				reading = false;
 				logger.warn("Drop size reached");
 			}
-			
+
 			/* read next char from stream */
 			read = (byte) input.read();
 		}
-		
+
 		if(msgBytes == null){
 			tmp = new byte[index];
 			System.arraycopy(bufferBytes, 0, tmp, 0, index);
@@ -301,18 +306,17 @@ public class KVStore implements KVCommInterface {
 			System.arraycopy(msgBytes, 0, tmp, 0, msgBytes.length);
 			System.arraycopy(bufferBytes, 0, tmp, msgBytes.length, index);
 		}
-		
+
 		msgBytes = tmp;
-		
+
 		/* build final String */
 		TextMessage msg = new TextMessage(msgBytes);
 		logger.info("Receive message:\t '" + msg.getMsg().trim() + "'");
 		return msg;
-    }
+	}
 
-    /*
+	/*
     Performs marshalling and responses in order to send a Put command to the server
-
      */
 	//@Override
 	public KVMessage put(String key, String value) throws Exception {
@@ -332,9 +336,11 @@ public class KVStore implements KVCommInterface {
 					get(key);
 				}*/
 				if (server_mapping != null){
-					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
-						String st = (String) entry.getValue().get("start");
-						String ed = (String) entry.getValue().get("end");
+					Iterator svm = server_mapping.iterator();
+					while (svm.hasNext()){
+						HashMap entry =(HashMap<String, Object>) svm.next();
+						String st = (String) entry.get("start");
+						String ed = (String) entry.get("end");
 						boolean hashIsGreaterThanStart = kh.compareTo(st)>0;
 						boolean hashIsLessThanEnd = kh.compareTo(ed)<=0;
 						boolean wraparound = st.compareTo(ed)>0;
@@ -344,8 +350,8 @@ public class KVStore implements KVCommInterface {
 								(((hashIsGreaterThanStart&& hashIsLessThanFs)||
 										(hashIsLessThanEnd&& hashIsGtThanFs))))){
 							//if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
-							this.address = (String) entry.getValue().get("ip");
-							this.port = Integer.parseInt((String) entry.getValue().get("port"));
+							this.address = (String) entry.get("ip");
+							this.port = Integer.parseInt((String) entry.get("port"));
 							break;
 						}
 					}
@@ -503,11 +509,12 @@ public class KVStore implements KVCommInterface {
 		}
 		catch(Exception ex) {
 			if (ex.getMessage().contains("Could not connect")){
-				for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
-
+				Iterator svm = server_mapping.iterator();
+				while (svm.hasNext()){
+					HashMap entry =(HashMap<String, Object>) svm.next();
 					try{
-						this.address = (String) entry.getValue().get("ip");
-						this.port = Integer.parseInt((String) entry.getValue().get("port"));
+						this.address = (String) entry.get("ip");
+						this.port = Integer.parseInt((String) entry.get("port"));
 						con = false;
 						connect();
 						disconnect();
@@ -599,12 +606,12 @@ public class KVStore implements KVCommInterface {
 								}
 								else if (ret_vals[i].getMsg().trim().contains("W")){
 									//update_Map();
-	Thread.sleep(7);//								TimeUnit.MILLISECONDS.sleep(1);
+									Thread.sleep(7);//								TimeUnit.MILLISECONDS.sleep(1);
 									return get(key);
 								}
 								else if(ret_vals[i].getMsg().trim().contains("ST")){
-logger.fatal("going to sleep");
-	Thread.sleep(7);//								TimeUnit.MILLISECONDS.sleep(1);logger.fatal("getting again");
+									logger.fatal("going to sleep");
+									Thread.sleep(7);//								TimeUnit.MILLISECONDS.sleep(1);logger.fatal("getting again");
 									return get(key);
 								}
 							}
@@ -629,9 +636,11 @@ logger.fatal("going to sleep");
 						}
 					}
 				}else{
-					for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
-						String st = (String) entry.getValue().get("start");
-						String ed = (String) entry.getValue().get("end");
+					Iterator svm = server_mapping.iterator();
+					while (svm.hasNext()){
+						HashMap entry =(HashMap<String, Object>) svm.next();
+						String st = (String) entry.get("start");
+						String ed = (String) entry.get("end");
 						boolean hashIsGreaterThanStart = kh.compareTo(st)>0;
 						boolean hashIsLessThanEnd = kh.compareTo(ed)<=0;
 						boolean wraparound = st.compareTo(ed)>0;
@@ -640,9 +649,20 @@ logger.fatal("going to sleep");
 						if((hashIsGreaterThanStart &&  hashIsLessThanEnd)||(wraparound &&
 								((hashIsGreaterThanStart&& hashIsLessThanFs)||
 										(hashIsLessThanEnd&& hashIsGtThanFs)))){
-						//if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
-							this.address = (String) entry.getValue().get("ip");
-							this.port = Integer.parseInt((String) entry.getValue().get("port"));
+							//if ((kh.compareTo(ed) <= 0 && kh.compareTo(ed) > 0)||(ed.compareTo(st)<0&&(kh.compareTo(ed)>=0 || kh.compareTo(st)<0))){
+							int i = this.rg.nextInt(3);
+							while (i>0){
+								if (svm.hasNext()){
+									entry = (HashMap<String, Object>) svm.next();
+								}else{
+									svm = server_mapping.iterator();
+									entry=(HashMap<String, Object>) svm.next();
+								}
+							}
+							int ent_to_use = i+this.rg.nextInt(3);
+
+							this.address = (String) entry.get("ip");
+							this.port = Integer.parseInt((String) entry.get("port"));
 							break;
 						}
 					}
@@ -676,7 +696,7 @@ logger.fatal("going to sleep");
 							this.sendMessage(message, 3 + key.length());
 							for (int i = 0; i < 4; i++) {
 								ret_vals[i] = this.receiveMessage();
-logger.fatal("got"+ret_vals[i].getMsg().trim());
+								logger.fatal("got"+ret_vals[i].getMsg().trim());
 								if (ret_vals[i].getMsg().trim().contains("F")) {
 									break;
 								}
@@ -732,11 +752,13 @@ logger.fatal("got"+ret_vals[i].getMsg().trim());
 		}
 		catch(Exception ex){
 			if (ex.getMessage().contains("Could not connect")){
-				for (Map.Entry<String, HashMap> entry : server_mapping.entrySet()) {
 
+				Iterator svm = server_mapping.iterator();
+				while (svm.hasNext()){
+					HashMap entry =(HashMap<String, Object>) svm.next();
 					try{
-						this.address = (String) entry.getValue().get("ip");
-						this.port = Integer.parseInt((String) entry.getValue().get("port"));
+						this.address = (String) entry.get("ip");
+						this.port = Integer.parseInt((String) entry.get("port"));
 						con = false;
 						connect();
 						disconnect();
@@ -756,7 +778,7 @@ logger.fatal("got"+ret_vals[i].getMsg().trim());
 			}
 			disconnect();
 			con = true;
-        	return new Message(key, null, KVMessage.StatusType.GET_ERROR);
-        }
+			return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+		}
 	}
 }
