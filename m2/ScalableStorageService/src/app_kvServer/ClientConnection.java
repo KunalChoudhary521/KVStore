@@ -4,8 +4,10 @@ import app_kvEcs.md5;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.TreeMap;
 
 
 /**
@@ -279,7 +281,7 @@ public class ClientConnection implements Runnable {
 			logger.info("ECS message: metadata");
 			int i = "ECS-METADATA-".length();
 			String host = "", port = "", startHash_g = "", startHash_p = "", endHash="";
-			ArrayList<Metadata> newMetadata = new ArrayList<Metadata>();
+			TreeMap<BigInteger,Metadata> newMetadata = new TreeMap<>();
 			while(msg.charAt(i) != '\n'){
 				// get the host
 				while(msg.charAt(i) != ','){
@@ -312,7 +314,7 @@ public class ClientConnection implements Runnable {
 				if(msg.charAt(i) == '-') {
 					i++;
 				}
-				newMetadata.add(new Metadata(host,port,startHash_g,startHash_p,endHash));
+				newMetadata.put(new BigInteger(endHash),new Metadata(host,port,startHash_g,startHash_p,endHash));
 				host = "";
 				port = "";
 				startHash_g = "";
@@ -328,7 +330,7 @@ public class ClientConnection implements Runnable {
 		}
 	}
 
-	private void takeNewMetadata(ArrayList<Metadata> newMetadata) {
+	private void takeNewMetadata(TreeMap<BigInteger,Metadata> newMetadata) {
 		this.server.takeNewMetadata(newMetadata);
 	}
 

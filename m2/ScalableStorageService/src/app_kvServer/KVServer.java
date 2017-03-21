@@ -11,10 +11,9 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class KVServer  {
@@ -45,7 +44,7 @@ public class KVServer  {
 
 	// metadata logic
 	private Metadata myMetadata;
-	private ArrayList<Metadata> serverMetadata;
+	private TreeMap<BigInteger, Metadata> serverMetadata;//private ArrayList<Metadata> serverMetadata;
 	ReentrantLock metaDataLock;
 	private boolean amIFirstServerInRing;
 
@@ -117,7 +116,7 @@ public class KVServer  {
 
 		this.log = log;
 
-		serverMetadata = new ArrayList<Metadata>();
+		serverMetadata=new TreeMap<>();//serverMetadata = new ArrayList<Metadata>();
 
 		this.socketArray = new ArrayList<>();
 		this.buildMetadata();
@@ -142,19 +141,21 @@ public class KVServer  {
 			String line = null;
 			while((line = reader.readLine()) != null){
 				List<String> items = Arrays.asList(line.split(","));
-				serverMetadata.add(new Metadata(items.get(0), items.get(1), items.get(2), items.get(3), items.get(4)));
+				serverMetadata.put(new BigInteger(items.get(4),16),new Metadata(items.get(0), items.get(1), items.get(2), items.get(3), items.get(4)));//serverMetadata.add(new Metadata(items.get(0), items.get(1), items.get(2), items.get(3), items.get(4)));
 			}
 			reader.close();
 			in.close();
+			update_replicas();
 		} catch (Exception ex){
 			logger.info(ex);
 		}
 	}
 
 	public String getMetadata() {
-		String metadata = serverMetadata.size()+"!";
-		for(int i =0; i < serverMetadata.size(); i++){
-			Metadata item = serverMetadata.get(i);
+		Collection <Metadata> met_col = serverMetadata.values();
+		String metadata = met_col.size()+"!";
+		for(Metadata item :met_col){
+			//Metadata item = serverMetadata.get(i);
 			metadata+= item.host + ":" + item.port +"," + item.startHash_g + "," + item.startHash_p+","+item.endHash +"!";
 		}
 		return metadata;
@@ -299,8 +300,9 @@ public class KVServer  {
 		Metadata firstServer = null;
 
 		//find "this" KVServer's metadata and set it
-		for(int i =0; i < serverMetadata.size(); i++){
-			Metadata md = serverMetadata.get(i);
+		Collection<Metadata> met_col =serverMetadata.values();
+		for(Metadata md: met_col){
+			///Metadata md = serverMetadata.get(i);
 
 			if(a.contains(md.host)){
 				if(port == Integer.parseInt(md.port)){
@@ -321,8 +323,8 @@ public class KVServer  {
 		File file = new File(KVFileLocation+"/metadata");
 		try {
 			BufferedWriter writer = new BufferedWriter(new FileWriter(file, false));
-			for(int i=0; i < serverMetadata.size(); i++){
-				Metadata m = serverMetadata.get(i);
+			for(Metadata m: met_col){//int i=0; i < serverMetadata.size(); i++){
+				//Metadata m = serverMetadata.get(i);
 				InetAddress address = InetAddress.getByName(m.host);
 				String line = address.getHostAddress()+","+m.port+","+m.startHash_g+","+m.startHash_p+","+m.endHash+"\n";
 				writer.write(line);
@@ -335,11 +337,36 @@ public class KVServer  {
 		metadataUnlock();
 	}
 
-	public void takeNewMetadata(ArrayList<Metadata> newMetadata) {
+	public void takeNewMetadata(TreeMap<BigInteger,Metadata> newMetadata) {
 		metadataLock();
 		this.serverMetadata = newMetadata;
 		updateMetadata();
 		metadataUnlock();
+		update_replicas();
+	}
+
+	private void update_replicas(){
+		BigInteger me = new BigInteger(this.myMetadata.endHash);
+		Metadata rep_1;
+		BigInteger rep_1k;
+		Metadata rep_2;
+		if (this.serverMetadata.lastKey() == me){
+			rep_1 = this.serverMetadata.firstEntry().getValue();
+			rep_1k=this.serverMetadata.firstKey();
+		}else{
+			rep_1 = this.serverMetadata.higherEntry(me).getValue();
+			rep_1k = this.serverMetadata.higherKey(me);
+		}
+		if (this.serverMetadata.lowerKey(this.serverMetadata.lastKey())== me){
+			rep_2 = this.serverMetadata.firstEntry().getValue();
+		}
+		else{
+			rep_2 = this.serverMetadata.higherEntry(rep_1k).getValue();
+		}
+		this.port_r1 = Integer.parseInt(rep_1.port);
+		this.port_r2 = Integer.parseInt(rep_2.port);
+		this.host_r1 = rep_1.host;
+		this.host_r2 = rep_2.host;
 	}
 
 	public boolean isResponsible(String clientHash, String caller)
