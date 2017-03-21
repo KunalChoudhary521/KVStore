@@ -607,6 +607,7 @@ public class ClientConnection implements Runnable {
 
 				///
 				if (fileSuccess == 1){
+				    this.server.update_outstanding_update("<entry key=\""+client_msgs[0]+"\">"+client_msgs[3]+"</entry>");
 					byte [] ack = new byte[2];
 					ack[0] = (byte) 'S';
 					ack[1] = (byte) 0;

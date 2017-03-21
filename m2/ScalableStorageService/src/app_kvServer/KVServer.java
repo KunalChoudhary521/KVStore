@@ -41,6 +41,12 @@ public class KVServer  {
 	private int port_r2;
 	private String host_r1;
 	private String host_r2;
+	private Socket rep_1sock;
+	private Socket rep_2sock;
+	public String[] to_update_with;
+	ReentrantLock []to_update_with_lock;
+	private heartbeat hb1;
+	private heartbeat hb2;
 
 	// metadata logic
 	private Metadata myMetadata;
@@ -64,8 +70,14 @@ public class KVServer  {
 		this.isReadOnly = true;
 		this.isStarted = false;
 		this.shouldShutDown = false;
+		this.to_update_with = new String[2];
+		this.to_update_with[0] ="";
+		this.to_update_with[1] ="";
 		metaDataLock = new ReentrantLock();
+		to_update_with_lock =new ReentrantLock[2];
 		amIFirstServerInRing = false;
+		hb1 = new heartbeat(1,this);
+		hb2 = new heartbeat(1,this);
 
 		String currPath = System.getProperty("user.dir");
 
@@ -363,10 +375,8 @@ public class KVServer  {
 		else{
 			rep_2 = this.serverMetadata.higherEntry(rep_1k).getValue();
 		}
-		this.port_r1 = Integer.parseInt(rep_1.port);
-		this.port_r2 = Integer.parseInt(rep_2.port);
-		this.host_r1 = rep_1.host;
-		this.host_r2 = rep_2.host;
+		hb1.update(Integer.parseInt(rep_1.port), rep_1.host);
+		hb2.update(Integer.parseInt(rep_2.port), rep_2.host);
 	}
 
 	public boolean isResponsible(String clientHash, String caller)
@@ -428,6 +438,19 @@ public class KVServer  {
         {
             logger.info(ex);
         }
+	}
+	public void update_outstanding_update(String new_val){
+		for (int i = 0; i<2;i++){
+			this.to_update_with_lock[i].lock();
+			if(!this.to_update_with[i].isEmpty()){
+				this.to_update_with[i] += ",";
+			}
+			else{
+				this.to_update_with[i]+="KV-HeartBeat-";
+			}
+			this.to_update_with[i] += new_val;
+			this.to_update_with_lock[i].unlock();
+		}
 	}
 
 	public void Shutdown(boolean shutDown)
