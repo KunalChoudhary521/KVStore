@@ -1,16 +1,12 @@
 package testing;
 
-import client.KVStore;
-import org.junit.Test;
 import app_kvEcs.ECS;
+import app_kvEcs.md5;
+import client.KVStore;
 import common.messages.KVMessage;
 import common.messages.KVMessage.StatusType;
 import junit.framework.TestCase;
-
-import junit.framework.TestCase;
-
-import java.util.ArrayList;
-import app_kvEcs.md5;
+import org.junit.Test;
 
 
 public class AdditionalTest extends TestCase {
@@ -23,13 +19,19 @@ public class AdditionalTest extends TestCase {
 	//connect to 1 server perform put on different server
 	@Test
 	public void test_put_wrong_server() {
-		ecs = new ECS(true);
-		ecs.initKVServer(2,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
 		ecs.unlockWrite(s2[0],Integer.parseInt(s2[1]));
+		ecs.unlockWrite(s3[0], Integer.parseInt(s3[1]));
 		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
 		kvClient2 = new KVStore(s2[0],Integer.parseInt(s2[1]));
 		
@@ -78,7 +80,7 @@ public class AdditionalTest extends TestCase {
 			ex = e;
 		}
 
-		//assertTrue(ex == null && res2.getValue().equals(value)&& res.getStatus()==StatusType.PUT_SUCCESS);
+		assertTrue(ex == null && res2.getValue().equals(value) && res.getStatus() == StatusType.PUT_SUCCESS);
 
   	      ecs.shutDown();
 	}
@@ -88,13 +90,20 @@ public class AdditionalTest extends TestCase {
     */
 	@Test
 	public void test_get_wrong_server() {
-		ecs = new ECS(true);
-		ecs.initKVServer(2,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
 		ecs.unlockWrite(s2[0],Integer.parseInt(s2[1]));
+		ecs.unlockWrite(s3[0], Integer.parseInt(s3[1]));
+
 		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
 		kvClient2 = new KVStore(s2[0],Integer.parseInt(s2[1]));
 		
@@ -154,11 +163,17 @@ public class AdditionalTest extends TestCase {
 	@Test
 	public void test_put_locked() {
 		System.out.println("testing");
-		ecs = new ECS(true);
-		ecs.initKVServer(2,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
 		ecs.start();
+
 
 		System.out.println("started");
 		String key = "put_wrong_server";
@@ -195,10 +210,16 @@ public class AdditionalTest extends TestCase {
 	//perform put on stopped server
 	@Test
 	public void test_put_stopped() {
-		ecs = new ECS(true);
-		ecs.initKVServer(2,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
-		String[] s2 = ecs.getRunningServers().get(1).split(":");		
+		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
+
 		String key = "put_wrong_server";
 		String value = "boy";
 		KVMessage res = null;
@@ -231,13 +252,19 @@ public class AdditionalTest extends TestCase {
 	@Test
 	public void test_get_stopped() {
 
-		ecs = new ECS(true);
-		ecs.initKVServer(2,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
-		String[] s2 = ecs.getRunningServers().get(1).split(":");	
+		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
 		ecs.unlockWrite(s2[0],Integer.parseInt(s2[1]));
+		ecs.unlockWrite(s3[0], Integer.parseInt(s3[1]));
 		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
 		
 		String key = "put_wrong_server";
@@ -281,11 +308,16 @@ public class AdditionalTest extends TestCase {
 	// if no exception is thrown, pass
 	@Test
 	public void testECSinitKVServer() {
-		ecs = new ECS(true);//logging
-        int numOfServers = 2;
-	    ecs.initKVServer(numOfServers, 10, "LRU", true);
-        String serverIPPort;
-        String[] info;
+		int numOfServers = 3;
+		try {
+			ecs = new ECS(true);
+
+			ecs.initKVServer(numOfServers = 3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
+		String serverIPPort;
+		String[] info;
 
 		try {
 		    for(int i = 0; i < numOfServers; i++)//try to connect to each running server
@@ -311,9 +343,12 @@ public class AdditionalTest extends TestCase {
 	// if no exception is thrown, you pass
 	@Test
 	public void testECSAddNode() {
-        ecs = new ECS(true);//logging
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
 
-		ecs.initKVServer(1, 10, "LRU", false);
+		}
 		String info[] = ecs.addNode(10, "LRU").split(":");
 
 		try {
@@ -332,13 +367,17 @@ public class AdditionalTest extends TestCase {
 
 	@Test
 	public void testECSRemoveNode() {
-        ecs = new ECS(true);//logging
-		ecs.initKVServer(1, 100, "LRU", false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(4, 10, "LRU", false);
+		} catch (Exception e) {
 
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
-
-        ecs.removeNode(s1[0], Integer.parseInt(s1[1]));
-
-        ecs.shutDown();
+		try {
+			ecs.removeNode(s1[0], Integer.parseInt(s1[1]));
+		} catch (Exception e) {
+		}
+		ecs.shutDown();
 	}
 }

@@ -3,14 +3,23 @@ package app_kvEcs;
 import app_kvServer.Metadata;
 
 public interface ECSInterface {
-    public void initService(int numOfServers, int cSize, String strat);
-    public String addNode(int cacheSize, String strategy);
-    public void removeNode(String host, int port);
-    public void start();
-    public void stop();
-    public void shutDown();
-    public void lockWrite(String host, int port);
-    public void unlockWrite(String host, int port);
-    public void moveData(Metadata srcServer, Metadata dstServer,String startRange, String endRange);
-    public void sendViaTCP(String host, int port, byte[] data);
+    void initService(int numOfServers, int cSize, String strat) throws Exception;
+
+    String addNode(int cacheSize, String strategy);
+
+    void removeNode(String host, int port) throws Exception;
+
+    void start();
+
+    void stop();
+
+    void shutDown();
+
+    void lockWrite(String host, int port);
+
+    void unlockWrite(String host, int port);
+
+    void moveData(Metadata srcServer, Metadata dstServer, String startRange, String endRange);
+
+    void sendViaTCP(String host, int port, byte[] data);
 }

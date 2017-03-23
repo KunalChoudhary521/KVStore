@@ -1,12 +1,11 @@
 package testing;
 
 import app_kvEcs.ECS;
-import org.junit.Test;
-
 import client.KVStore;
-import junit.framework.TestCase;
 import common.messages.KVMessage;
 import common.messages.KVMessage.StatusType;
+import junit.framework.TestCase;
+import org.junit.Test;
 
 
 public class InteractionTest extends TestCase {
@@ -40,8 +39,12 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testPut() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
@@ -71,8 +74,12 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testPutDisconnected() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
@@ -96,9 +103,13 @@ public class InteractionTest extends TestCase {
 		String key = "updateTestValue";
 		String initialValue = "initial";
 		String updatedValue = "updated";
-		
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
@@ -129,8 +140,12 @@ public class InteractionTest extends TestCase {
 	
 	@Test
 	public void testDelete() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
@@ -162,8 +177,12 @@ public class InteractionTest extends TestCase {
 		String value = "bar";
 		KVMessage response = null;
 
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
@@ -186,8 +205,12 @@ public class InteractionTest extends TestCase {
 
 	@Test
 	public void testGetUnsetValue() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));

@@ -5,31 +5,21 @@ import app_kvClient.ClientSocketListener;
 import app_kvClient.ClientSocketListener.SocketStatus;
 import app_kvClient.TextMessage;
 import app_kvClient.meta_comp;
+import app_kvEcs.md5;
 import common.messages.KVMessage;
 import org.apache.log4j.Logger;
-import java.util.Random;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.*;
-import app_kvEcs.md5;
-import java.util.concurrent.TimeUnit;
 
 public class KVStore implements KVCommInterface {
 
 
-	/**
-	 * Initialize KVStore with address and port of KVServer
-	 * @param address the address of the KVServer
-	 * @param port the port of the KVServer
-	 */
-	public KVStore(String address, int port) {
-		this.def_address = address;
-		this.def_port = port;
-		this.rg = new Random(3);
-	}
+	private static final int BUFFER_SIZE = 1024;
+	private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
 	private Random rg;
 	private SortedSet server_mapping;//HashMap<String,HashMap> server_mapping = null;
 	private Socket clientSocket;
@@ -46,9 +36,18 @@ public class KVStore implements KVCommInterface {
 	private Logger logger = Logger.getRootLogger();
 	private Set<ClientSocketListener> listeners;
 	private boolean running;
-	private static final int BUFFER_SIZE = 1024;
-	private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
 
+	/**
+	 * Initialize KVStore with address and port of KVServer
+	 *
+	 * @param address the address of the KVServer
+	 * @param port    the port of the KVServer
+	 */
+	public KVStore(String address, int port) {
+		this.def_address = address;
+		this.def_port = port;
+		this.rg = new Random(3);
+	}
 
 	/*
         Updates the client's map of servers
@@ -497,12 +496,12 @@ public class KVStore implements KVCommInterface {
 				logger.info("put succes");
 				//determine what type of successful operation
 				if (ret_vals[0].getMsg().trim().contains("S")) {
-					return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS);
+					return new Message(key, value, KVMessage.StatusType.PUT_SUCCESS, this.address + ":" + Integer.toString(this.port));
 				} else {
 					if (value.equals("null")) {
-						return new Message(key, "null", KVMessage.StatusType.DELETE_SUCCESS);
+						return new Message(key, "null", KVMessage.StatusType.DELETE_SUCCESS, this.address + ":" + Integer.toString(this.port));
 					} else {
-						return new Message(key, value, KVMessage.StatusType.PUT_UPDATE);
+						return new Message(key, value, KVMessage.StatusType.PUT_UPDATE, this.address + ":" + Integer.toString(this.port));
 					}
 				}
 			}
@@ -539,11 +538,11 @@ public class KVStore implements KVCommInterface {
 			if (value.equals("null")) {
 				disconnect();
 				con = true;
-				return new Message(key, value, KVMessage.StatusType.DELETE_ERROR);
+				return new Message(key, value, KVMessage.StatusType.DELETE_ERROR, this.address + ":" + Integer.toString(this.port));
 			} else {
 				disconnect();
 				con = true;
-				return new Message(key, value, KVMessage.StatusType.PUT_ERROR);
+				return new Message(key, value, KVMessage.StatusType.PUT_ERROR, this.address + ":" + Integer.toString(this.port));
 			}
 		}
 
@@ -618,21 +617,21 @@ public class KVStore implements KVCommInterface {
 							if (ret_vals[0].getMsg().trim().contains("F")) {
 								String msg = "Get, server sent F when validating key: '" + key + "'";
 								logger.info(msg);
-								return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+								return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 							} else if (!ret_vals[1].getMsg().trim().equals(key)) {
 								String msg = "Get, server sent incorrect key: key="
 										+ key + "returned key = " + ret_vals[1].getMsg().trim();
 								logger.warn(msg);
-								return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+								return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 							} else if (Integer.parseInt(ret_vals[2].getMsg().trim()) != ret_vals[3].getMsg().trim().length()) {
 								String msg = "Get, server sent either incorrect payload of incorrect size: payload="
 										+ ret_vals[3].getMsg().trim() + ", size=" + ret_vals[2].getMsg().trim();
 								logger.warn(msg);
-								return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+								return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 							}
 							logger.info("payload = " + ret_vals[3].getMsg().trim());
 
-							return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
+							return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS, this.address + ":" + Integer.toString(this.port));
 						}
 					}
 				}else{
@@ -737,26 +736,26 @@ public class KVStore implements KVCommInterface {
 								logger.info(msg);
 								disconnect();
 								con = true;
-								return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+								return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 							} else if (!ret_vals[1].getMsg().trim().equals(key)) {
 								String msg = "Get, server sent incorrect key: key="
 										+ key + "returned key = " + ret_vals[1].getMsg().trim();
 								logger.warn(msg);
 								disconnect();
 								con = true;
-								return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+								return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 							} else if (Integer.parseInt(ret_vals[2].getMsg().trim()) != ret_vals[3].getMsg().trim().length()) {
 								String msg = "Get, server sent either incorrect payload of incorrect size: payload="
 										+ ret_vals[3].getMsg().trim() + ", size=" + ret_vals[2].getMsg().trim();
 								logger.warn(msg);
 								disconnect();
 								con = true;
-								return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+								return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 							}
 							logger.info("payload = " + ret_vals[3].getMsg().trim());
 							disconnect();
 							con = true;
-							return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS);
+							return new Message(key, ret_vals[3].getMsg().trim(), KVMessage.StatusType.GET_SUCCESS, this.address + ":" + Integer.toString(this.port));
 						}
 					}
 				}
@@ -790,7 +789,7 @@ public class KVStore implements KVCommInterface {
 			}
 			disconnect();
 			con = true;
-			return new Message(key, null, KVMessage.StatusType.GET_ERROR);
+			return new Message(key, null, KVMessage.StatusType.GET_ERROR, this.address + ":" + Integer.toString(this.port));
 		}
 	}
 }

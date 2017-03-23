@@ -1,19 +1,24 @@
 package testing;
 
-import java.net.UnknownHostException;
-
 import app_kvEcs.ECS;
 import client.KVStore;
-
 import junit.framework.TestCase;
+
+import java.net.UnknownHostException;
 
 
 public class ConnectionTest extends TestCase {
 	private ECS ecs;
 	public void testConnectionSuccess() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
-		String[] s1 = ecs.getRunningServers().get(0).split(":");		ecs.start();
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
+		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		ecs.start();
+
 		Exception ex = null;
 		
 		KVStore kvClient = new KVStore(s1[0], Integer.parseInt(s1[1]));
@@ -28,8 +33,12 @@ public class ConnectionTest extends TestCase {
 	
 	
 	public void testUnknownHost() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");		ecs.start();
 		Exception ex = null;
 		KVStore kvClient = new KVStore("unknown", 8080);
@@ -45,8 +54,12 @@ public class ConnectionTest extends TestCase {
 	
 	
 	public void testIllegalPort() {
-		ecs = new ECS(true);
-		ecs.initKVServer(1,10,"LRU",false);
+		try {
+			ecs = new ECS(true);
+			ecs.initKVServer(3, 10, "LRU", false);
+		} catch (Exception e) {
+
+		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");		ecs.start();
 		Exception ex = null;
 		KVStore kvClient = new KVStore("localhost", 123456789);

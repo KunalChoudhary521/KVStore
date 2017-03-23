@@ -29,20 +29,58 @@ public class ECS implements ECSInterface {
         hashRing = new TreeMap<>();
         runningServers = new ArrayList<>();
     }
+
+    public static void main(String[] args) {
+        try {
+            new LogSetup(System.getProperty("user.dir") + "/logs/ecs/ecs.log", Level.ALL);
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        TransferAndRemoveTest();
+    }
+
+    public static void TransferAndRemoveTest() {
+        ECS ecs = new ECS(true);
+        //logger.error("H1");
+
+        //Reset file ecs.config (make all NA --> A)
+        try {
+            ecs.initKVServer(1, 10, "LRU", true);
+            ecs.start();
+            ecs.unlockWrite("127.0.0.1", 8080);
+            //run KVClient and put key1,2,3,6
+            //run KVServer2 @ port 8370
+            //ecs.addNode(10,"LRU");
+
+            //ecs.removeNode("127.0.0.1", 8080);//removeNode also shuts down this server
+
+            ecs.shutDownKVServer("127.0.0.1", 8080);
+            //ecs.shutDownKVServer("127.0.0.1", 8081);
+            System.out.println("Test Done");
+        } catch (Exception ex) {
+            logger.error(ex);
+        }
+    }
+
     public ArrayList<String> getRunningServers()
     {
         return this.runningServers;
     }
 
     @Override
-    public void initService(int numOfServers, int cSize, String strat)
+    public void initService(int numOfServers, int cSize, String strat) throws Exception
     {
         //logging is set to true in ECSClient.java
+        if (numOfServers < 3) {
+            throw new Exception("numOfServers must be greater than 2");
+        }
         String line  = ""+numOfServers +", "+cSize+", "+strat;
         logger.info(line);
         initKVServer(numOfServers,cSize,strat,this.log);
     }
-    public void initKVServer(int numOfServers, int cSize, String strat, boolean log)
+
+    public void initKVServer(int numOfServers, int cSize, String strat, boolean log) throws Exception
     {
         //System.out.println("Current Directory: " +  System.getProperty("user.dir"));
         if(numOfServers <= 2)
@@ -82,6 +120,7 @@ public class ECS implements ECSInterface {
                     "file format:<IP>,<port>,<A or NA>\n" +
                     "127.0.0.1,9000,A\n" +
                     "127.0.0.1,9002");
+            throw ex;
         }
 
 
@@ -102,6 +141,7 @@ public class ECS implements ECSInterface {
 
         updateConfigFile();//edit config file (mark servers that are running)--> <IP>   <Port>  <NA>
     }
+
     private void updateConfigFile()
     {
         StringBuilder updatedFile = new StringBuilder();
@@ -138,6 +178,7 @@ public class ECS implements ECSInterface {
             //ex.printStackTrace();
         }
     }
+
     private void updatedMetadata()
     {
         //Protocol: ECS-METADATA-<IP_1>,<P_1>,<sR_1>,<eR_1>-...-<IP_N>,<P_N>,<sR_N>,<eR_N>0
@@ -182,6 +223,7 @@ public class ECS implements ECSInterface {
 
         return;//for debugging
     }
+
     public void sendMetadata(String serverIP, int serverPort)
     {
         //Send Metadata contents to each running KVServer
@@ -212,7 +254,6 @@ public class ECS implements ECSInterface {
 
         mySsh.session.disconnect();//can be moved to destructor
     }
-
 
     public void addToRing(String host, int port)
     {
@@ -456,12 +497,13 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void removeNode(String hostToRmv, int portToRmv)//removing should not be random
+    public void removeNode(String hostToRmv, int portToRmv) throws Exception//removing should not be random
     {
         if(runningServers.size() < 4)
         {
             logger.info("removeNode:: Only 3 servers currently running, cannot remove");
-            return;
+            throw new Exception("removeNode:: Only 3 servers currently running, cannot remove");
+
         }
         /*else if(runningServers.size() == 1)
         {
@@ -519,6 +561,7 @@ public class ECS implements ECSInterface {
         byte[] byteMsg = createMessage("ECS-START");
         sendViaTCP(host, port, byteMsg);
     }
+
     /*Starts the storage service by calling
     *startKVServer() on all KVServer instances
     * that participate in the service.
@@ -569,7 +612,6 @@ public class ECS implements ECSInterface {
         }
         updateConfigFile();//mark removed server as available
     }
-
 
     public void shutDownKVServer(String host, int port)
     {
@@ -689,39 +731,5 @@ public class ECS implements ECSInterface {
             logger.error("sendViaTCP:: ECS failed to send data to KVServer: " + host + ":" + port);
             ex.printStackTrace();
         }
-    }
-
-    public static void main(String[] args){
-        try
-        {
-            new LogSetup(System.getProperty("user.dir")+"/logs/ecs/ecs.log", Level.ALL);
-        }
-        catch (Exception ex)
-        {
-            System.out.println(ex.getMessage());
-        }
-
-        TransferAndRemoveTest();
-    }
-
-    public static void TransferAndRemoveTest()
-    {
-        ECS ecs = new ECS(true);
-        //logger.error("H1");
-
-        //Reset file ecs.config (make all NA --> A)
-
-        ecs.initKVServer(1,10,"LRU",true);
-        ecs.start();
-        ecs.unlockWrite("127.0.0.1",8080);
-        //run KVClient and put key1,2,3,6
-        //run KVServer2 @ port 8370
-        //ecs.addNode(10,"LRU");
-
-        //ecs.removeNode("127.0.0.1", 8080);//removeNode also shuts down this server
-
-        ecs.shutDownKVServer("127.0.0.1", 8080);
-        //ecs.shutDownKVServer("127.0.0.1", 8081);
-        System.out.println("Test Done");
     }
 }

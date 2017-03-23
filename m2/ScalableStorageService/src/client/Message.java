@@ -10,11 +10,13 @@ public class Message implements KVMessage{
     private String key;
     private String value;
     private StatusType type;
+    private String server;
 
-    public Message(String key, String value, StatusType type){
+    public Message(String key, String value, StatusType type, String server) {
         this.key = key;
         this.value = value;
         this.type = type;
+        this.server = server;
     }
 
     @Override
@@ -30,5 +32,9 @@ public class Message implements KVMessage{
     @Override
     public StatusType getStatus() {
         return type;
+    }
+
+    public String getSource() {
+        return server;
     }
 }
