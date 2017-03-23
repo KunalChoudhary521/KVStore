@@ -11,16 +11,16 @@ import java.net.Socket;
  * Created by yy on 2017-03-21.
  */
 public class heartbeat implements Runnable {
-    public int port;
-    public String host;
-    private Socket sock;
     private static final int BUFFER_SIZE = 1024;
     private static final int DROP_SIZE = 128 * BUFFER_SIZE;
+    private static Logger logger = Logger.getRootLogger();
+    public int port;
+    public String host;
     OutputStream writeToSock;
     InputStream input;
+    private Socket sock;
     private int rep_num;
     private KVServer server;
-    private static Logger logger = Logger.getRootLogger();
     public heartbeat(int rn, KVServer sv){
         port =0;
         host = "";
@@ -111,8 +111,10 @@ public class heartbeat implements Runnable {
         this.server.to_update_with_lock[rep_num].lock();
         byte[] kvPairBArray;
         if (!this.server.to_update_with[rep_num].isEmpty()) {
-            kvPairBArray = new byte[this.server.to_update_with[rep_num].length() + 1];//+1 for stream termination
-            System.arraycopy(this.server.to_update_with[rep_num].getBytes(), 0, kvPairBArray, 0, this.server.to_update_with[rep_num].length());
+            kvPairBArray = new byte[this.server.to_update_with[rep_num].length() + "KV-HeartBeat-".length() + 2];//+1 for stream termination
+            System.arraycopy("KV-HeartBeat-".getBytes(), 0, kvPairBArray, 0, "KV-HeartBeat-".length());
+            kvPairBArray["KV-HeartBeat-".length()] = 0;
+            System.arraycopy(this.server.to_update_with[rep_num].getBytes(), 0, kvPairBArray, "KV-HeartBeat-".length() + 1, this.server.to_update_with[rep_num].length());
         }
         else{
             kvPairBArray = new byte["heartbeat".length()+1];

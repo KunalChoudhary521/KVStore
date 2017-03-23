@@ -19,16 +19,13 @@ import java.util.TreeMap;
  */
 public class ClientConnection implements Runnable {
 
-	private static Logger  logger = Logger.getRootLogger();
-
-
-	private boolean isOpen;
 	private static final int BUFFER_SIZE = 1024;
 	private static final int DROP_SIZE = 128 * BUFFER_SIZE;
-	
-	private Socket clientSocket;
-	private InputStream input;
-	private OutputStream output;
+    private static Logger logger = Logger.getRootLogger();
+    private boolean isOpen;
+    private Socket clientSocket;
+    private InputStream input;
+    private OutputStream output;
 	private KVServer server;
 	private FileStoreHelper fileStoreHelper;
 	private boolean log;
@@ -78,17 +75,15 @@ public class ClientConnection implements Runnable {
 					}
 					else if(latestMsg.getMsg().trim().contains("D")){
 						isOpen = false;//client disconnect
-					} else if (latestMsg.getMsg().trim().contains("KV-MOVE")){
-						 // the function that handles all of the data sent by a different KVServer
+                    } else if (latestMsg.getMsg().trim().contains("KV-MOVE")) {
+                        // the function that handles all of the data sent by a different KVServer
                         String[] msgComponents = (latestMsg.getMsg()).split("-");
                         String[] kvPairRecv = msgComponents[2].split(",");//need to parse XML to hash key
                         String[] xmlKV;
                         BufferedWriter kvOut;
                         String fileName = null;
-                        try
-                        {
-                            for (int i = 0; i < kvPairRecv.length; i++)
-                            {
+                        try {
+                            for (int i = 0; i < kvPairRecv.length; i++) {
                                 xmlKV = kvPairRecv[i].split("\"");
                                 //System.out.println("key: " + xmlKV[1]);
                                 fileName = this.server.getPort() + "/" + md5.HashS(xmlKV[1]);
@@ -99,15 +94,18 @@ public class ClientConnection implements Runnable {
                                 kvOut.close();
                                 logger.info("Receiver KVServer has received KV-Pairs");
                             }
-                        }
-                        catch (Exception ex)
-                        {
+                        } catch (Exception ex) {
                             logger.error("KV-MOVE:: Error will writing kvpairs to file");
                         }
 
-					}
-				/* connection either terminated by the client or lost due to 
-				 * network problems*/	
+                    } else if (latestMsg.getMsg().trim().contains("heartbeat")) {
+                        sendheartbeat_ack();
+                    } else if (latestMsg.getMsg().trim().contains("KV-HeartBeat-")) {
+                        sendheartbeat_ack();
+                        handle_heartbeat_update();
+                    }
+                /* connection either terminated by the client or lost due to
+                 * network problems*/
 				} catch (IOException ioe) {
 					if(log) {
 						logger.error("Error! Connection lost!");
@@ -349,10 +347,10 @@ public class ClientConnection implements Runnable {
 	 * Also calls the cache and FileStore instances to obtain kvp
 	 * Builds back a message and sends it back to the client
 	 * */
-	public void handle_get() throws Exception, IOException{
-		String key = receiveMessage().getMsg().trim();
-		if(log) {
-			logger.info("Client tried to get key: '" + key + "'");
+    public void handle_get() throws Exception {
+        String key = receiveMessage().getMsg().trim();
+        if (log) {
+            logger.info("Client tried to get key: '" + key + "'");
 		}
 		try{
 			if (key.length()>20){
@@ -641,9 +639,63 @@ public class ClientConnection implements Runnable {
 		}
     }
 
-	/**
-	 * Mostly from the stub code. Receives and parses a message sent from a client
-	 * Reads from the input stream
+    private void handle_heartbeat_update() {
+        // the function that handles all of the data sent by a different KVServer
+        try {
+            TextMessage latestMsg = receiveMessage();
+            String[] kvPairRecv = latestMsg.getMsg().split(",");//need to parse XML to hash key
+            String[] xmlKV;
+            BufferedWriter kvOut;
+            String fileName = null;
+            try {
+                for (int i = 0; i < kvPairRecv.length; i++) {
+                    xmlKV = kvPairRecv[i].split("\"");
+                    //System.out.println("key: " + xmlKV[1]);
+                    fileName = this.server.getPort() + "/" + md5.HashS(xmlKV[1]);
+                    boolean got = (this.server.findInCache(xmlKV[1], log) != null) || (fileStoreHelper.FindFromFile(xmlKV[1]) != null);
+                    if (kvPairRecv[i].contains(">null</entry>") || got == true) {
+                        //delete
+                        FileStoreHelper.FileStoreStatusType result = fileStoreHelper.DeleteInFile(xmlKV[1]);
+
+                        if (result == FileStoreHelper.FileStoreStatusType.DELETE_SUCCESS) {
+                            logger.debug("deleted" + xmlKV[1]);
+                            this.server.getKvcache().deleteFromCache(xmlKV[1]);
+                        }
+                    }
+                    if (!kvPairRecv[i].contains(">null</entry>")) {
+                        kvOut = new BufferedWriter(new FileWriter(fileName));
+                        kvOut.write(kvPairRecv[i], 0, kvPairRecv[i].length());
+                        kvOut.flush();
+
+                        kvOut.close();
+                        logger.info("Receiver KVServer has received KV-Pairs");
+                    }
+                }
+            } catch (Exception ex) {
+                logger.error("KV-update:: Error will writing kvpairs to file");
+            }
+        } catch (Exception ex) {
+            logger.error(ex);
+        }
+
+    }
+
+    private void sendheartbeat_ack() {
+        byte[] resp = new byte[4];
+        resp[3] = 0;
+        resp[2] = (byte) 'k';
+        resp[1] = (byte) 'c';
+        resp[0] = (byte) 'A';
+        try {
+            this.sendMessage(resp, 4);
+        } catch (Exception ex) {
+            logger.error(ex);
+        }
+    }
+
+    /**
+     * Mostly from the stub code. Receives and parses a message sent from a client
+     * Reads from the input stream
 	 * */
     private TextMessage receiveMessage() throws IOException {
 		

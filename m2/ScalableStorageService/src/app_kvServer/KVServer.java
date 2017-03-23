@@ -1,7 +1,6 @@
 package app_kvServer;
 
 
-import app_kvEcs.md5;
 import cache.FIFOCache;
 import cache.KVCache;
 import cache.LFUCache;
@@ -17,24 +16,28 @@ import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class KVServer  {
+    private static Logger logger = Logger.getRootLogger();
+    public boolean isStarted;
+    public String[] to_update_with;
+    public boolean isReadOnly;
+    ReentrantLock[] to_update_with_lock;
+    ReentrantLock metaDataLock;
   /**
 	 * Start KV Server at given port
 	 * @param port given port for storage server to operate
-	 * @param cacheSize specifies how many key-value pairs the server is allowed 
-	 *           to keep in-memory
-	 * @param strategy specifies the cache replacement strategy in case the cache 
-	 *           is full and there is a GET- or PUT-request on a key that is 
-	 *           currently not contained in the cache. Options are "FIFO", "LRU", 
-	 *           and "LFU".
-	 */
+   * @param cacheSize specifies how many key-value pairs the server is allowed
+   *           to keep in-memory
+   * @param strategy specifies the cache replacement strategy in case the cache
+   *           is full and there is a GET- or PUT-request on a key that is
+   *           currently not contained in the cache. Options are "FIFO", "LRU",
+   *           and "LFU".
+   */
 
     private int port;
 	private int cacheSize;
 	private String strategy;
 	private boolean isRunning;
-	public boolean isStarted;
 	private ServerSocket socket;
-	private static Logger logger = Logger.getRootLogger();
 	private boolean log;
 	private String host;
 	private int port_r1;
@@ -43,24 +46,16 @@ public class KVServer  {
 	private String host_r2;
 	private Socket rep_1sock;
 	private Socket rep_2sock;
-	public String[] to_update_with;
-	ReentrantLock []to_update_with_lock;
 	private heartbeat hb1;
 	private heartbeat hb2;
-
 	// metadata logic
 	private Metadata myMetadata;
 	private TreeMap<BigInteger, Metadata> serverMetadata;//private ArrayList<Metadata> serverMetadata;
-	ReentrantLock metaDataLock;
 	private boolean amIFirstServerInRing;
-
 	// Shutdown logic
 	private boolean shouldShutDown;
-
 	private String KVFileLocation;
-
 	private KVCache cache;
-	public boolean isReadOnly;
 	private ArrayList<Socket> socketArray;
 	public KVServer(String host, int port, int cSize, String strat, boolean log) {
 		this.host = host;
@@ -134,11 +129,37 @@ public class KVServer  {
 		this.buildMetadata();
 	}
 
+    /**
+     * Entry point for KVServer
+     * Parses command line arguments and starts a KVServer
+     *
+     * @param args an array of string command line arguments
+     */
+    public static void main(String[] args) {
+        // todo validation
+        String host = args[0];
+        int port = Integer.parseInt(args[1]);
+        int cacheSize = Integer.parseInt(args[2]);
+        String strategy = args[3];
+        boolean shouldLog = Boolean.parseBoolean(args[4]);
+
+        try {
+            new LogSetup(System.getProperty("user.dir") + "/logs/server/server.log", Level.ALL);
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+
+        KVServer server = new KVServer(host, port, cacheSize, strategy, shouldLog);
+        server.Run();
+    }
+
 	public int getPort()
 	{
 		return this.port;
 	}
-	private void buildMetadata() {
+
+    private void buildMetadata() {
 		File file = new File(this.KVFileLocation+"/metadata");
 		try {
 			if (!file.exists()) {
@@ -268,32 +289,6 @@ public class KVServer  {
 		String val = this.cache.checkCache(k,log);
 		logger.debug("found " + val +"in cache");
 		return val;
-	}
-
-	/**
-	 * Entry point for KVServer
-	 * Parses command line arguments and starts a KVServer
-	 * @param args an array of string command line arguments
-	 * */
-	public static void main(String[] args){
-		// todo validation
-		String host = args[0];
-		int port = Integer.parseInt(args[1]);
-		int cacheSize = Integer.parseInt(args[2]);
-		String strategy = args[3];
-		boolean shouldLog = Boolean.parseBoolean(args[4]);
-
-		try {
-			new LogSetup(System.getProperty("user.dir")+"/logs/server/server.log", Level.ALL);
-		} catch (Exception ex)
-		{
-			System.out.println(ex.getMessage());
-		}
-
-
-
-		KVServer server = new KVServer(host, port, cacheSize, strategy, shouldLog);
-		server.Run();
 	}
 
 	// METADATA LOGIC
@@ -445,10 +440,8 @@ public class KVServer  {
 			if(!this.to_update_with[i].isEmpty()){
 				this.to_update_with[i] += ",";
 			}
-			else{
-				this.to_update_with[i]+="KV-HeartBeat-";
-			}
-			this.to_update_with[i] += new_val;
+
+            this.to_update_with[i] += new_val;
 			this.to_update_with_lock[i].unlock();
 		}
 	}
