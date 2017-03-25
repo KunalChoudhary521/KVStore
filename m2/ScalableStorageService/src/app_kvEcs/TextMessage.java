@@ -1,4 +1,4 @@
-package app_kvServer;
+package app_kvEcs;
 
 import java.io.Serializable;
 
