@@ -57,6 +57,10 @@ public class KVServer  {
 	private String KVFileLocation;
 	private KVCache cache;
 	private ArrayList<Socket> socketArray;
+	
+	public InetSocketAddress ECSAddress;
+	public ReentrantLock ECSAddressLock;
+	
 	public KVServer(String host, int port, int cSize, String strat, boolean log) {
 		this.host = host;
 		this.port = port;
@@ -70,23 +74,24 @@ public class KVServer  {
 		this.to_update_with[1] ="";
 		metaDataLock = new ReentrantLock();
 		to_update_with_lock =new ReentrantLock[2];
+		ECSAddressLock = new ReentrantLock();
 		amIFirstServerInRing = false;
 		hb1 = new heartbeat(1,this);
 		hb2 = new heartbeat(1,this);
 
 		String currPath = System.getProperty("user.dir");
 
-		logger.info(currPath);
+		logger.info("KVServer: " + currPath);
 
 		File file = new File(""+port);
 
-		logger.info("KVStore directory's abs path: " + file.getAbsolutePath());
-		logger.info("Name of KVStore's directory " + file.getName());
+		logger.info("KVServer: " + "KVStore directory's abs path: " + file.getAbsolutePath());
+		logger.info("KVServer: " + "Name of KVStore's directory " + file.getName());
 
 		if(!file.exists()){
 			file.mkdir();
 			if(log){
-				logger.info("Creating a directory to place all key-value pairs");
+				logger.info("KVServer: " + "Creating a directory to place all key-value pairs");
 			}
 			File metadataFile = new File(file.getAbsolutePath() +"/metadata");
 			if(metadataFile.exists() == false) {
@@ -144,7 +149,7 @@ public class KVServer  {
         boolean shouldLog = Boolean.parseBoolean(args[4]);
 
         try {
-            new LogSetup(System.getProperty("user.dir") + "/logs/server/server.log", Level.ALL);
+            new LogSetup(System.getProperty("user.dir") + "/logs/server/server-"+host+"-"+port+".log", Level.ALL);
         } catch (Exception ex) {
             System.out.println(ex.getMessage());
         }
@@ -163,11 +168,11 @@ public class KVServer  {
 		File file = new File(this.KVFileLocation+"/metadata");
 		try {
 			if (!file.exists()) {
-				logger.info("No metadata file!");
+				logger.info("KVServer: " + "No metadata file!");
 				throw new Exception("no metadata file");
 			}
 
-			logger.info("metadata file exists, populate metadata");
+			logger.info("KVServer: " + "metadata file exists, populate metadata");
 			FileInputStream in = new FileInputStream(file);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
@@ -180,7 +185,7 @@ public class KVServer  {
 			in.close();
 			update_replicas();
 		} catch (Exception ex){
-			logger.info(ex);
+			logger.info("KVServer: " + ex);
 		}
 	}
 
@@ -214,13 +219,13 @@ public class KVServer  {
 					new Thread(connection).start();
 
 					if(log) {
-						logger.info("Connected to "
+						logger.info("KVServer: " + "Connected to "
 								+ client.getInetAddress().getHostName()
 								+ " on port " + client.getPort());
 					}
 				} catch (Exception e) {
 					if(log && !shouldShutDown) {
-						logger.error("Error! " +
+						logger.error("KVServer: " + "Error! " +
 								"Unable to establish connection. \n", e);
 					}
 				}
@@ -229,7 +234,7 @@ public class KVServer  {
 
 		}
 		if(log) {
-			logger.info("Server stopped.");
+			logger.info("KVServer: " + "Server stopped.");
 		}
 	}
 
@@ -237,7 +242,7 @@ public class KVServer  {
 	 * Initializes the server by trying to obtain a socket on the port
 	 * */
 	private boolean InitializeServer(){
-		logger.info("Initialize server ...");
+		logger.info("KVServer: " + "Initialize server ...");
 
 		try {
 			System.setProperty("sun.net.useExclusiveBind", "false");
@@ -245,16 +250,16 @@ public class KVServer  {
 			socket = new ServerSocket();
 			socket.setReuseAddress(true);
 			socket.bind(address,0);//new ServerSocket(port, 0, address);
-			logger.info("Server listening on " + address.toString()
+			logger.info("KVServer: " + "Server listening on " + address.toString()
                     +":" +  socket.getLocalPort());
 
 			updateMetadata();
 
 			return true;
 		} catch (IOException e) {
-			logger.error("Error! Cannot open server socket:");
+			logger.error("KVServer: " + "Error! Cannot open server socket:");
 			if(e instanceof BindException){
-				logger.error("Port " + port + " is already bound!");
+				logger.error("KVServer: " + "Port " + port + " is already bound!");
 			}
 			return false;
 		}
@@ -339,7 +344,7 @@ public class KVServer  {
 			}
 			writer.close();
 		} catch (Exception ex){
-			logger.info(ex);
+			logger.info("KVServer: " + ex);
 		}
 		metadataUnlock();
 	}
@@ -405,7 +410,7 @@ public class KVServer  {
         }
         else//start & end hash should never be equal to each other
         {
-            logger.error("isResponsible :::: Start & End hash are equal!!\n");
+            logger.error("KVServer: " + "isResponsible :::: Start & End hash are equal!!\n");
         }
 
 		return result;
@@ -421,7 +426,7 @@ public class KVServer  {
             }
             catch (Exception ex)
             {
-                logger.info(ex);
+                logger.info("KVServer: " + ex);
             }
         }
 
@@ -431,7 +436,7 @@ public class KVServer  {
         }
         catch (Exception ex)
         {
-            logger.info(ex);
+            logger.info("KVServer: " + ex);
         }
 	}
 	public void update_outstanding_update(String new_val){

@@ -5,7 +5,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Socket;
+import java.net.*;
 
 /**
  * Created by yy on 2017-03-21.
@@ -39,6 +39,18 @@ public class heartbeat implements Runnable {
                 Thread.sleep(50);//possibly change
                 if(!get_resp().equals("Ack")){
                     //Send a message to ECS that this heartbeat failed
+                    InetSocketAddress ecs;
+                    this.server.ECSAddressLock.lock();
+                      ecs = this.server.ECSAddress;
+                    this.server.ECSAddressLock.unlock();
+                    
+                    Socket ecsSock = new Socket(ecs.getAddress(), ecs.getPort());
+                    
+                    String message = "FAIL-"+this.sock.getLocalAddress().toString()+"-"
+                    +this.sock.getPort();
+                    byte[] msg = message.getBytes();
+
+                    ecsSock.getOutputStream().write(msg, 0, msg.length);                                        
                 }
             }catch (Exception ex){
 

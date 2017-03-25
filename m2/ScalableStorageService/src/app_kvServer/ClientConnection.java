@@ -5,7 +5,7 @@ import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.Socket;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
@@ -95,7 +95,7 @@ public class ClientConnection implements Runnable {
                                 logger.info("Receiver KVServer has received KV-Pairs");
                             }
                         } catch (Exception ex) {
-                            logger.error("KV-MOVE:: Error will writing kvpairs to file");
+                            logger.error("Client-connection: " + "KV-MOVE:: Error will writing kvpairs to file");
                         }
 
                     } else if (latestMsg.getMsg().trim().contains("heartbeat")) {
@@ -108,16 +108,16 @@ public class ClientConnection implements Runnable {
                  * network problems*/
 				} catch (IOException ioe) {
 					if(log) {
-						logger.error("Error! Connection lost!");
+						logger.error("Client-connection: " + "Error! Connection lost!");
 					}
 					isOpen = false;
 				}catch (Exception ex){
-					logger.error(ex.getMessage());
+					logger.error("Client-connection: " + ex.getMessage());
 				}
 			}
 
 		} catch (IOException ioe) {
-			logger.error("Error! Connection could not be established!", ioe);
+			logger.error("Client-connection: " + "Error! Connection could not be established!", ioe);
 			
 		} finally {
 			
@@ -128,12 +128,17 @@ public class ClientConnection implements Runnable {
 					clientSocket.close();
 				}
 			} catch (IOException ioe) {
-				logger.error("Error! Unable to tear down connection!", ioe);
+				logger.error("Client-connection: " + "Error! Unable to tear down connection!", ioe);
 			}
 		}
 	}
 
 	private void handle_ecs(String msg) {
+		
+		this.server.ECSAddressLock.lock();
+			this.server.ECSAddress = (InetSocketAddress)this.clientSocket.getRemoteSocketAddress();
+		this.server.ECSAddressLock.unlock();
+		
 		if(msg.contains("ECS-LOCKWRITE")){ //can only read
 			this.server.isReadOnly = true;
 			logger.info("ECS message: lockwrite");
@@ -169,7 +174,7 @@ public class ClientConnection implements Runnable {
             // filter them based on the hash range given to you by the ECS
             ArrayList<File> filesToSend = this.fileStoreHelper.getInRangeFiles(dstServerStart, dstServerEnd);
             if (filesToSend.isEmpty()) {
-                logger.error("ECS-MOVE-KV :: No files to move");
+                logger.error("Client-connection: " + "ECS-MOVE-KV :: No files to move");
                 //return;//return here?
             }
 
@@ -195,7 +200,7 @@ public class ClientConnection implements Runnable {
 
             }
             catch (Exception ex) {
-                logger.error("ECS-MOVE-KV :: Could not open file to send from Server");
+                logger.error("Client-connection: " + "ECS-MOVE-KV :: Could not open file to send from Server");
             }
 
             // based on a server-server protocol, create a byte array of all the key value pairs that fall
@@ -225,7 +230,7 @@ public class ClientConnection implements Runnable {
             }
             catch (Exception ex)
             {
-                logger.error("ECS-MOVE-KV :: Failed to connect with KV pair receiver");
+                logger.error("Client-connection: " + "ECS-MOVE-KV :: Failed to connect with KV pair receiver");
             }
 
 
@@ -240,7 +245,7 @@ public class ClientConnection implements Runnable {
             }
             catch (Exception ex)
             {
-                logger.error("ECS-MOVE-KV:: Could not send ACK to ECS.");
+                logger.error("Client-connection: " + "ECS-MOVE-KV:: Could not send ACK to ECS.");
             }
 
             // delete the all of the files in the filtered list
@@ -250,7 +255,7 @@ public class ClientConnection implements Runnable {
                 //Uncomment after moveData works correctly
                 if(!filesToSend.get(i).delete())
                 {
-                    logger.error("ECS-MOVE-KV:: Could not delete: " + filesToSend.get(i).getName());
+                    logger.error("Client-connection: " + "ECS-MOVE-KV:: Could not delete: " + filesToSend.get(i).getName());
                 }
 
             }
@@ -280,7 +285,10 @@ public class ClientConnection implements Runnable {
 			int i = "ECS-METADATA-".length();
 			String host = "", port = "", startHash_g = "", startHash_p = "", endHash="";
 			TreeMap<BigInteger,Metadata> newMetadata = new TreeMap<>();
-			while(msg.charAt(i) != '\n'){
+      
+      logger.info("ECS message: " + msg);
+      
+			/*while(msg.charAt(i) != '\n'){
 				// get the host
 				while(msg.charAt(i) != ','){
 					host += msg.charAt(i);
@@ -318,7 +326,7 @@ public class ClientConnection implements Runnable {
 				startHash_g = "";
 				startHash_p = "";
 				endHash = "";
-			}
+			}*/
 			takeNewMetadata(newMetadata);
 		} else if(msg.contains("ECS-DISCONNECT")){
 			this.isOpen = false;
@@ -548,7 +556,6 @@ public class ClientConnection implements Runnable {
 				logger.info("acknowledgement sent, awaiting payload");
 				for (int i = 2; i<4; i++){
 					client_msgs[i] = this.receiveMessage().getMsg().trim();
-
 				}
 
 				if (client_msgs[2].contains("F")){
@@ -672,10 +679,10 @@ public class ClientConnection implements Runnable {
                     }
                 }
             } catch (Exception ex) {
-                logger.error("KV-update:: Error will writing kvpairs to file");
+                logger.error("Client-connection: " + "KV-update:: Error will writing kvpairs to file");
             }
         } catch (Exception ex) {
-            logger.error(ex);
+            logger.error("Client-connection: " + ex);
         }
 
     }
@@ -689,7 +696,7 @@ public class ClientConnection implements Runnable {
         try {
             this.sendMessage(resp, 4);
         } catch (Exception ex) {
-            logger.error(ex);
+            logger.error("Client-connection: " + ex);
         }
     }
 
