@@ -7,7 +7,7 @@ public interface ECSInterface {
 
     String addNode(int cacheSize, String strategy);
 
-    void removeNode(String host, int port) throws Exception;
+    void removeNode(String host, int port, boolean failed_test) throws Exception;
 
     void start();
 

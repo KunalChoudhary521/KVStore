@@ -26,6 +26,8 @@ public class ECS implements ECSInterface {
     private ArrayList<String> runningServers;//<IP:Port>
 	  private ServerSocket failureSocket;
 	  private FailureListener failureHandler;
+	public static String lastFailure = null;
+  public static String lastFailurePort = null;
 
     public ECS(boolean log)
     {
@@ -357,11 +359,22 @@ public class ECS implements ECSInterface {
 
 
             }
-            else//server in the first position or somewhere in the middle
+	else//server in the first position or somewhere in the middle
             {
                 nextServer = hashRing.higherEntry(currEndHash).getValue();
-                next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
-                next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
+                
+				if (!hashRing.lastKey().toString().equals(hashRing.higherKey(currEndHash).toString())){
+					next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+					if (!hashRing.lastKey().toString().equals(hashRing.higherKey(hashRing.higherKey(currEndHash)).toString())){
+						next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();	
+					}else{
+						next_next_nextServer=hashRing.firstEntry().getValue();
+					}
+				}else{
+					next_nextServer= hashRing.firstEntry().getValue();
+					next_next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
+				}
+                
 
                 temp.startHash_g = nextServer.startHash_g;
                 temp.startHash_p = nextServer.startHash_p;
@@ -371,7 +384,6 @@ public class ECS implements ECSInterface {
                 next_nextServer.startHash_g=temp.startHash_p;
                 next_next_nextServer.startHash_g = nextServer.startHash_p;
             }
-
             hashRing.put(currEndHash, temp);// put into the hash ring
         }
         catch (Exception ex)
@@ -516,9 +528,9 @@ public class ECS implements ECSInterface {
     }
 
     @Override
-    public void removeNode(String hostToRmv, int portToRmv) throws Exception//removing should not be random
+    public void removeNode(String hostToRmv, int portToRmv, boolean failed_test) throws Exception//removing should not be random
     {
-        if(runningServers.size() < 4)
+        if(runningServers.size() < 4&& failed_test == false)
         {
             logger.info("removeNode:: Only 3 servers currently running, cannot remove");
             throw new Exception("removeNode:: Only 3 servers currently running, cannot remove");
@@ -577,9 +589,10 @@ public class ECS implements ECSInterface {
     public void handleFailure(String host, int port){
       try{
         logger.info("ECS: adding a new node");
+		removeFromRing(host, port);
         String target = addNode(100, "LRU");        
         logger.info("ECS: removing a failed node");
-        removeNode(host, port);
+        
         start();
         String[] params = target.split(":");
         String thost = params[0];
@@ -821,16 +834,14 @@ class FailureHandler implements Runnable {
   private static final int BUFFER_SIZE = 1024;
   private static final int DROP_SIZE = 128 * BUFFER_SIZE;
   private ECS ecs;
-  private String lastFailure;
-  private String lastFailurePort;
+
   private boolean isStopped;
   
   public FailureHandler(ECS ecs, Socket socket, Logger logger){
     this.socket = socket;    
     this.logger = logger;
     this.ecs = ecs;
-    this.lastFailure = null;
-    this.lastFailurePort = null;
+   
     this.isStopped = false;
     logger.info("FailureHandler: I was created to handle a failure...");
   }
@@ -852,17 +863,17 @@ class FailureHandler implements Runnable {
     String port = replica[2];
     
     logger.info("FailureHandler: " + host + ":" + port);
-    logger.info("FailureHandler: " + lastFailure);
+    logger.info("FailureHandler: " + ECS.lastFailure);
     
-    if(this.lastFailure == null){
-      this.lastFailure = host.toString();
-      this.lastFailurePort = port.toString();
+    if(ECS.lastFailure == null){
+      ECS.lastFailure = host.toString();
+      ECS.lastFailurePort = port.toString();
       ecs.handleFailure(host, Integer.parseInt(port.trim()));
     } else {
-      if(!( host.equals(this.lastFailure)&&port.equals(this.lastFailurePort) ) ){
+      if(!( host.equals(ECS.lastFailure)&&port.equals(ECS.lastFailurePort) ) ){
         ecs.handleFailure(host, Integer.parseInt(port.trim()));
-        this.lastFailure = host;
-        this.lastFailurePort = port;
+        ECS.lastFailure = host;
+        ECS.lastFailurePort = port;
       } else {
         logger.info("FailureHandler: Already handled the last failure!");
       }
