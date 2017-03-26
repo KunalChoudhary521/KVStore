@@ -286,7 +286,7 @@ public class ClientConnection implements Runnable {
 			String host = "", port = "", startHash_g = "", startHash_p = "", endHash="";
 			TreeMap<BigInteger,Metadata> newMetadata = new TreeMap<>();
       
-      logger.info("ECS message: " + msg);
+      		logger.info("Client Connection: " + msg);
       
 			/*while(msg.charAt(i) != '\n'){
 				// get the host
