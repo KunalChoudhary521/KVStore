@@ -259,7 +259,7 @@ public class ECS implements ECSInterface {
     private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "rahmanz5", sshHost = "ug222.eecg.toronto.edu";//128.100.13.<>
+        String user = "milwidya", sshHost = "ug180.eecg.toronto.edu";//128.100.13.<>
         int sshPort = 22;
 
         mySsh.connectSsh(user,sshHost,sshPort);
@@ -348,6 +348,7 @@ public class ECS implements ECSInterface {
             {
                 nextServer = hashRing.firstEntry().getValue();
                 next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
+				
                 next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.firstKey())).getValue();
 
                 temp.startHash_g = nextServer.startHash_g;
@@ -364,8 +365,19 @@ public class ECS implements ECSInterface {
             else//server in the first position or somewhere in the middle
             {
                 nextServer = hashRing.higherEntry(currEndHash).getValue();
-                next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
-                next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
+                
+				if (!hashRing.lastKey().toString().equals(hashRing.higherKey(currEndHash).toString())){
+					next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+					if (!hashRing.lastKey().toString().equals(hashRing.higherKey(hashRing.higherKey(currEndHash)).toString())){
+						next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();	
+					}else{
+						next_next_nextServer=hashRing.firstEntry().getValue();
+					}
+				}else{
+					next_nextServer= hashRing.firstEntry().getValue();
+					next_next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
+				}
+                
 
                 temp.startHash_g = nextServer.startHash_g;
                 temp.startHash_p = nextServer.startHash_p;
