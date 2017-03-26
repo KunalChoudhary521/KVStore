@@ -36,7 +36,8 @@ public class heartbeat implements Runnable {
     @Override
     public void run() { 
       logger.info("heartbeat: setting up the heartbeat socket");
-    
+        while (this.host.equals("") || this.port == 0) {
+        }
       try {
         if (sock.isConnected()) {
             sock.close();
@@ -162,7 +163,28 @@ public class heartbeat implements Runnable {
     }
 
     public void update_rep_info(String host, int port) {
+        if (this.host.equals(host) && this.port == port) {
+            return;
+        }
+        if (this.sock.isConnected()) {
+            try {
+                this.sock.close();
+                this.input.close();
+                this.writeToSock.close();
+            } catch (Exception ex) {
+                logger.error("problems closing socket, line 174 of heartbeat.java");
+            }
+        }
         this.host = host;
         this.port = port;
+        try {
+            sock = new Socket(host, port);
+            writeToSock = sock.getOutputStream();
+            input = sock.getInputStream();
+        } catch (Exception ex) {
+            logger.error("problems openning socket, line 182 of heartbeat.java");
+        }
+
+
     }
 }
