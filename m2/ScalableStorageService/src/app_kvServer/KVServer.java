@@ -184,9 +184,20 @@ public class KVServer  {
 				List<String> items = Arrays.asList(line.split(","));
 				serverMetadata.put(new BigInteger(items.get(4),16),new Metadata(items.get(0), items.get(1), items.get(2), items.get(3), items.get(4)));//serverMetadata.add(new Metadata(items.get(0), items.get(1), items.get(2), items.get(3), items.get(4)));
 			}
+      
+      logger.info("KVServer: server-metadata-size "+this.serverMetadata.size());
+      
+      for (Map.Entry<BigInteger, Metadata> entry : this.serverMetadata.entrySet()) {
+        logger.info("KVServer: metadata key:" + entry.getKey().toString());
+        logger.info("KVServer: " + entry.getValue().startHash_g);
+        logger.info("KVServer: " + entry.getValue().startHash_p);
+        logger.info("KVServer: " + entry.getValue().endHash);
+        logger.info("KVServer: " + entry.getValue().host);
+        logger.info("KVServer: " + entry.getValue().port);
+      }
+      
 			reader.close();
 			in.close();
-			update_replicas();
 		} catch (Exception ex){
 			logger.info("KVServer: " + ex);
 		}
@@ -316,7 +327,7 @@ public class KVServer  {
 		Metadata firstServer = null;
 
 		//find "this" KVServer's metadata and set it
-		Collection<Metadata> met_col =serverMetadata.values();
+		Collection<Metadata> met_col = serverMetadata.values();
 		for(Metadata md: met_col){
 			///Metadata md = serverMetadata.get(i);
 
@@ -367,7 +378,16 @@ public class KVServer  {
     PrintWriter pw = new PrintWriter(sw);  
     
     try{
+      logger.info("KVServer: host-" + this.host + ", port-"+this.port);
+      
       logger.info("KVServer: updateReplicas");
+            
+      logger.info("KVServer: " + this.myMetadata.startHash_g);
+      logger.info("KVServer: " + this.myMetadata.startHash_p);
+      logger.info("KVServer: " + this.myMetadata.endHash);
+      logger.info("KVServer: " + this.myMetadata.host);
+      logger.info("KVServer: " + this.myMetadata.port);
+      
       BigInteger me = new BigInteger(this.myMetadata.endHash.getBytes());
         Metadata rep_1 = null;
       BigInteger rep_1k;
