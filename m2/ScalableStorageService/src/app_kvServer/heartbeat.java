@@ -21,42 +21,56 @@ public class heartbeat implements Runnable {
     private Socket sock;
     private int rep_num;
     private KVServer server;
-    public heartbeat(int rn, KVServer sv, Logger logger){
-        port =0;
-        host = "";
-        sock= null;
-        writeToSock=null;
-        input = null;
-        this.rep_num=rn;
-        this.server = sv;
-        this.logger = logger;
+    public heartbeat(int rn, KVServer sv, Logger logger, String host, int port){
+      sock= null;
+      writeToSock=null;
+      input = null;
+      this.rep_num=rn;
+      this.server = sv;
+      this.logger = logger;
+      this.host = host;
+      this.port = port;
     }
     @Override
-    public void run() {
-        while (true) {
-            try {
-                Thread.sleep(60000);
-                update_rep();
-                Thread.sleep(50);//possibly change
-                if(!get_resp().equals("Ack")){
-                    //Send a message to ECS that this heartbeat failed
-                    InetSocketAddress ecs;
-                    this.server.ECSAddressLock.lock();
-                      ecs = this.server.ECSAddress;
-                    this.server.ECSAddressLock.unlock();
-                    
-                    Socket ecsSock = new Socket(ecs.getAddress(), ecs.getPort());
-                    
-                    String message = "FAIL-"+this.sock.getLocalAddress().toString()+"-"
-                    +this.sock.getPort();
-                    byte[] msg = message.getBytes();
-
-                    ecsSock.getOutputStream().write(msg, 0, msg.length);                                        
-                }
-            }catch (Exception ex){
-              logger.error("heartbeat: " + "run");
-            }
+    public void run() { 
+      logger.info("heartbeat: setting up the heartbeat socket");
+    
+      try {
+        if (sock.isConnected()) {
+            sock.close();
         }
+        sock = new Socket(host, port);
+        writeToSock =  sock.getOutputStream();
+        input = sock.getInputStream();
+      }catch(Exception ex){
+          logger.error("heartbeat: " + "update");
+      }    
+    
+      while (true) {
+          try {
+              Thread.sleep(1000);
+              logger.info("heartbeat: wokeup, update_rep");
+              update_rep();
+              Thread.sleep(50);//possibly change
+              if(!get_resp().equals("Ack")){
+                //Send a message to ECS that this heartbeat failed
+                InetSocketAddress ecs;
+                this.server.ECSAddressLock.lock();
+                  ecs = this.server.ECSAddress;
+                this.server.ECSAddressLock.unlock();
+                
+                Socket ecsSock = new Socket(ecs.getAddress(), ecs.getPort());
+                
+                String message = "FAIL-"+this.sock.getLocalAddress().toString()+"-"
+                +this.sock.getPort();
+                byte[] msg = message.getBytes();
+
+                ecsSock.getOutputStream().write(msg, 0, msg.length);                                        
+              }
+          }catch (Exception ex){
+            logger.error("heartbeat: " + "run");
+          }
+      }
     }
     private String get_resp() throws IOException {
         int index = 0;
@@ -143,21 +157,5 @@ public class heartbeat implements Runnable {
         }
         this.server.to_update_with[rep_num] = "";
         this.server.to_update_with_lock[rep_num].unlock();
-    }
-    public void update(int np, String nh){
-        if (this.port != np || !this.host.equalsIgnoreCase(nh)){
-            try {
-                if (sock.isConnected()) {
-                    sock.close();
-                }
-                this.port = np;
-                this.host = nh;
-                sock = new Socket(host, port);
-                writeToSock =  sock.getOutputStream();
-                input = sock.getInputStream();
-            }catch(Exception ex){
-                logger.error("heartbeat: " + "update");
-            }
-        }
     }
 }

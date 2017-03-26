@@ -54,6 +54,7 @@ public class ClientConnection implements Runnable {
 
 			while(isOpen) {
 				try {
+          logger.info("client-connection: trying to receive next message");
 					TextMessage latestMsg = receiveMessage();
 					logger.info("client sent" + latestMsg.getMsg());
 					if (latestMsg.getMsg().trim().charAt(0)== 'P') {

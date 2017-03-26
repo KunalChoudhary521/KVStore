@@ -79,8 +79,6 @@ public class KVServer  {
     
 		ECSAddressLock = new ReentrantLock();
 		amIFirstServerInRing = false;
-		hb1 = new heartbeat(1,this, logger);
-		hb2 = new heartbeat(1,this, logger);
 
 		String currPath = System.getProperty("user.dir");
 
@@ -359,30 +357,53 @@ public class KVServer  {
 		this.serverMetadata = newMetadata;
 		updateMetadata();
 		metadataUnlock();
-		//update_replicas();
+		update_replicas();
 	}
 
 	private void update_replicas(){
-    logger.info("KVServer: updateReplicas");
-		BigInteger me = new BigInteger(this.myMetadata.endHash.getBytes());
-		Metadata rep_1;
-		BigInteger rep_1k;
-		Metadata rep_2;
-		if (this.serverMetadata.lastKey() == me){
-			rep_1 = this.serverMetadata.firstEntry().getValue();
-			rep_1k=this.serverMetadata.firstKey();
-		}else{
-			rep_1 = this.serverMetadata.higherEntry(me).getValue();
-			rep_1k = this.serverMetadata.higherKey(me);
-		}
-		if (this.serverMetadata.lowerKey(this.serverMetadata.lastKey())== me){
-			rep_2 = this.serverMetadata.firstEntry().getValue();
-		}
-		else{
-			rep_2 = this.serverMetadata.higherEntry(rep_1k).getValue();
-		}
-		hb1.update(Integer.parseInt(rep_1.port), rep_1.host);
-		hb2.update(Integer.parseInt(rep_2.port), rep_2.host);
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);  
+    
+    try{
+      logger.info("KVServer: updateReplicas");
+      BigInteger me = new BigInteger(this.myMetadata.endHash.getBytes());
+      Metadata rep_1;
+      BigInteger rep_1k;
+      Metadata rep_2;       
+      
+      logger.info("KVServer: update_replicas my hash " + me.toString());
+      
+      for (Map.Entry<BigInteger, Metadata> entry : this.serverMetadata.entrySet()) {
+        logger.info("KVServer: metadata key:" + entry.getKey().toString());
+      }
+
+      if(this.serverMetadata.size() > 1){
+        if (this.serverMetadata.lastKey() == me){
+          rep_1 = this.serverMetadata.firstEntry().getValue();
+          rep_1k=this.serverMetadata.firstKey();
+        }else{
+          rep_1 = this.serverMetadata.higherEntry(me).getValue();
+          rep_1k = this.serverMetadata.higherKey(me);
+        }
+
+        if(this.serverMetadata.size() > 2){
+          if (this.serverMetadata.lowerKey(this.serverMetadata.lastKey())== me){
+            rep_2 = this.serverMetadata.firstEntry().getValue();
+          }
+          else{
+            rep_2 = this.serverMetadata.higherEntry(rep_1k).getValue();
+          }
+        }
+      }
+    } catch (Exception ex){
+      ex.printStackTrace(pw);      
+      logger.info("KVServer: problem with update_replicas " + sw.toString());
+    }        
+    
+    //hb1 = new heartbeat(1,this, logger, rep_1.host, Integer.parseInt(rep_1.port));
+		//hb2 = new heartbeat(1,this, logger, rep_2.host, Integer.parseInt(rep_2.port));
+    //new Thread(hb1).start();
+    //new Thread(hb2).start();
 	}
 
 	public boolean isResponsible(String clientHash, String caller)
