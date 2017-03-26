@@ -20,8 +20,10 @@ public class KVServer  {
     public boolean isStarted;
     public String[] to_update_with;
     public boolean isReadOnly;
-    ReentrantLock[] to_update_with_lock;
-    ReentrantLock metaDataLock;
+	public InetSocketAddress ECSAddress;
+	public ReentrantLock ECSAddressLock;
+	ReentrantLock[] to_update_with_lock;
+	ReentrantLock metaDataLock;
   /**
 	 * Start KV Server at given port
 	 * @param port given port for storage server to operate
@@ -58,9 +60,6 @@ public class KVServer  {
 	private KVCache cache;
 	private ArrayList<Socket> socketArray;
 	
-	public InetSocketAddress ECSAddress;
-	public ReentrantLock ECSAddressLock;
-	
 	public KVServer(String host, int port, int cSize, String strat, boolean log) {
 		this.host = host;
 		this.port = port;
@@ -76,7 +75,10 @@ public class KVServer  {
     to_update_with_lock = new ReentrantLock[2];
 		to_update_with_lock[0] = new ReentrantLock();
     to_update_with_lock[1] = new ReentrantLock();
-    
+		hb1 = new heartbeat(1, this, logger);//, rep_1.host, Integer.parseInt(rep_1.port));
+		hb2 = new heartbeat(1, this, logger);//, rep_2.host, Integer.parseInt(rep_2.port));
+		new Thread(hb1).start();
+		new Thread(hb2).start();
 		ECSAddressLock = new ReentrantLock();
 		amIFirstServerInRing = false;
 
@@ -401,12 +403,14 @@ public class KVServer  {
           }
         }
       }
-    } catch (Exception ex){
-      ex.printStackTrace(pw);      
+		hb1.update_rep_info(rep_1.host, Integer.parseInt(rep_1.port));
+		hb2.update_rep_info(rep_2.host, Integer.parseInt(rep_2.port));
+	} catch (Exception ex) {
+		ex.printStackTrace(pw);
       logger.info("KVServer: problem with update_replicas " + sw.toString());
-    }        
-    
-    //hb1 = new heartbeat(1,this, logger, rep_1.host, Integer.parseInt(rep_1.port));
+	}
+
+		//hb1 = new heartbeat(1,this, logger, rep_1.host, Integer.parseInt(rep_1.port));
 		//hb2 = new heartbeat(1,this, logger, rep_2.host, Integer.parseInt(rep_2.port));
     //new Thread(hb1).start();
     //new Thread(hb2).start();

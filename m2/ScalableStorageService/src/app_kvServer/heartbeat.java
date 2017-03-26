@@ -5,7 +5,8 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 
 /**
  * Created by yy on 2017-03-21.
@@ -21,15 +22,16 @@ public class heartbeat implements Runnable {
     private Socket sock;
     private int rep_num;
     private KVServer server;
-    public heartbeat(int rn, KVServer sv, Logger logger, String host, int port){
+
+    public heartbeat(int rn, KVServer sv, Logger logger) {
       sock= null;
       writeToSock=null;
       input = null;
       this.rep_num=rn;
       this.server = sv;
-      this.logger = logger;
-      this.host = host;
-      this.port = port;
+        heartbeat.logger = logger;
+        this.host = "";
+        this.port = 0;
     }
     @Override
     public void run() { 
@@ -157,5 +159,10 @@ public class heartbeat implements Runnable {
         }
         this.server.to_update_with[rep_num] = "";
         this.server.to_update_with_lock[rep_num].unlock();
+    }
+
+    public void update_rep_info(String host, int port) {
+        this.host = host;
+        this.port = port;
     }
 }
