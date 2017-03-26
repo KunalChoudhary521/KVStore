@@ -139,6 +139,13 @@ public class ECS implements ECSInterface {
         {
             sshServer(entry.getValue().host,Integer.parseInt(entry.getValue().port),cSize,strat,this.log);//start
             // via SSH
+            
+            try{
+              Thread.sleep(3000);
+            } catch(Exception ex){
+              logger.error("addNode: sleep-exception");
+            }
+            
             temp = entry.getValue();
             //runLocalServer(temp.host,Integer.parseInt(temp.port),cSize,strat);//testing locally
             stopKVServer(temp.host,Integer.parseInt(temp.port));//send stop message(disallow get & put)
@@ -319,16 +326,26 @@ public class ECS implements ECSInterface {
                 else//server in the first position or somewhere in the middle
                 {
                     nextServer = hashRing.higherEntry(currEndHash).getValue();
-                    next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
-                    next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
+                    
+                    try{
+                        next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+                        next_nextServer.startHash_g=temp.startHash_p;
+                        nextServer.startHash_g=next_nextServer.startHash_g;                    
+                    } catch (Exception ex){
+                      logger.error("ECS: " + ex.getMessage());
+                    }
+                    
+                    try{
+                        next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
+                        next_next_nextServer.startHash_g = nextServer.startHash_p;
+                    } catch (Exception ex){
+                      logger.error("ECS: " + ex.getMessage());
+                    }                    
 
                     temp.startHash_g = nextServer.startHash_g;
                     temp.startHash_p = nextServer.startHash_p;
 
-                    nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);
-                    nextServer.startHash_g=next_nextServer.startHash_g;
-                    next_nextServer.startHash_g=temp.startHash_p;
-                    next_next_nextServer.startHash_g = nextServer.startHash_p;
+                    nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);                    
                 }
             }
             else if(hashRing.containsKey(currEndHash))
@@ -372,7 +389,7 @@ public class ECS implements ECSInterface {
         catch (Exception ex)
         {
             logger.error("addToRing:: Failed to add Server" + host + ":" + port + " to the Ring");
-            //ex.printStackTrace();
+            ex.printStackTrace();
         }
     }
 
@@ -416,12 +433,17 @@ public class ECS implements ECSInterface {
         if((newServerIP == null) || (newServerPort < 0))//unable to find an available server to run
         {
             return null;
-        }
-
+        }      
 
         sshServer(newServerIP, newServerPort, cacheSize, strategy,log);//start via SSH
         //runLocalServer(newServerIP, newServerPort, cacheSize, strategy);//for testing
 
+        try{
+          Thread.sleep(3000);
+        } catch(Exception ex){
+          logger.error("addNode: sleep-exception");
+        }
+        
         startKVServer(newServerIP,newServerPort);//send start message(allow get & put)
 
         lockWrite(newServerIP, newServerPort);

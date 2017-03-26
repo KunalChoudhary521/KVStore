@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 
 /**
- * Represents a connection end point for a particular client that is 
+ * Represents a connection end point for a particular client that is 
  * connected to the server. This class is responsible for message reception 
  * and sending. 
  * The class also implements the echo functionality. Thus whenever a message 
@@ -112,7 +112,7 @@ public class ClientConnection implements Runnable {
 					}
 					isOpen = false;
 				}catch (Exception ex){
-					logger.error("Client-connection: " + ex.getMessage());
+					logger.error("Client-connection: " + "run-function-socket-error " + ex.getMessage());
 				}
 			}
 
@@ -286,55 +286,47 @@ public class ClientConnection implements Runnable {
 			String host = "", port = "", startHash_g = "", startHash_p = "", endHash="";
 			TreeMap<BigInteger,Metadata> newMetadata = new TreeMap<>();
 
-      		while(i < msg.length()){
-				// get the host
-				while(msg.charAt(i) != ','){
-					host += msg.charAt(i);
-					i++;
-				}
-				i++; //move past comma
-				// get the port
-				while(msg.charAt(i) != ','){
-					port += msg.charAt(i);
-					i++;
-				}
-				i++; //move past comma
-				// get the host
-				while(msg.charAt(i) != ','){
-					startHash_g += msg.charAt(i);
-					i++;
-				}
-				i++; //move past comma
-
-				while(msg.charAt(i) != '-' && msg.charAt(i) != '\n'){
-					startHash_p += msg.charAt(i);
-					i++;
-				}
-				i++;
-				while(msg.charAt(i) != '-' && msg.charAt(i) != '\n'){
-					endHash += msg.charAt(i);
-					i++;
-				}
-				if(msg.charAt(i) == '-') {
-					i++;
-				}
-				logger.info("Client Connection: " + host);
-				logger.info("Client Connection: " + port;
-				logger.info("Client Connection: " + startHash_g);
-				logger.info("Client Connection: " + startHash_p);
-				logger.info("Client Connection: " + endHash);
-				newMetadata.put(new BigInteger(endHash),new Metadata(host,port,startHash_g,startHash_p,endHash));
-				host = "";
-				port = "";
-				startHash_g = "";
-				startHash_p = "";
-				endHash = "";
-			}
+      String m = msg.substring(i, msg.length());
+      logger.info("Client-metadata-list: " + m);
+           
+      if(m.contains("-")){
+        // multiple metadata entries        
+        String[] metadataEntries = m.split("-");
+        for(int k = 0; k < metadataEntries.length; k++){
+          logger.info("Metadata-entry: " + metadataEntries[k]);
+          String[] items = metadataEntries[k].split(",");
+          host = items[0];
+          port = items[1];
+          startHash_g = items[2];
+          startHash_p = items[3];
+          endHash = items[4];          
+          newMetadata.put(new BigInteger(endHash.getBytes()),new Metadata(host,port,startHash_g,startHash_p,endHash));
+          
+        }
+      } else {
+        // only one metadata entry
+        String[] items = m.split(",");
+        host = items[0];
+        port = items[1];
+        startHash_g = items[2];
+        startHash_p = items[3];
+        endHash = items[4];
+        logger.info("Metadata-entry: " + items[0]);
+        logger.info("Metadata-entry: " + items[1]);
+        logger.info("Metadata-entry: " + items[2]);
+        logger.info("Metadata-entry: " + items[3]);
+        logger.info("Metadata-entry: " + items[4]);
+        newMetadata.put(new BigInteger(endHash.getBytes()),new Metadata(host,port,startHash_g,startHash_p,endHash));
+      }           
+      
+      logger.info("client-connection: received new metadata");
+      
 			takeNewMetadata(newMetadata);
 		} else if(msg.contains("ECS-DISCONNECT")){
 			this.isOpen = false;
 		}
 		if(this.isOpen) {
+      logger.info("client-connection: sending ecs an ack");
 			sendECSAck();
 		}
 	}
@@ -349,7 +341,7 @@ public class ClientConnection implements Runnable {
 			this.sendMessage(ack, ack.length);
 		}
 		catch (Exception ex){
-			logger.info(ex);
+			logger.info("Client-connection: "+ "sendECSAck");
 		}
 	}
 
@@ -614,8 +606,9 @@ public class ClientConnection implements Runnable {
 
 
 				///
+        logger.info("KVServer: put success, update replicas");
 				if (fileSuccess == 1){
-				    this.server.update_outstanding_update("<entry key=\""+client_msgs[0]+"\">"+client_msgs[3]+"</entry>");
+				  //this.server.update_outstanding_update("<entry key=\""+client_msgs[0]+"\">"+client_msgs[3]+"</entry>");
 					byte [] ack = new byte[2];
 					ack[0] = (byte) 'S';
 					ack[1] = (byte) 0;
@@ -685,7 +678,7 @@ public class ClientConnection implements Runnable {
                 logger.error("Client-connection: " + "KV-update:: Error will writing kvpairs to file");
             }
         } catch (Exception ex) {
-            logger.error("Client-connection: " + ex);
+            logger.error("Client-connection: " + "handle-heartbeat-update");
         }
 
     }
@@ -699,7 +692,7 @@ public class ClientConnection implements Runnable {
         try {
             this.sendMessage(resp, 4);
         } catch (Exception ex) {
-            logger.error("Client-connection: " + ex);
+            logger.error("Client-connection: " + "heartbeat-ack");
         }
     }
 

@@ -307,6 +307,7 @@ public class KVServer  {
 	}
 
 	public void updateMetadata(){
+    logger.info("KVServer: updateMetadata");
 		String a = socket.getInetAddress().toString();
 		metadataLock();
 		Metadata firstServer = null;
@@ -350,15 +351,17 @@ public class KVServer  {
 	}
 
 	public void takeNewMetadata(TreeMap<BigInteger,Metadata> newMetadata) {
+    logger.info("KVServer: takeNewMetadata");
 		metadataLock();
 		this.serverMetadata = newMetadata;
 		updateMetadata();
 		metadataUnlock();
-		update_replicas();
+		//update_replicas();
 	}
 
 	private void update_replicas(){
-		BigInteger me = new BigInteger(this.myMetadata.endHash);
+    logger.info("KVServer: updateReplicas");
+		BigInteger me = new BigInteger(this.myMetadata.endHash.getBytes());
 		Metadata rep_1;
 		BigInteger rep_1k;
 		Metadata rep_2;
@@ -445,8 +448,7 @@ public class KVServer  {
 			if(!this.to_update_with[i].isEmpty()){
 				this.to_update_with[i] += ",";
 			}
-
-            this.to_update_with[i] += new_val;
+      this.to_update_with[i] += new_val;
 			this.to_update_with_lock[i].unlock();
 		}
 	}

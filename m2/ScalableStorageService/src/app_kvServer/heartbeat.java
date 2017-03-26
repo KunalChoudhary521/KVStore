@@ -53,7 +53,7 @@ public class heartbeat implements Runnable {
                     ecsSock.getOutputStream().write(msg, 0, msg.length);                                        
                 }
             }catch (Exception ex){
-
+              logger.error("heartbeat: " + "run");
             }
         }
     }
@@ -137,7 +137,7 @@ public class heartbeat implements Runnable {
             writeToSock.write(kvPairBArray, 0, kvPairBArray.length);
             writeToSock.flush();
         }catch (Exception ex){
-            logger.error(ex);
+            logger.error("heartbeat: " + "update_rep");
         }
         this.server.to_update_with[rep_num] = "";
         this.server.to_update_with_lock[rep_num].unlock();
@@ -154,7 +154,7 @@ public class heartbeat implements Runnable {
                 writeToSock =  sock.getOutputStream();
                 input = sock.getInputStream();
             }catch(Exception ex){
-                logger.error(ex);
+                logger.error("heartbeat: " + "update");
             }
         }
     }
