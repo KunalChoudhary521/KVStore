@@ -285,17 +285,15 @@ public class ClientConnection implements Runnable {
 			int i = "ECS-METADATA-".length();
 			String host = "", port = "", startHash_g = "", startHash_p = "", endHash="";
 			TreeMap<BigInteger,Metadata> newMetadata = new TreeMap<>();
-      
-      		logger.info("Client Connection: " + msg);
-      
-			/*while(msg.charAt(i) != '\n'){
+
+      		while(i < msg.length()){
 				// get the host
 				while(msg.charAt(i) != ','){
 					host += msg.charAt(i);
 					i++;
 				}
 				i++; //move past comma
-				// get the host
+				// get the port
 				while(msg.charAt(i) != ','){
 					port += msg.charAt(i);
 					i++;
@@ -326,7 +324,7 @@ public class ClientConnection implements Runnable {
 				startHash_g = "";
 				startHash_p = "";
 				endHash = "";
-			}*/
+			}
 			takeNewMetadata(newMetadata);
 		} else if(msg.contains("ECS-DISCONNECT")){
 			this.isOpen = false;
