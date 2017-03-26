@@ -378,19 +378,25 @@ public class KVServer  {
       }
 
       if(this.serverMetadata.size() > 1){
-        if (this.serverMetadata.lastKey() == me){
+		  logger.info("last" +this.serverMetadata.lastKey().toString());
+        if (this.serverMetadata.lastKey().toString().equals(me.toString())){
+	logger.info("I'm the last");
           rep_1 = this.serverMetadata.firstEntry().getValue();
           rep_1k=this.serverMetadata.firstKey();
         }else{
+	logger.info("I'm not the last");
           rep_1 = this.serverMetadata.higherEntry(me).getValue();
           rep_1k = this.serverMetadata.higherKey(me);
         }
 
         if(this.serverMetadata.size() > 2){
-          if (this.serverMetadata.lowerKey(this.serverMetadata.lastKey())== me){
-            rep_2 = this.serverMetadata.firstEntry().getValue();
+			logger.info("last" +this.serverMetadata.lowerKey(this.serverMetadata.lastKey()).toString());
+          if (this.serverMetadata.lowerKey(this.serverMetadata.lastKey()).toString().equals(me.toString())){
+            logger.info("I'm second last");
+		rep_2 = this.serverMetadata.firstEntry().getValue();
           }
           else{
+		logger.info("I'm not second last");
             rep_2 = this.serverMetadata.higherEntry(rep_1k).getValue();
           }
         }
