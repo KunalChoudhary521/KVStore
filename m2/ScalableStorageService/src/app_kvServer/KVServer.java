@@ -16,12 +16,11 @@ import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class KVServer  {
-    private static Logger logger = Logger.getRootLogger();
-    public boolean isStarted;
-    public String[] to_update_with;
-    public boolean isReadOnly;
+  private static Logger logger = Logger.getRootLogger();
+  public boolean isStarted;
+  public String[] to_update_with;
+  public boolean isReadOnly;
 	public InetSocketAddress ECSAddress;
-	public ReentrantLock ECSAddressLock;
 	ReentrantLock[] to_update_with_lock;
 	ReentrantLock metaDataLock;
   /**
@@ -35,7 +34,7 @@ public class KVServer  {
    *           and "LFU".
    */
 
-    private int port;
+  private int port;
 	private int cacheSize;
 	private String strategy;
 	private boolean isRunning;
@@ -50,6 +49,8 @@ public class KVServer  {
 	private Socket rep_2sock;
 	private heartbeat hb1;
 	private heartbeat hb2;
+  private boolean hasStartedReplicas;
+  
 	// metadata logic
 	private Metadata myMetadata;
 	private TreeMap<BigInteger, Metadata> serverMetadata;//private ArrayList<Metadata> serverMetadata;
@@ -75,11 +76,11 @@ public class KVServer  {
     to_update_with_lock = new ReentrantLock[2];
 		to_update_with_lock[0] = new ReentrantLock();
     to_update_with_lock[1] = new ReentrantLock();
-		hb1 = new heartbeat(1, this, logger);//, rep_1.host, Integer.parseInt(rep_1.port));
-		hb2 = new heartbeat(1, this, logger);//, rep_2.host, Integer.parseInt(rep_2.port));
-		new Thread(hb1).start();
-		new Thread(hb2).start();
-		ECSAddressLock = new ReentrantLock();
+		hb1 = new heartbeat(0, this, logger);
+		hb2 = new heartbeat(1, this, logger);
+    hasStartedReplicas = false;
+    
+    ECSAddress = null;
 		amIFirstServerInRing = false;
 
 		String currPath = System.getProperty("user.dir");
@@ -263,7 +264,7 @@ public class KVServer  {
 			InetSocketAddress address = new InetSocketAddress(host, port);
 			socket = new ServerSocket();
 			socket.setReuseAddress(true);
-			socket.bind(address,0);//new ServerSocket(port, 0, address);
+			socket.bind(address, 0);//new ServerSocket(port, 0, address);
 			logger.info("KVServer: " + "Server listening on " + address.toString()
                     +":" +  socket.getLocalPort());
 
@@ -425,15 +426,19 @@ public class KVServer  {
       }
 		hb1.update_rep_info(rep_1.host, Integer.parseInt(rep_1.port));
 		hb2.update_rep_info(rep_2.host, Integer.parseInt(rep_2.port));
+    
+    if(hasStartedReplicas == false){
+      new Thread(hb1).start();
+      new Thread(hb2).start();
+    } else {
+      hasStartedReplicas = true;
+    }    
+    
 	} catch (Exception ex) {
 		ex.printStackTrace(pw);
       logger.info("KVServer: problem with update_replicas " + sw.toString());
 	}
 
-		//hb1 = new heartbeat(1,this, logger, rep_1.host, Integer.parseInt(rep_1.port));
-		//hb2 = new heartbeat(1,this, logger, rep_2.host, Integer.parseInt(rep_2.port));
-    //new Thread(hb1).start();
-    //new Thread(hb2).start();
 	}
 
 	public boolean isResponsible(String clientHash, String caller)

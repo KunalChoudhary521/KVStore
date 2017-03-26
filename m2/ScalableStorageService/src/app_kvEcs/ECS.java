@@ -34,7 +34,8 @@ public class ECS implements ECSInterface {
         hashRing = new TreeMap<>();
         runningServers = new ArrayList<>();
 		
-        this.listenForFailures();
+        failureHandler = new FailureListener(this, 8000, logger);
+        new Thread(failureHandler).start();
     }
 	
     public static void main(String[] args) {
@@ -68,11 +69,6 @@ public class ECS implements ECSInterface {
         } catch (Exception ex) {
             logger.error(ex);
         }
-    }
-
-    private void listenForFailures() {
-        failureHandler = new FailureListener(8000, logger);
-        new Thread(failureHandler).start();
     }
 
     public ArrayList<String> getRunningServers()
@@ -259,7 +255,7 @@ public class ECS implements ECSInterface {
     private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "milwidya", sshHost = "ug180.eecg.toronto.edu";//128.100.13.<>
+        String user = "rahmanz5", sshHost = "ug222.eecg.toronto.edu";//128.100.13.<>
         int sshPort = 22;
 
         mySsh.connectSsh(user,sshHost,sshPort);
@@ -348,7 +344,6 @@ public class ECS implements ECSInterface {
             {
                 nextServer = hashRing.firstEntry().getValue();
                 next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
-				
                 next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.firstKey())).getValue();
 
                 temp.startHash_g = nextServer.startHash_g;
@@ -365,19 +360,8 @@ public class ECS implements ECSInterface {
             else//server in the first position or somewhere in the middle
             {
                 nextServer = hashRing.higherEntry(currEndHash).getValue();
-                
-				if (!hashRing.lastKey().toString().equals(hashRing.higherKey(currEndHash).toString())){
-					next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
-					if (!hashRing.lastKey().toString().equals(hashRing.higherKey(hashRing.higherKey(currEndHash)).toString())){
-						next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();	
-					}else{
-						next_next_nextServer=hashRing.firstEntry().getValue();
-					}
-				}else{
-					next_nextServer= hashRing.firstEntry().getValue();
-					next_next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
-				}
-                
+                next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+                next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
 
                 temp.startHash_g = nextServer.startHash_g;
                 temp.startHash_p = nextServer.startHash_p;
@@ -589,6 +573,22 @@ public class ECS implements ECSInterface {
         updateConfigFile();//mark removed server as available
 
     }
+    
+    public void handleFailure(String host, int port){
+      try{
+        logger.info("ECS: adding a new node");
+        String target = addNode(100, "LRU");        
+        logger.info("ECS: removing a failed node");
+        removeNode(host, port);
+        start();
+        String[] params = target.split(":");
+        String thost = params[0];
+        String tport = params[1];
+        unlockWrite(thost, tport);
+      } catch(Exception ex){
+        logger.error("ECS: " + ex.getMessage());
+      }
+    }
 
     public void startKVServer(String host, int port)
     {
@@ -645,7 +645,7 @@ public class ECS implements ECSInterface {
             temp = entry.getValue();
             shutDownKVServer(temp.host,Integer.parseInt(temp.port));//terminate all KVServer instances
         }
-        updateConfigFile();//mark removed server as available
+        updateConfigFile();//mark removed server as available        
     }
 
     public void shutDownKVServer(String host, int port)
@@ -655,7 +655,6 @@ public class ECS implements ECSInterface {
         sendViaTCP(host, port, byteMsg);
 
         runningServers.remove(host + ":" + port);
-        this.failureHandler.CloseListener();
     }
 
     @Override
@@ -737,7 +736,7 @@ public class ECS implements ECSInterface {
      */
     public void sendViaTCP(String host, int port, byte[] data)
     {
-        try {
+        try {          
             this.ecsSocket = new Socket(host, port);//KVServer must be ready before ECS sends data
             OutputStream writeToSock = this.ecsSocket.getOutputStream();
             InputStream input = this.ecsSocket.getInputStream();
@@ -770,24 +769,21 @@ public class ECS implements ECSInterface {
 }
 
 class FailureListener implements Runnable {
-
-    private static final int BUFFER_SIZE = 1024;
-    private static final int DROP_SIZE = 128 * BUFFER_SIZE;
-    ServerSocket failureSocket;
-	private Logger logger;
-  private InputStream input;
-  private OutputStream output;
+  ServerSocket failureSocket;
+  private Logger logger;
+  private ECS ecs;
 	
-	public FailureListener(int port, Logger logger){
+	public FailureListener(ECS ecs, int port, Logger logger){
+    this.ecs = ecs;
 		try{
-      InetSocketAddress address = new InetSocketAddress(InetAddress.getLocalHost(), port);
+      InetSocketAddress address = new InetSocketAddress("localhost", port);
       failureSocket = new ServerSocket();
       failureSocket.bind(address, 0);
       this.logger = logger;
       this.logger.info("Listening for failures on " + address.toString() 
       + ":" + failureSocket.getLocalPort());      
     } catch(Exception ex){
-      logger.error(ex.getMessage());
+      logger.error("FailureListener: " + ex.getMessage());
     }
      
 	}
@@ -795,31 +791,85 @@ class FailureListener implements Runnable {
 	public void run(){
 	  try{
       while(true){
-        try{
-          Socket client = failureSocket.accept();
-          try{           
-            input = client.getInputStream();
-            TextMessage latestMsg = receiveMessage();        
-            logger.info("received: " + latestMsg.getMsg()); 
-          } catch(Exception ex){
-            logger.error(ex.getMessage());
-          }
+        try{          
+          Socket primaryReplica = failureSocket.accept();          
+          FailureHandler handler = new FailureHandler(ecs, primaryReplica, logger);          
+					new Thread(handler).start();                    
         }catch(Exception e){
-          //logger.error(e.getMessage());
+          logger.error("FailureListener: creating a failure handler" + e.getMessage());
         }
       }
 	  } catch(Exception ex)  {
-			logger.error(ex.getMessage());      
+			logger.error("FailureListener: failure in the while loop" + ex.getMessage());      
 	  }
 	}
 
 	public void CloseListener(){
     try{
       this.failureSocket.close();  
-    } catch (Exception ex){		
+    } catch (Exception ex){
+      logger.error("FailureListener: closing the listener " + ex.getMessage());
     }
-	}
+	} 
+}
+
+class FailureHandler implements Runnable {
+  Socket socket;
+  private InputStream input;
+  private OutputStream output;
+  private Logger logger;
+  private static final int BUFFER_SIZE = 1024;
+  private static final int DROP_SIZE = 128 * BUFFER_SIZE;
+  private ECS ecs;
+  private String lastFailure;
+  private String lastFailurePort;
+  private boolean isStopped;
   
+  public FailureHandler(ECS ecs, Socket socket, Logger logger){
+    this.socket = socket;    
+    this.logger = logger;
+    this.ecs = ecs;
+    this.lastFailure = null;
+    this.lastFailurePort = null;
+    this.isStopped = false;
+    logger.info("FailureHandler: I was created to handle a failure...");
+  }
+  
+  public void run(){
+    TextMessage latestMsg = null;
+    try{           
+      input = socket.getInputStream();
+      logger.info("FailureHandler: I am trying to receive a message...");
+      latestMsg = receiveMessage();        
+      logger.info("received: " + latestMsg.getMsg());
+      this.isStopped = true;            
+    } catch(Exception ex){
+      logger.error("FailureHandler: " + ex.getMessage());
+    }
+  
+    String[] replica = latestMsg.getMsg().split("-");
+    String host = replica[1];
+    String port = replica[2];
+    
+    logger.info("FailureHandler: " + host + ":" + port);
+    logger.info("FailureHandler: " + lastFailure);
+    
+    if(this.lastFailure == null){
+      this.lastFailure = host.toString();
+      this.lastFailurePort = port.toString();
+      ecs.handleFailure(host, Integer.parseInt(port.trim()));
+    } else {
+      if(!( host.equals(this.lastFailure)&&port.equals(this.lastFailurePort) ) ){
+        ecs.handleFailure(host, Integer.parseInt(port.trim()));
+        this.lastFailure = host;
+        this.lastFailurePort = port;
+      } else {
+        logger.info("FailureHandler: Already handled the last failure!");
+      }
+    }
+    
+  }
+
   private TextMessage receiveMessage() throws IOException {
 		
 		int index = 0;
@@ -830,7 +880,7 @@ class FailureListener implements Runnable {
 		byte read = (byte) input.read();	
 		boolean reading = true;
 		
-		while(read != 0 && reading) {/* carriage return */
+		while(read != 0 && reading && !isStopped) {/* carriage return */
 			/* if buffer filled, copy to msg array */
 			if(index == BUFFER_SIZE) {
 				if(msgBytes == null){
@@ -878,5 +928,5 @@ class FailureListener implements Runnable {
 		TextMessage msg = new TextMessage(msgBytes);
 		logger.info("Receive message:\t '" + msg.getMsg() + "'");
 		return msg;
-  }
+  }  
 }

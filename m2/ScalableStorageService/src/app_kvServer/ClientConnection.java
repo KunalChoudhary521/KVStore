@@ -136,9 +136,11 @@ public class ClientConnection implements Runnable {
 
 	private void handle_ecs(String msg) {
 		
-		this.server.ECSAddressLock.lock();
+		if(this.server.ECSAddress == null){
+      logger.info("client-connection: acquired ecs address lock");
 			this.server.ECSAddress = (InetSocketAddress)this.clientSocket.getRemoteSocketAddress();
-		this.server.ECSAddressLock.unlock();
+      logger.info("client-connection: releasing ecs address lock");
+    }		
 		
 		if(msg.contains("ECS-LOCKWRITE")){ //can only read
 			this.server.isReadOnly = true;

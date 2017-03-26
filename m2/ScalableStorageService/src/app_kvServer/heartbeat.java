@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.net.*;
 
 /**
  * Created by yy on 2017-03-21.
@@ -31,44 +31,46 @@ public class heartbeat implements Runnable {
       this.server = sv;
         heartbeat.logger = logger;
         this.host = "";
-        this.port = 0;
+        this.port = -1;
     }
     @Override
     public void run() { 
       logger.info("heartbeat: setting up the heartbeat socket");
-        while (this.host.equals("") || this.port == 0) {
-        }
-      try {
-        if (sock.isConnected()) {
-            sock.close();
-        }
-        sock = new Socket(host, port);
-        writeToSock =  sock.getOutputStream();
-        input = sock.getInputStream();
-      }catch(Exception ex){
-          logger.error("heartbeat: " + "update");
-      }    
     
       while (true) {
           try {
-              Thread.sleep(1000);
-              logger.info("heartbeat: wokeup, update_rep");
+              Thread.sleep(10000);
               update_rep();
-              Thread.sleep(50);//possibly change
-              if(!get_resp().equals("Ack")){
-                //Send a message to ECS that this heartbeat failed
-                InetSocketAddress ecs;
-                this.server.ECSAddressLock.lock();
+              Thread.sleep(1000);//possibly change
+              if(this.server.ECSAddress != null){
+                if(get_resp() == null){
+                  //Send a message to ECS that this heartbeat failed
+                  
+                  logger.info("heartbeat: replica " + this.host + " , " + this.port + " is not responding. Notify ECS.");
+                                  
+                  InetSocketAddress ecs;
+                  
                   ecs = this.server.ECSAddress;
-                this.server.ECSAddressLock.unlock();
-                
-                Socket ecsSock = new Socket(ecs.getAddress(), ecs.getPort());
-                
-                String message = "FAIL-"+this.sock.getLocalAddress().toString()+"-"
-                +this.sock.getPort();
-                byte[] msg = message.getBytes();
+                                    
+                  logger.info("heartbeat: send message to " + ecs.getAddress() + " 8000");
+                  
+                  Socket ecsSock = new Socket(ecs.getAddress(), 8000);
+                  
+                  String message = "FAIL-"+this.host+"-"
+                  +this.port; //address of the replica that failed
+                  byte[] msg = message.getBytes();                  
 
-                ecsSock.getOutputStream().write(msg, 0, msg.length);                                        
+                  ecsSock.getOutputStream().write(msg, 0, message.length());
+                  
+                  byte[] z = new byte[1];
+                  z[0] = 0;
+                  
+                  ecsSock.getOutputStream().write(z, 0, 1);
+                  ecsSock.getOutputStream().flush();                  
+                  
+                  ecsSock.getOutputStream().close();
+                  ecsSock.close();
+                }
               }
           }catch (Exception ex){
             logger.error("heartbeat: " + "run");
@@ -138,7 +140,6 @@ public class heartbeat implements Runnable {
         return msg.getMsg();
     }
     private void update_rep(){
-        logger.info("heatbeat: trying to heart beat replica " + rep_num);
         this.server.to_update_with_lock[rep_num].lock();
         byte[] kvPairBArray;
         if (!this.server.to_update_with[rep_num].isEmpty()) {
@@ -166,7 +167,8 @@ public class heartbeat implements Runnable {
         if (this.host.equals(host) && this.port == port) {
             return;
         }
-        if (this.sock.isConnected()) {
+        if (this.sock != null) {
+          if(this.sock.isConnected()){
             try {
                 this.sock.close();
                 this.input.close();
@@ -174,9 +176,12 @@ public class heartbeat implements Runnable {
             } catch (Exception ex) {
                 logger.error("problems closing socket, line 174 of heartbeat.java");
             }
-        }
+          }
+        }        
+               
         this.host = host;
         this.port = port;
+                
         try {
             sock = new Socket(host, port);
             writeToSock = sock.getOutputStream();
@@ -184,7 +189,8 @@ public class heartbeat implements Runnable {
         } catch (Exception ex) {
             logger.error("problems openning socket, line 182 of heartbeat.java");
         }
-
-
+      
+        logger.info("heartbeat: " + this.host);
+        logger.info("heartbeat: " + this.port);
     }
 }
