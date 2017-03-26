@@ -369,9 +369,9 @@ public class KVServer  {
     try{
       logger.info("KVServer: updateReplicas");
       BigInteger me = new BigInteger(this.myMetadata.endHash.getBytes());
-      Metadata rep_1;
+        Metadata rep_1 = null;
       BigInteger rep_1k;
-      Metadata rep_2;       
+        Metadata rep_2 = null;
       
       logger.info("KVServer: update_replicas my hash " + me.toString());
       
