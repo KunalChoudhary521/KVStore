@@ -318,6 +318,11 @@ public class ClientConnection implements Runnable {
 				if(msg.charAt(i) == '-') {
 					i++;
 				}
+				logger.info("Client Connection: " + host);
+				logger.info("Client Connection: " + port;
+				logger.info("Client Connection: " + startHash_g);
+				logger.info("Client Connection: " + startHash_p);
+				logger.info("Client Connection: " + endHash);
 				newMetadata.put(new BigInteger(endHash),new Metadata(host,port,startHash_g,startHash_p,endHash));
 				host = "";
 				port = "";
