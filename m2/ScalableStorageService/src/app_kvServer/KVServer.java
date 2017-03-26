@@ -73,11 +73,14 @@ public class KVServer  {
 		this.to_update_with[0] ="";
 		this.to_update_with[1] ="";
 		metaDataLock = new ReentrantLock();
-		to_update_with_lock =new ReentrantLock[2];
+    to_update_with_lock = new ReentrantLock[2];
+		to_update_with_lock[0] = new ReentrantLock();
+    to_update_with_lock[1] = new ReentrantLock();
+    
 		ECSAddressLock = new ReentrantLock();
 		amIFirstServerInRing = false;
-		hb1 = new heartbeat(1,this);
-		hb2 = new heartbeat(1,this);
+		hb1 = new heartbeat(1,this, logger);
+		hb2 = new heartbeat(1,this, logger);
 
 		String currPath = System.getProperty("user.dir");
 
@@ -442,8 +445,9 @@ public class KVServer  {
             logger.info("KVServer: " + ex);
         }
 	}
-	public void update_outstanding_update(String new_val){
+	public void update_outstanding_update(String new_val){    
 		for (int i = 0; i<2;i++){
+      logger.info("KVServer: trying to set the update for replica " + i);
 			this.to_update_with_lock[i].lock();
 			if(!this.to_update_with[i].isEmpty()){
 				this.to_update_with[i] += ",";

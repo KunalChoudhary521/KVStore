@@ -608,7 +608,8 @@ public class ClientConnection implements Runnable {
 				///
         logger.info("KVServer: put success, update replicas");
 				if (fileSuccess == 1){
-				  //this.server.update_outstanding_update("<entry key=\""+client_msgs[0]+"\">"+client_msgs[3]+"</entry>");
+				  this.server.update_outstanding_update("<entry key=\""+client_msgs[0]+"\">"+client_msgs[3]+"</entry>");
+          logger.info("Client-connection: queued updates for replicas successfully");
 					byte [] ack = new byte[2];
 					ack[0] = (byte) 'S';
 					ack[1] = (byte) 0;

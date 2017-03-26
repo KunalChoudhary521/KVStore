@@ -13,7 +13,7 @@ import java.net.*;
 public class heartbeat implements Runnable {
     private static final int BUFFER_SIZE = 1024;
     private static final int DROP_SIZE = 128 * BUFFER_SIZE;
-    private static Logger logger = Logger.getRootLogger();
+    private static Logger logger;
     public int port;
     public String host;
     OutputStream writeToSock;
@@ -21,7 +21,7 @@ public class heartbeat implements Runnable {
     private Socket sock;
     private int rep_num;
     private KVServer server;
-    public heartbeat(int rn, KVServer sv){
+    public heartbeat(int rn, KVServer sv, Logger logger){
         port =0;
         host = "";
         sock= null;
@@ -29,6 +29,7 @@ public class heartbeat implements Runnable {
         input = null;
         this.rep_num=rn;
         this.server = sv;
+        this.logger = logger;
     }
     @Override
     public void run() {
@@ -120,6 +121,7 @@ public class heartbeat implements Runnable {
         return msg.getMsg();
     }
     private void update_rep(){
+        logger.info("heatbeat: trying to heart beat replica " + rep_num);
         this.server.to_update_with_lock[rep_num].lock();
         byte[] kvPairBArray;
         if (!this.server.to_update_with[rep_num].isEmpty()) {
