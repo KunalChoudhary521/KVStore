@@ -7,7 +7,10 @@ import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
@@ -34,11 +37,6 @@ public class ECS implements ECSInterface {
         this.listenForFailures();
     }
 	
-    private void listenForFailures(){
-      failureHandler = new FailureListener(8000, this.logger);
-      new Thread(failureHandler).start();
-    }
-
     public static void main(String[] args) {
         try {
             new LogSetup(System.getProperty("user.dir") + "/logs/ecs/ecs.log", Level.ALL);
@@ -70,6 +68,11 @@ public class ECS implements ECSInterface {
         } catch (Exception ex) {
             logger.error(ex);
         }
+    }
+
+    private void listenForFailures() {
+        failureHandler = new FailureListener(8000, logger);
+        new Thread(failureHandler).start();
     }
 
     public ArrayList<String> getRunningServers()
@@ -292,8 +295,8 @@ public class ECS implements ECSInterface {
                 if (hashRing.higherKey(currEndHash) == null){
                     nextServer = hashRing.firstEntry().getValue();
 
-                    temp.startHash_g = nextServer.startHash_g;
-                    temp.startHash_p = nextServer.startHash_p;
+                    temp.startHash_g = currEndHash.add(new BigInteger("1", 10)).toString(16);
+                    temp.startHash_p = (new BigInteger(nextServer.endHash.getBytes()).add(new BigInteger("1", 10))).toString(16);
 
                     nextServer.startHash_p=currEndHash.add(new BigInteger("1",10)).toString(16);
 
@@ -302,8 +305,8 @@ public class ECS implements ECSInterface {
                 else{
                     nextServer = hashRing.higherEntry(currEndHash).getValue();
 
-                    temp.startHash_g = nextServer.startHash_g;
-                    temp.startHash_p = nextServer.startHash_p;
+                    temp.startHash_g = currEndHash.add(new BigInteger("1", 10)).toString(16);
+                    temp.startHash_p = (new BigInteger(nextServer.endHash.getBytes()).add(new BigInteger("1", 10))).toString(16);
 
                     nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);
 
@@ -315,37 +318,26 @@ public class ECS implements ECSInterface {
                     nextServer = hashRing.firstEntry().getValue();
                     next_nextServer=hashRing.higherEntry(hashRing.firstKey()).getValue();
 
-                    temp.startHash_g = nextServer.startHash_g;
-                    temp.startHash_p = nextServer.startHash_p;
+                    temp.startHash_g = currEndHash.add(new BigInteger("1", 10)).toString(16);
+                    temp.startHash_p = (new BigInteger(next_nextServer.endHash.getBytes()).add(new BigInteger("1", 10))).toString(16);
 
                     nextServer.startHash_p=currEndHash.add(new BigInteger("1",10)).toString(16);
-                    nextServer.startHash_g=next_nextServer.startHash_g;
-                    next_nextServer.startHash_g=temp.startHash_p;
+
 
                 }
                 else//server in the first position or somewhere in the middle
                 {
                     nextServer = hashRing.higherEntry(currEndHash).getValue();
-                    
                     try{
-                        next_nextServer= hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
-                        next_nextServer.startHash_g=temp.startHash_p;
-                        nextServer.startHash_g=next_nextServer.startHash_g;                    
-                    } catch (Exception ex){
-                      logger.error("ECS: " + ex.getMessage());
+                        next_nextServer = hashRing.higherEntry(hashRing.higherKey(currEndHash)).getValue();
+                    } catch (Exception ex) {
+                        next_nextServer = hashRing.lowerEntry(currEndHash).getValue();
                     }
-                    
-                    try{
-                        next_next_nextServer=hashRing.higherEntry(hashRing.higherKey(hashRing.higherKey(currEndHash))).getValue();
-                        next_next_nextServer.startHash_g = nextServer.startHash_p;
-                    } catch (Exception ex){
-                      logger.error("ECS: " + ex.getMessage());
-                    }                    
+                    temp.startHash_g = currEndHash.add(new BigInteger("1", 10)).toString(16);
+                    temp.startHash_p = (new BigInteger(next_nextServer.endHash.getBytes()).add(new BigInteger("1", 10))).toString(16);
 
-                    temp.startHash_g = nextServer.startHash_g;
-                    temp.startHash_p = nextServer.startHash_p;
+                    nextServer.startHash_p = currEndHash.add(new BigInteger("1", 10)).toString(16);
 
-                    nextServer.startHash_p = currEndHash.add(new BigInteger("1",10)).toString(16);                    
                 }
             }
             else if(hashRing.containsKey(currEndHash))
@@ -766,13 +758,13 @@ public class ECS implements ECSInterface {
 }
 
 class FailureListener implements Runnable {
-	
-	ServerSocket failureSocket;
+
+    private static final int BUFFER_SIZE = 1024;
+    private static final int DROP_SIZE = 128 * BUFFER_SIZE;
+    ServerSocket failureSocket;
 	private Logger logger;
   private InputStream input;
   private OutputStream output;
-	private static final int BUFFER_SIZE = 1024;
-	private static final int DROP_SIZE = 128 * BUFFER_SIZE;  
 	
 	public FailureListener(int port, Logger logger){
 		try{
