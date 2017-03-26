@@ -255,7 +255,7 @@ public class ECS implements ECSInterface {
     private void sshServer(String ServerHost, int ServerPort, int cacheSize, String strategy, boolean log)
     {
         sshSession mySsh = new sshSession();
-        String user = "rahmanz5", sshHost = "ug222.eecg.toronto.edu";//128.100.13.<>
+        String user = "milwidya", sshHost = "ug180.eecg.toronto.edu";//128.100.13.<>
         int sshPort = 22;
 
         mySsh.connectSsh(user,sshHost,sshPort);
@@ -584,7 +584,7 @@ public class ECS implements ECSInterface {
         String[] params = target.split(":");
         String thost = params[0];
         String tport = params[1];
-        unlockWrite(thost, tport);
+        unlockWrite(thost, Integer.parseInt(tport.trim()));
       } catch(Exception ex){
         logger.error("ECS: " + ex.getMessage());
       }
