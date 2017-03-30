@@ -23,7 +23,7 @@ public class unlocker implements Runnable {
 		  String[] s3 = ecs.getRunningServers().get(2).split(":");
 
 
-            	TimeUnit.MILLISECONDS.sleep(3);
+            	TimeUnit.MILLISECONDS.sleep(1);
 		  ecs.unlockWrite(s1[0], Integer.parseInt(s1[1]));
 		  ecs.unlockWrite(s2[0], Integer.parseInt(s2[1]));
 		  ecs.unlockWrite(s3[0], Integer.parseInt(s3[1]));

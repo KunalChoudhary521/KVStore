@@ -108,11 +108,19 @@ public class InteractionTest extends TestCase {
 			ecs = new ECS(true);
 			ecs.initKVServer(3, 10, "LRU", false);
 		} catch (Exception e) {
-
+			try{
+				ecs.initService(3,10,"LRU");
+			}catch(Exception e1)
+			{
+			}	
 		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		ecs.unlockWrite(s2[0],Integer.parseInt(s2[1]));
+		ecs.unlockWrite(s3[0],Integer.parseInt(s3[1]));
 		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
 		
 		
@@ -212,8 +220,12 @@ public class InteractionTest extends TestCase {
 
 		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
+		String[] s2 = ecs.getRunningServers().get(1).split(":");
+		String[] s3 = ecs.getRunningServers().get(2).split(":");
 		ecs.start();
 		ecs.unlockWrite(s1[0],Integer.parseInt(s1[1]));
+		ecs.unlockWrite(s2[0],Integer.parseInt(s2[1]));
+		ecs.unlockWrite(s3[0],Integer.parseInt(s3[1]));
 		kvClient = new KVStore(s1[0],Integer.parseInt(s1[1]));
 
 

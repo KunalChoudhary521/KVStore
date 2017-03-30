@@ -57,8 +57,9 @@ public class M3Tests extends TestCase {
         try {
             ecs = new ECS(true);
             ecs.initKVServer(3, 10, "LRU", false);
+	    ecs.start();
             String[] s1 = ecs.getRunningServers().get(0).split(":");
-            ecs.removeNode(s1[0], Integer.parseInt(s1[1]));
+            ecs.removeNode(s1[0], Integer.parseInt(s1[1]),false);
         } catch (Exception e) {
             ex = e;
         }
@@ -74,17 +75,22 @@ public class M3Tests extends TestCase {
         String value = "v1";
         try {
             ecs = new ECS(true);
-            ecs.initKVServer(3, 10, "LRU", false);
+            ecs.initKVServer(4, 10, "LRU", false);
             String[] s1 = ecs.getRunningServers().get(0).split(":");
             String[] s2 = ecs.getRunningServers().get(1).split(":");
             String[] s3 = ecs.getRunningServers().get(2).split(":");
+            String[] s4 = ecs.getRunningServers().get(3).split(":");
             ecs.start();
             ecs.unlockWrite(s1[0], Integer.parseInt(s1[1]));
             ecs.unlockWrite(s2[0], Integer.parseInt(s2[1]));
             ecs.unlockWrite(s3[0], Integer.parseInt(s3[1]));
+            ecs.unlockWrite(s4[0], Integer.parseInt(s4[1]));
             kvClient = new KVStore(s1[0], Integer.parseInt(s1[1]));
             kvClient.connect();
-            kvClient.put(key, value);
+            kvClient.put("k2", value);
+            kvClient.put("k1", value);
+            kvClient.put("k3", value);
+            kvClient.put("4k", value);
         } catch (Exception e) {
 
         }
@@ -94,6 +100,7 @@ public class M3Tests extends TestCase {
             try {
                 res = null;
                 res = kvClient.get(key);
+		System.out.println(res.getSource());
                 servers_contacted.add(res.getSource());
             } catch (Exception e) {
                 if (res != null) {
@@ -113,16 +120,23 @@ public class M3Tests extends TestCase {
         String value = "v1";
         try {
             ecs = new ECS(true);
-            ecs.initKVServer(3, 10, "LRU", false);
+            ecs.initKVServer(4, 10, "LRU", false);
             String[] s1 = ecs.getRunningServers().get(0).split(":");
             String[] s2 = ecs.getRunningServers().get(1).split(":");
             String[] s3 = ecs.getRunningServers().get(2).split(":");
+            String[] s4 = ecs.getRunningServers().get(3).split(":");
             ecs.start();
             ecs.unlockWrite(s1[0], Integer.parseInt(s1[1]));
             ecs.unlockWrite(s2[0], Integer.parseInt(s2[1]));
             ecs.unlockWrite(s3[0], Integer.parseInt(s3[1]));
+            ecs.unlockWrite(s4[0], Integer.parseInt(s4[1]));
             kvClient = new KVStore(s1[0], Integer.parseInt(s1[1]));
             kvClient.connect();
+	
+            kvClient.put("k2", value);
+            kvClient.put("k1", value);
+            kvClient.put("k3", value);
+            kvClient.put("4k", value);
 
         } catch (Exception e) {
 
@@ -141,49 +155,5 @@ public class M3Tests extends TestCase {
             }
         }
         assertTrue(servers_contacted.size() == 1);
-    }
-
-    /*
-    Ensure failure is detected
-     */
-    @Test
-    public void test_5() {
-        //to implement
-        assertTrue(true);
-    }
-
-    /*
-    Ensure deleted item is deleted on all replicas
-     */
-    @Test
-    public void test_6() {
-        //to implement
-        assertTrue(true);
-    }
-
-    /*
-    Ensure updated item is updated on all replicas
-     */
-    @Test
-    public void test_7() {
-        //to implement
-        assertTrue(true);
-    }
-
-    /*
-    To Determine
-     */
-    @Test
-    public void test_9() {
-        assertTrue(true);
-    }
-
-
-    /*
-    To Determine
-     */
-    @Test
-    public void test_10() {
-        assertTrue(true);
     }
 }

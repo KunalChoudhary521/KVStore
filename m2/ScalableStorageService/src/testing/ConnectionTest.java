@@ -14,7 +14,7 @@ public class ConnectionTest extends TestCase {
 			ecs = new ECS(true);
 			ecs.initKVServer(3, 10, "LRU", false);
 		} catch (Exception e) {
-
+			System.out.println("exception taht we don't really care about in connection success test");
 		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");
 		ecs.start();
@@ -37,6 +37,7 @@ public class ConnectionTest extends TestCase {
 			ecs = new ECS(true);
 			ecs.initKVServer(3, 10, "LRU", false);
 		} catch (Exception e) {
+			System.out.println("exception taht we don't really care about in unknown host test");
 
 		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");		ecs.start();
@@ -58,6 +59,7 @@ public class ConnectionTest extends TestCase {
 			ecs = new ECS(true);
 			ecs.initKVServer(3, 10, "LRU", false);
 		} catch (Exception e) {
+			System.out.println("exception taht we don't really care about in illegal port test");
 
 		}
 		String[] s1 = ecs.getRunningServers().get(0).split(":");		ecs.start();

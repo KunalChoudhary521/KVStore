@@ -96,7 +96,7 @@ public class ECS implements ECSInterface {
         if(numOfServers <= 2)
         {
             logger.error("initKVServer:: Invalid Number of Servers: " + numOfServers);
-            return;
+		throw new Exception("numOfServers ust be greater than 2");
         }
 
         File file = new File(System.getProperty("user.dir")+"/"+this.configFile);
