@@ -4,6 +4,7 @@ import client.KVStore;
 import client.ClientSocketListener;
 import client.TextMessage;
 
+import common.messages.KVMessage;
 import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -74,7 +75,26 @@ public class KVClient implements ClientSocketListener
         }
         else if(tokens[0].equals("put"))
         {
-
+            if(tokens.length == 3)
+            {
+                try
+                {
+                    KVMessage response = kvClient.put(tokens[1], tokens[2]);
+                    if (response.getStatus() == KVMessage.StatusType.PUT_SUCCESS)
+                    {
+                        logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + tokens[1]
+                                + "," + tokens[2] + ">");
+                    }
+                }
+                catch (Exception ex) {
+                    logger.error("Error! Put NOT successful");
+                }
+            }
+            else
+            {
+                logger.error("Error! Invalid number of parameters!");
+                logger.error("Put Command format: put <key> <value>");
+            }
         }
         else if(tokens[0].equals("get"))
         {

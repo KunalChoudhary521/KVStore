@@ -9,6 +9,7 @@ import org.apache.log4j.*;
 import server.TextMessage;
 
 
+
 /**
  * Represents a connection end point for a particular client that is 
  * connected to the server. This class is responsible for message reception 
@@ -45,16 +46,21 @@ public class ClientConnection implements Runnable {
 		try {
 			output = clientSocket.getOutputStream();
 			input = clientSocket.getInputStream();
-		
-			/*sendMessage(new TextMessage(
-					"Connection to MSRG Echo server established: " 
-					+ clientSocket.getLocalAddress() + " / "
-					+ clientSocket.getLocalPort()));*/
 			
-			while(isOpen) {
-				try {
+			while(isOpen)
+            {
+				try
+                {
 					TextMessage latestMsg = receiveMessage();
-					//sendMessage(latestMsg);//echo functionality
+
+                    if(latestMsg.getMsg().contains("PUT"))
+                    {
+                        handlePut(latestMsg);
+                    }
+                    else if(latestMsg.getMsg().contains("GET"))
+                    {
+                        handleGet(latestMsg);
+                    }
 					
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
@@ -85,14 +91,41 @@ public class ClientConnection implements Runnable {
 		}
 	}
 
-	public void handleGet()
+	public void handlePut(TextMessage putMsg)
     {
+        String[] parts = putMsg.getMsg().split(",");
 
+        if(parts.length != 3)
+        {
+            logger.error("Error! PUT FAILED: key or value " +
+                    "MUST NOT start with a comma (,)");
+            return;
+        }
+
+        String key = parts[1];
+        String value = parts[2].trim();//to remove \n\r after the <value>
+
+        //TODO: store key-value pair to disk
+
+
+        try
+        {
+            sendMessage(new TextMessage("PUT-SUCCESS"));
+        }
+        catch (Exception ex)
+        {
+            //Design decision: KVServer may NOT be able to send PUT response, but KV-pair will be committed to disk
+            logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + "> " + "unable to send PUT response");
+            return;
+        }
+
+        logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + key
+                    + "," + value + ">");
     }
 
-    public void handlePut()
+    public void handleGet(TextMessage getMsg)
     {
-
     }
 	
 	/**
@@ -104,9 +137,9 @@ public class ClientConnection implements Runnable {
 		byte[] msgBytes = msg.getMsgBytes();
 		output.write(msgBytes, 0, msgBytes.length);
 		output.flush();
-		logger.info("SEND \t<" 
+		logger.info("SENT \t<"
 				+ clientSocket.getInetAddress().getHostAddress() + ":" 
-				+ clientSocket.getPort() + ">: '" 
+				+ clientSocket.getPort() + ">: '"
 				+ msg.getMsg() +"'");
     }
 	
@@ -172,9 +205,9 @@ public class ClientConnection implements Runnable {
 		
 		/* build final String */
 		TextMessage msg = new TextMessage(msgBytes);
-		logger.info("RECEIVE \t<" 
+		logger.info("RECEIVED \t<"
 				+ clientSocket.getInetAddress().getHostAddress() + ":" 
-				+ clientSocket.getLocalPort() + ">: '"
+				+ clientSocket.getPort() + ">: '"
 				+ msg.getMsg().trim() + "'");
 		return msg;
     }

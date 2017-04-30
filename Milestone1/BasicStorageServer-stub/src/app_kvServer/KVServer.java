@@ -32,6 +32,7 @@ public class KVServer extends Thread
 	{
 		this.port = port;
         setLogLevel(logLevel);
+        //kvFile
 		//cacheSize
         //strategy
 }
