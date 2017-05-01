@@ -88,7 +88,6 @@ public class KVStore implements KVCommInterface
 	@Override
 	public KVMessage put(String key, String value) throws Exception
     {
-		// TODO Auto-generated method stub
         String msg = "PUT," + key + "," + value;
         TextMessage putRequest = new TextMessage(msg);//marshalling of put message
         boolean isSent = sendMessage(putRequest);
@@ -97,15 +96,21 @@ public class KVStore implements KVCommInterface
         if(isSent)
         {
             putResponse = receiveMessage();
-            if(putResponse.getMsg().equals("PUT-SUCCESS"))//put failed
+            if(putResponse.getMsg().equals("PUT_SUCCESS"))
             {
                 return new ResponseMsg(key, value, KVMessage.StatusType.PUT_SUCCESS);
             }
-            else
+            else if(putResponse.getMsg().equals("PUT_ERROR"))
             {
-                logger.error("Error! PUT FAILED: No response from KVServer: <" +
-                        clientSocket.getInetAddress().getHostAddress() + ":" +
-                        clientSocket.getLocalPort() + ">");
+                return new ResponseMsg(key, null, KVMessage.StatusType.PUT_ERROR);
+            }
+            else if(putResponse.getMsg().equals("DELETE_SUCCESS"))
+            {
+                return new ResponseMsg(key, null, KVMessage.StatusType.DELETE_SUCCESS);
+            }
+            else if(putResponse.getMsg().equals("DELETE_ERROR"))
+            {
+                return new ResponseMsg(key, null, KVMessage.StatusType.DELETE_ERROR);
             }
         }
         else
@@ -114,15 +119,39 @@ public class KVStore implements KVCommInterface
                     clientSocket.getInetAddress().getHostAddress() + ":" +
                     clientSocket.getLocalPort() + ">");
         }
-
-        return new ResponseMsg(key, value, KVMessage.StatusType.PUT_ERROR);
+        return new ResponseMsg(key, null, KVMessage.StatusType.PUT_ERROR);
 	}
 
 	@Override
 	public KVMessage get(String key) throws Exception
     {
-		// TODO Auto-generated method stub
-		return null;
+        String msg = "GET," + key;
+        TextMessage getRequest = new TextMessage(msg);//marshalling of get message
+        boolean isSent = sendMessage(getRequest);
+
+        TextMessage getResponse;
+        if(isSent)
+        {
+            getResponse = receiveMessage();
+            if(!getResponse.getMsg().trim().equals("GET_ERROR"))
+            {
+                return new ResponseMsg(key, getResponse.getMsg(), KVMessage.StatusType.GET_SUCCESS);
+            }
+            else
+            {
+                logger.error("Error! GET FAILED from KVServer: <" +
+                        clientSocket.getInetAddress().getHostAddress() + ":" +
+                        clientSocket.getPort() + ">");
+            }
+        }
+        else
+        {
+            logger.error("Error! GET FAILED: key NOT SENT to KVServer: <" +
+                    clientSocket.getInetAddress().getHostAddress() + ":" +
+                    clientSocket.getPort() + ">");
+        }
+
+        return new ResponseMsg(key, null, KVMessage.StatusType.GET_ERROR);
 	}
 
     /**
@@ -130,6 +159,7 @@ public class KVStore implements KVCommInterface
      * @param msg the message that is to be sent.
      * @throws IOException some I/O error regarding the output stream
      */
+    //TODO make this sendMessage symmetric to sendMessage in ClientConnection.java
     public boolean sendMessage(TextMessage msg)
     {
         try
@@ -137,7 +167,10 @@ public class KVStore implements KVCommInterface
             byte[] msgBytes = msg.getMsgBytes();
             output.write(msgBytes, 0, msgBytes.length);
             output.flush();
-            logger.info("Send message:\t '" + msg.getMsg() + "'");
+            logger.info("SENT TO \t<"
+                    + clientSocket.getInetAddress().getHostAddress() + ":"
+                    + clientSocket.getPort() + ">: '"
+                    + msg.getMsg() +"'");
             return true;
         }
         catch (Exception ex)
@@ -149,7 +182,6 @@ public class KVStore implements KVCommInterface
 
     private TextMessage receiveMessage() throws IOException
     {
-
         int index = 0;
         byte[] msgBytes = null, tmp = null;
         byte[] bufferBytes = new byte[BUFFER_SIZE];
@@ -204,7 +236,10 @@ public class KVStore implements KVCommInterface
 
 		/* build final String */
         TextMessage msg = new TextMessage(msgBytes);
-        logger.info("Receive message:\t '" + msg.getMsg() + "'");
+        logger.info("RECEIVED FROM \t<"
+                + clientSocket.getInetAddress().getHostAddress() + ":"
+                + clientSocket.getPort() + ">: '"
+                + msg.getMsg().trim() + "'");
         return msg;
     }
 }

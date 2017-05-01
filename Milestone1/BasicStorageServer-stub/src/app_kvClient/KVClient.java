@@ -82,23 +82,54 @@ public class KVClient implements ClientSocketListener
                     KVMessage response = kvClient.put(tokens[1], tokens[2]);
                     if (response.getStatus() == KVMessage.StatusType.PUT_SUCCESS)
                     {
-                        logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + tokens[1]
-                                + "," + tokens[2] + ">");
+                        logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + response.getKey()
+                                + "," + response.getValue() + ">");
+                    }
+                    else if (response.getStatus() == KVMessage.StatusType.PUT_ERROR)
+                    {
+                        logger.error("Error! PUT FAILED: <key>: " + "<" + response.getKey() + ">");
+                    }
+                    else if (response.getStatus() == KVMessage.StatusType.DELETE_SUCCESS)
+                    {
+                        logger.info("DELETE SUCCESSFUL: <key>: " + "<" + response.getKey() + ">");
+                    }
+                    else if (response.getStatus() == KVMessage.StatusType.DELETE_ERROR)
+                    {
+                        logger.error("Error! DELETE FAILED: <key>: " + "<" + response.getKey() + ">");
                     }
                 }
                 catch (Exception ex) {
-                    logger.error("Error! Put NOT successful");
+                    logger.error("Error! PUT NOT successful");
                 }
             }
             else
             {
                 logger.error("Error! Invalid number of parameters!");
-                logger.error("Put Command format: put <key> <value>");
+                logger.error("PUT Command format: put <key> <value>");
             }
         }
         else if(tokens[0].equals("get"))
         {
-
+            if(tokens.length == 2)
+            {
+                try
+                {
+                    KVMessage response = kvClient.get(tokens[1]);
+                    if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS)
+                    {
+                        logger.info("GET SUCCESSFUL: <key,value>: " + "<" + response.getKey()
+                                + "," + response.getValue() + ">");
+                    }
+                }
+                catch (Exception ex) {
+                    logger.error("Error! GET NOT successful");
+                }
+            }
+            else
+            {
+                logger.error("Error! Invalid number of parameters!");
+                logger.error("GET Command format: get <key>");
+            }
         }
         else if(tokens[0].equals("logLevel"))
         {

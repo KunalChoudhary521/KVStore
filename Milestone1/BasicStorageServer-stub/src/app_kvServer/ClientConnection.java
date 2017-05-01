@@ -1,14 +1,18 @@
 package app_kvServer;
 
+import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
+
+import common.md5;
 
 import org.apache.log4j.*;
 import server.TextMessage;
-
-
 
 /**
  * Represents a connection end point for a particular client that is 
@@ -28,14 +32,25 @@ public class ClientConnection implements Runnable {
 	private Socket clientSocket;
 	private InputStream input;
 	private OutputStream output;
+	private String kvDirPath;
 	
 	/**
 	 * Constructs a new CientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket) {
+	public ClientConnection(Socket clientSocket, String kvDir) {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
+		this.kvDirPath = kvDir;
+
+		try
+        {
+            createDirectory();
+        }
+        catch (Exception ex)
+        {
+            this.isOpen = false;
+        }
 	}
 	
 	/**
@@ -79,7 +94,7 @@ public class ClientConnection implements Runnable {
 				if (clientSocket != null)
 				{
                     logger.info("KVClient " + clientSocket.getInetAddress().getHostAddress() + ":" +
-                            clientSocket.getLocalPort() + " Disconnected!");
+                            clientSocket.getPort() + " Disconnected!");
 					input.close();
 					output.close();
 					clientSocket.close();
@@ -105,27 +120,133 @@ public class ClientConnection implements Runnable {
         String key = parts[1];
         String value = parts[2].trim();//to remove \n\r after the <value>
 
-        //TODO: store key-value pair to disk
-
-
-        try
+        String putResponse;
+        if(!value.equals("null") && !value.isEmpty() && !value.equals(""))
         {
-            sendMessage(new TextMessage("PUT-SUCCESS"));
+            //Store KV-pair to disk
+            try {
+                storeKVPair(key, value);
+                putResponse = "PUT_SUCCESS";
+                logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + key + "," + value + ">");
+
+            } catch (NoSuchAlgorithmException noAlgoEx) {
+                logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                        + ":" + clientSocket.getLocalPort() + "> " + "key" + key + " not hashed");
+                putResponse = "PUT_ERROR";
+            } catch (IOException ex) {
+                logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                        + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to STORE KV-pair to disk");
+                putResponse = "PUT_ERROR";
+            }
         }
-        catch (Exception ex)
+        else
         {
+            //Delete KV-pair from disk
+            try {
+                deleteFile(key);
+                putResponse = "DELETE_SUCCESS";
+                logger.info("DELETE SUCCESSFUL: <key>: " + "<" + key + ">");
+
+            } catch (NoSuchAlgorithmException noAlgoEx) {
+                logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                        + ":" + clientSocket.getLocalPort() + "> " + "key" + key + " not hashed");
+                putResponse = "DELETE_ERROR";
+            } catch (IOException ex1) {
+                logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                        + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to DELETE KV-pair from disk");
+                putResponse = "DELETE_ERROR";
+            }
+        }
+
+        //Send response message to KVClient
+        try  {
+            sendMessage(new TextMessage(putResponse));
+
+        } catch (Exception ex) {
             //Design decision: KVServer may NOT be able to send PUT response, but KV-pair will be committed to disk
             logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
-                    + ":" + clientSocket.getLocalPort() + "> " + "unable to send PUT response");
+                    + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to SEND PUT response");
             return;
         }
+    }
 
-        logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + key
-                    + "," + value + ">");
+    public void createDirectory() throws IOException
+    {
+        if (Files.notExists(Paths.get(this.kvDirPath)))
+        {
+            Files.createDirectory(Paths.get(this.kvDirPath));
+
+        logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                + ":" + clientSocket.getLocalPort() + "> " + "New Directory: "
+                + System.getProperty("user.dir") + File.separator + this.kvDirPath);
+        }
+    }
+    public void storeKVPair(String key, String value) throws IOException, NoSuchAlgorithmException
+    {
+        String kvPairInJSON = "{ \"key\":\"" + key + "\", \"value\":\"" + value + "\" }";
+
+        String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+        Files.write(Paths.get(filePath),
+                                kvPairInJSON.getBytes("utf-8"));
+
+        logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                + ":" + clientSocket.getLocalPort() + ">\t" + "STORED: <" + key + "," + value + ">");
+    }
+    public void deleteFile(String key) throws IOException, NoSuchAlgorithmException
+    {
+        //the <value> sent by the KVClient will be "null"
+        String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+
+        if(Files.deleteIfExists(Paths.get(filePath)))
+        {
+            logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + "> " + "DELETED: <" + key + ">");
+        }
+        else
+        {
+            logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + "> " + ": " + key + " DOES NOT exist");
+        }
     }
 
     public void handleGet(TextMessage getMsg)
     {
+        String[] parts = getMsg.getMsg().split(",");
+
+        if(parts.length != 2)
+        {
+            logger.error("Error! GET FAILED: key MUST NOT start with a comma (,)");
+            return;
+        }
+
+        String key = parts[1].trim();//to remove \n\r after the <value>
+
+         try
+         {
+             String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+             if(Files.exists(Paths.get(filePath)))
+             {
+                 byte[] data = Files.readAllBytes(Paths.get(filePath));
+                 String kvPairInJSON = new String(data, "UTF-8");
+
+                 String valueField = kvPairInJSON.split(",")[1];//get value object
+
+                 String rawValue = valueField.split(":")[1];
+                 String value = rawValue.substring(1,rawValue.length()-3);//ignore characters <" }>
+
+                 sendMessage(new TextMessage(value));
+             }
+             else
+             {
+                 sendMessage(new TextMessage("GET_ERROR"));
+                 logger.error("Error! KVServer " + "<" + clientSocket.getInetAddress().getHostAddress()
+                         + ":" + clientSocket.getLocalPort() + "> " + "key: " + key + " DOES NOT EXIST");
+             }
+         }
+         catch (Exception ex)
+         {
+             logger.error("GET FAILED: key: " + key );
+         }
     }
 	
 	/**
@@ -137,7 +258,7 @@ public class ClientConnection implements Runnable {
 		byte[] msgBytes = msg.getMsgBytes();
 		output.write(msgBytes, 0, msgBytes.length);
 		output.flush();
-		logger.info("SENT \t<"
+		logger.info("SENT TO \t<"
 				+ clientSocket.getInetAddress().getHostAddress() + ":" 
 				+ clientSocket.getPort() + ">: '"
 				+ msg.getMsg() +"'");
@@ -161,7 +282,7 @@ public class ClientConnection implements Runnable {
             isOpen = false;
 		}
 
-		while(/*read != 13  && */ read != 10 && read !=-1 && reading) {/* CR, LF, error */
+		while(/*read != 10  && */read != 13 && read !=-1 && reading) {/* CR, LF, error */
 			/* if buffer filled, copy to msg array */
 			if(index == BUFFER_SIZE) {
 				if(msgBytes == null){
@@ -205,7 +326,7 @@ public class ClientConnection implements Runnable {
 		
 		/* build final String */
 		TextMessage msg = new TextMessage(msgBytes);
-		logger.info("RECEIVED \t<"
+		logger.info("RECEIVED FROM \t<"
 				+ clientSocket.getInetAddress().getHostAddress() + ":" 
 				+ clientSocket.getPort() + ">: '"
 				+ msg.getMsg().trim() + "'");

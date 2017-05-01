@@ -17,6 +17,7 @@ public class KVServer extends Thread
     private int port;
     private ServerSocket serverSocket;
     private boolean running;
+    private String kvDirPath;
 	
 	/**
 	 * Start KV Server at given port
@@ -28,11 +29,12 @@ public class KVServer extends Thread
 	 *           currently not contained in the cache. Options are "FIFO", "LRU", 
 	 *           and "LFU".
 	 */
-	public KVServer(int port, String logLevel, String kvFile, int cacheSize, String strategy)
+	public KVServer(int port, String logLevel, int cacheSize, String strategy)
 	{
 		this.port = port;
         setLogLevel(logLevel);
-        //kvFile
+
+        this.kvDirPath = String.valueOf(port);
 		//cacheSize
         //strategy
 }
@@ -80,7 +82,7 @@ public class KVServer extends Thread
                 try
                 {
                     Socket client = serverSocket.accept();
-                    ClientConnection connection = new ClientConnection(client);
+                    ClientConnection connection = new ClientConnection(client, this.kvDirPath);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -127,17 +129,16 @@ public class KVServer extends Thread
     public static void main(String[] args) {
         try {
             new LogSetup("logs/server.log", Level.ALL);//initially, logLevel is ALL
-            if(args.length != 5) {
+            if(args.length != 4) {
                 System.out.println("Error! Invalid number of arguments!");
                 System.out.println("Usage: Server <port>!");
             } else {
                 int port = Integer.parseInt(args[0]);
                 String logLevel = args[1];
-                String kvFile = args[2];
-                int cacheSize = Integer.parseInt(args[3]);
-                String strategy = args[4];
+                int cacheSize = Integer.parseInt(args[2]);
+                String strategy = args[3];
 
-                new KVServer(port, logLevel, kvFile, cacheSize, strategy).start();
+                new KVServer(port, logLevel, cacheSize, strategy).start();
             }
         } catch (IOException e) {
             System.out.println("Error! Unable to initialize logger!");
