@@ -5,14 +5,14 @@ import java.math.*;
 
 public class md5 
 {
-   public static BigInteger HashBI(String s) throws Exception
+   public static BigInteger HashInBI(String s) throws NoSuchAlgorithmException
    {
       MessageDigest m= MessageDigest.getInstance("MD5");
       m.update(s.getBytes(),0,s.length());
       return new BigInteger(1,m.digest());
    }
 
-   public static String HashS(String s) throws Exception
+   public static String HashInStr(String s) throws NoSuchAlgorithmException
    {
       MessageDigest m= MessageDigest.getInstance("MD5");
       m.update(s.getBytes(),0,s.length());
