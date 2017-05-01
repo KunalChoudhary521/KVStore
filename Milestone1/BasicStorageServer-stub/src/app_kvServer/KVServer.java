@@ -1,5 +1,9 @@
 package app_kvServer;
 
+import cache.FIFOCache;
+import cache.KVCache;
+import cache.LFUCache;
+import cache.LRUCache;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import logger.LogSetup;
@@ -18,6 +22,7 @@ public class KVServer extends Thread
     private ServerSocket serverSocket;
     private boolean running;
     private String kvDirPath;
+    private KVCache cache;
 	
 	/**
 	 * Start KV Server at given port
@@ -35,10 +40,30 @@ public class KVServer extends Thread
         setLogLevel(logLevel);
 
         this.kvDirPath = String.valueOf(port);
-		//cacheSize
-        //strategy
+        if(cacheSize > 0)
+        {
+            setCacheType(cacheSize, strategy);
+        }
+        else
+        {
+            this.cache = null;
+            logger.error("Error! No caching enabled");
+        }
 }
 
+    private void setCacheType(int cSize, String strat)
+    {
+        if(strat.equals("FIFO")) {
+            this.cache = new FIFOCache(cSize);
+        } else if(strat.equals("LFU")) {
+            this.cache = new LFUCache(cSize);
+        } else if(strat.equals("LRU")) {
+            this.cache = new LRUCache(cSize);
+        } else {
+            this.cache = null;
+            logger.error("Error! No caching enabled");
+        }
+    }
     private String setLogLevel(String levelString) {
 
         if(levelString.equals(Level.ALL.toString())) {
@@ -82,7 +107,7 @@ public class KVServer extends Thread
                 try
                 {
                     Socket client = serverSocket.accept();
-                    ClientConnection connection = new ClientConnection(client, this.kvDirPath);
+                    ClientConnection connection = new ClientConnection(client, this.kvDirPath, this.cache);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -128,6 +153,7 @@ public class KVServer extends Thread
 
     public static void main(String[] args) {
         try {
+            //TODO: append start time of KVServer application to log file -> server-<timestamp>.log
             new LogSetup("logs/server.log", Level.ALL);//initially, logLevel is ALL
             if(args.length != 4) {
                 System.out.println("Error! Invalid number of arguments!");

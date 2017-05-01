@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 
+import cache.KVCache;
 import common.md5;
 
 import org.apache.log4j.*;
@@ -33,16 +34,18 @@ public class ClientConnection implements Runnable {
 	private InputStream input;
 	private OutputStream output;
 	private String kvDirPath;
+	private KVCache kvCache;
 	
 	/**
 	 * Constructs a new CientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, String kvDir) {
+	public ClientConnection(Socket clientSocket, String kvDir, KVCache cache)
+    {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.kvDirPath = kvDir;
-
+        this.kvCache = cache;
 		try
         {
             createDirectory();
@@ -57,11 +60,13 @@ public class ClientConnection implements Runnable {
 	 * Initializes and starts the client connection. 
 	 * Loops until the connection is closed or aborted by the client.
 	 */
-	public void run() {
-		try {
+	public void run()
+    {
+		try
+        {
 			output = clientSocket.getOutputStream();
 			input = clientSocket.getInputStream();
-			
+
 			while(isOpen)
             {
 				try
@@ -93,8 +98,8 @@ public class ClientConnection implements Runnable {
 			try {
 				if (clientSocket != null)
 				{
-                    logger.info("KVClient " + clientSocket.getInetAddress().getHostAddress() + ":" +
-                            clientSocket.getPort() + " Disconnected!");
+                    logger.info("KVClient <" + clientSocket.getInetAddress().getHostAddress() + ":" +
+                            clientSocket.getPort() + "> Disconnected!");
 					input.close();
 					output.close();
 					clientSocket.close();
@@ -124,8 +129,16 @@ public class ClientConnection implements Runnable {
         if(!value.equals("null") && !value.isEmpty() && !value.equals(""))
         {
             //Store KV-pair to disk
-            try {
+            try
+            {
                 storeKVPair(key, value);
+                if(this.kvCache != null)//cache this kv-pair
+                {
+                    this.kvCache.insertInCache(key, value);
+                    logger.info("<" + key + "," + value + ">" + " cached at KVServer" +
+                            "<" + clientSocket.getInetAddress().getHostAddress()
+                            + ":" + clientSocket.getLocalPort() + "> ");
+                }
                 putResponse = "PUT_SUCCESS";
                 logger.info("PUT SUCCESSFUL: <key,value>: " + "<" + key + "," + value + ">");
 
@@ -144,6 +157,13 @@ public class ClientConnection implements Runnable {
             //Delete KV-pair from disk
             try {
                 deleteFile(key);
+                if(this.kvCache != null)//evict this kv-pair from cache
+                {
+                    this.kvCache.deleteFromCache(key);
+                    logger.info("<" + key + "," + value + ">" + " evicted from cached at KVServer" +
+                            "<" + clientSocket.getInetAddress().getHostAddress()
+                            + ":" + clientSocket.getLocalPort() + "> ");
+                }
                 putResponse = "DELETE_SUCCESS";
                 logger.info("DELETE SUCCESSFUL: <key>: " + "<" + key + ">");
 
@@ -220,35 +240,61 @@ public class ClientConnection implements Runnable {
         }
 
         String key = parts[1].trim();//to remove \n\r after the <value>
+        String value;
+        try
+        {
+            //check the cache to get kv-pair and send it to KVClient
+            if(this.kvCache == null)
+            {
+                value = getValueFromFile(key);
+            }
+            else if((value = this.kvCache.checkCache(key)) == null)
+            {
+                logger.info("Cache Miss!! <" + key + ">" + " at KVServer" +
+                        "<" + clientSocket.getInetAddress().getHostAddress()
+                        + ":" + clientSocket.getLocalPort() + "> ");
 
-         try
-         {
-             String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
-             if(Files.exists(Paths.get(filePath)))
-             {
-                 byte[] data = Files.readAllBytes(Paths.get(filePath));
-                 String kvPairInJSON = new String(data, "UTF-8");
+                value = getValueFromFile(key);
+            }
+            else
+            {
+                logger.info("Cache Hit!! <" + key + ">" + " at KVServer" +
+                        "<" + clientSocket.getInetAddress().getHostAddress()
+                        + ":" + clientSocket.getLocalPort() + "> ");
+            }
 
-                 String valueField = kvPairInJSON.split(",")[1];//get value object
-
-                 String rawValue = valueField.split(":")[1];
-                 String value = rawValue.substring(1,rawValue.length()-3);//ignore characters <" }>
-
-                 sendMessage(new TextMessage(value));
-             }
-             else
-             {
-                 sendMessage(new TextMessage("GET_ERROR"));
-                 logger.error("Error! KVServer " + "<" + clientSocket.getInetAddress().getHostAddress()
-                         + ":" + clientSocket.getLocalPort() + "> " + "key: " + key + " DOES NOT EXIST");
-             }
-         }
-         catch (Exception ex)
-         {
-             logger.error("GET FAILED: key: " + key );
-         }
+            sendMessage(new TextMessage(value));
+        }
+        catch (Exception ex)
+        {
+            logger.error("GET FAILED: key: " + key );
+        }
     }
-	
+
+    public String getValueFromFile(String key) throws IOException, NoSuchAlgorithmException
+    {
+        String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+        if(Files.exists(Paths.get(filePath)))
+        {
+            byte[] data = Files.readAllBytes(Paths.get(filePath));
+            String kvPairInJSON = new String(data, "UTF-8");
+
+            String valueField = kvPairInJSON.split(",")[1];//get value object
+
+            String rawValue = valueField.split(":")[1];
+            String value = rawValue.substring(1,rawValue.length()-3);//ignore characters <" }>
+
+            return value;
+        }
+        else
+        {
+            sendMessage(new TextMessage("GET_ERROR"));
+            logger.error("Error! KVServer " + "<" + clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + "> " + "key: " + key + " DOES NOT EXIST");
+            return null;
+        }
+    }
+
 	/**
 	 * Method sends a TextMessage using this socket.
 	 * @param msg the message that is to be sent.
