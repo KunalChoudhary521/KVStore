@@ -14,8 +14,8 @@ public class AllTests {
 
 	static {
 		try {
-			new LogSetup("logs/testing/test.log", Level.ERROR);
-			//new KVServer(50000, 10, "FIFO");
+			new LogSetup("logs/testing/serverTest.log", Level.ALL);
+			new KVServer(9000, "ALL", 10, "LRU").start();//9000 ALL 10 LRU
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -24,9 +24,9 @@ public class AllTests {
 	
 	public static Test suite() {
 		TestSuite clientSuite = new TestSuite("Basic Storage ServerTest-Suite");
-		clientSuite.addTestSuite(ConnectionTest.class);
-		clientSuite.addTestSuite(InteractionTest.class); 
-		clientSuite.addTestSuite(AdditionalTest.class); 
+		//clientSuite.addTestSuite(ConnectionTest.class);
+		//clientSuite.addTestSuite(InteractionTest.class);
+		//clientSuite.addTestSuite(AdditionalTest.class);
 		return clientSuite;
 	}
 	

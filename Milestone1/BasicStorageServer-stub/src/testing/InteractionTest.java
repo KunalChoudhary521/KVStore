@@ -13,7 +13,7 @@ public class InteractionTest extends TestCase {
 	private KVStore kvClient;
 	
 	public void setUp() {
-		kvClient = new KVStore("localhost", 50000);
+		kvClient = new KVStore("localhost", 9000);
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
@@ -74,7 +74,7 @@ public class InteractionTest extends TestCase {
 			ex = e;
 		}
 
-		assertTrue(ex == null && response.getStatus() == StatusType.PUT_UPDATE
+		assertTrue(ex == null && response.getValue().equals(updatedValue)
 				&& response.getValue().equals(updatedValue));
 	}
 	
