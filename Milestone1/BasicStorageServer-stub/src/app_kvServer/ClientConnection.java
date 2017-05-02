@@ -183,9 +183,6 @@ public class ClientConnection implements Runnable {
                             "<" + clientSocket.getInetAddress().getHostAddress()
                             + ":" + clientSocket.getLocalPort() + "> ");
                 }
-
-
-
             } catch (NoSuchAlgorithmException noAlgoEx) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "unable to hash key" + key);
@@ -208,7 +205,6 @@ public class ClientConnection implements Runnable {
             //Design decision: KVServer may NOT be able to send PUT response, but KV-pair will be committed to disk
             logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to SEND PUT response");
-            return;
         }
     }
 
@@ -282,7 +278,9 @@ public class ClientConnection implements Runnable {
                         + ":" + clientSocket.getLocalPort() + "> ");
             }
 
-            sendMessage(new TextMessage(value));
+            //Send <value> if it exists. Otherwise, send error to KVClient
+            sendMessage(new TextMessage((value != null) ? value : "GET_ERROR"));
+
         }
         catch (Exception ex)
         {
@@ -307,7 +305,6 @@ public class ClientConnection implements Runnable {
         }
         else
         {
-            sendMessage(new TextMessage("GET_ERROR"));
             logger.error("Error! KVServer " + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + "key: " + key + " DOES NOT EXIST");
             return null;
