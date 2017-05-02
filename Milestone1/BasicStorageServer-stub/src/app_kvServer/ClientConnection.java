@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.locks.ReentrantLock;
 
 import cache.KVCache;
 import common.md5;
@@ -35,9 +36,10 @@ public class ClientConnection implements Runnable {
 	private OutputStream output;
 	private String kvDirPath;
 	private KVCache kvCache;
+	private static ReentrantLock fileLock = new ReentrantLock();//1 lock for all instances of ClientConnection
 	
 	/**
-	 * Constructs a new CientConnection object for a given TCP socket.
+	 * Constructs a new ClientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
 	public ClientConnection(Socket clientSocket, String kvDir, KVCache cache)
@@ -48,11 +50,17 @@ public class ClientConnection implements Runnable {
         this.kvCache = cache;
 		try
         {
+            fileLock.lock();
             createDirectory();
+            fileLock.unlock();
         }
         catch (Exception ex)
         {
+            logger.info("Directory /" + this.kvDirPath + " for KVServer <" +
+                        clientSocket.getInetAddress().getHostAddress() + ":" +
+                        clientSocket.getLocalPort() + "> NOT CREATED!!");
             this.isOpen = false;
+            fileLock.unlock();
         }
 	}
 	
@@ -131,7 +139,10 @@ public class ClientConnection implements Runnable {
             //Store KV-pair to disk
             try
             {
+                fileLock.lock();
                 storeKVPair(key, value);
+                fileLock.unlock();
+
                 if(this.kvCache != null)//cache this kv-pair
                 {
                     this.kvCache.insertInCache(key, value);
@@ -146,17 +157,23 @@ public class ClientConnection implements Runnable {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "key" + key + " not hashed");
                 putResponse = "PUT_ERROR";
+                fileLock.unlock();
+
             } catch (IOException ex) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to STORE KV-pair to disk");
                 putResponse = "PUT_ERROR";
+                fileLock.unlock();
             }
         }
         else
         {
             //Delete KV-pair from disk
             try {
+                fileLock.lock();
                 deleteFile(key);
+                fileLock.unlock();
+
                 if(this.kvCache != null)//evict this kv-pair from cache
                 {
                     this.kvCache.deleteFromCache(key);
@@ -171,10 +188,13 @@ public class ClientConnection implements Runnable {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "key" + key + " not hashed");
                 putResponse = "DELETE_ERROR";
+                fileLock.unlock();
+
             } catch (IOException ex1) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to DELETE KV-pair from disk");
                 putResponse = "DELETE_ERROR";
+                fileLock.unlock();
             }
         }
 
@@ -246,7 +266,9 @@ public class ClientConnection implements Runnable {
             //check the cache to get kv-pair and send it to KVClient
             if(this.kvCache == null)
             {
+                fileLock.lock();
                 value = getValueFromFile(key);
+                fileLock.unlock();
             }
             else if((value = this.kvCache.checkCache(key)) == null)
             {
@@ -254,7 +276,9 @@ public class ClientConnection implements Runnable {
                         "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> ");
 
+                fileLock.lock();
                 value = getValueFromFile(key);
+                fileLock.unlock();
             }
             else
             {
@@ -268,6 +292,7 @@ public class ClientConnection implements Runnable {
         catch (Exception ex)
         {
             logger.error("GET FAILED: key: " + key );
+            fileLock.unlock();
         }
     }
 
