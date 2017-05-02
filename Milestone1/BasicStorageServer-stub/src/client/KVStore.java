@@ -5,7 +5,6 @@ import common.messages.KVMessage;
 import common.messages.ResponseMsg;
 import org.apache.log4j.Logger;
 
-import javax.xml.soap.Text;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -47,19 +46,11 @@ public class KVStore implements KVCommInterface
 	@Override
 	public void connect() throws Exception
     {
-        try
-        {
-            this.clientSocket = new Socket(this.serverAddress,this.serverPort);
-            setRunning(true);
-            output = this.clientSocket.getOutputStream();
-            input = this.clientSocket.getInputStream();
-            logger.info("Connection established");
-        }
-        catch (Exception ex)
-        {
-            logger.info("Connection with " + this.serverAddress +
-                        ":" + this.serverPort + " not established");
-        }
+        this.clientSocket = new Socket(this.serverAddress,this.serverPort);
+        setRunning(true);
+        output = this.clientSocket.getOutputStream();
+        input = this.clientSocket.getInputStream();
+        logger.info("Connection established");
 	}
 
 	@Override
