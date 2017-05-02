@@ -264,11 +264,10 @@ public class ClientConnection implements Runnable {
         try
         {
             //check the cache to get kv-pair and send it to KVClient
+            //Design Decision: no lock when reading a file for performance reasons
             if(this.kvCache == null)
             {
-                fileLock.lock();
                 value = getValueFromFile(key);
-                fileLock.unlock();
             }
             else if((value = this.kvCache.checkCache(key)) == null)
             {
@@ -276,9 +275,7 @@ public class ClientConnection implements Runnable {
                         "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> ");
 
-                fileLock.lock();
                 value = getValueFromFile(key);
-                fileLock.unlock();
             }
             else
             {
@@ -292,7 +289,6 @@ public class ClientConnection implements Runnable {
         catch (Exception ex)
         {
             logger.error("GET FAILED: key: " + key );
-            fileLock.unlock();
         }
     }
 
