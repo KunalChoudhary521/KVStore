@@ -166,12 +166,15 @@ public class KVClient implements ClientSocketListener
         }
     }
 
-    private void connect(String address, int port)
-            throws UnknownHostException, IOException
+    private void connect(String address, int port) throws IOException
     {
         kvClient = new KVStore(address, port);
-        try { kvClient.connect(); }
-        catch (Exception ex) { ex.printStackTrace();  }
+        try {
+            kvClient.connect();
+        } catch (Exception ex) {
+            logger.info("Connection with " + this.serverAddress +
+                    ":" + this.serverPort + " not established");
+        }
     }
     private void disconnect()
     {
