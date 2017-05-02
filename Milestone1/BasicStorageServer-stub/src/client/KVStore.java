@@ -79,6 +79,18 @@ public class KVStore implements KVCommInterface
 	@Override
 	public KVMessage put(String key, String value) throws Exception
     {
+        if(key.length() > 20 || value.length() > (120*1024))
+        {
+            //key or value is beyond max length
+            logger.error("Error! Max Key length = 20Bytes and Max Value length = 120Bytes");
+            return new ResponseMsg(key, null, KVMessage.StatusType.PUT_ERROR);
+        }
+        else if (key.startsWith(",") || value.startsWith(","))
+        {
+            logger.error("Error! key and value MUST NOT start with a comma (,)");
+            return new ResponseMsg(key, value, KVMessage.StatusType.PUT_ERROR);
+        }
+
         String msg = "PUT," + key + "," + value;
         TextMessage putRequest = new TextMessage(msg);//marshalling of put message
         boolean isSent = sendMessage(putRequest);
@@ -116,6 +128,19 @@ public class KVStore implements KVCommInterface
 	@Override
 	public KVMessage get(String key) throws Exception
     {
+        if(key.length() > 20)
+        {
+            //this key will NOT exist at any KVServer because it will not be stored in the first place
+            logger.error("Error! Max Key length = 20Bytes");
+            return new ResponseMsg(key, null, KVMessage.StatusType.GET_ERROR);
+        }
+        else if (key.startsWith(","))
+        {
+            //this key will NOT exist at any KVServer because it will not be stored in the first place
+            logger.error("Error! key MUST NOT start with a comma (,)");
+            return new ResponseMsg(key, null, KVMessage.StatusType.GET_ERROR);
+        }
+
         String msg = "GET," + key;
         TextMessage getRequest = new TextMessage(msg);//marshalling of get message
         boolean isSent = sendMessage(getRequest);

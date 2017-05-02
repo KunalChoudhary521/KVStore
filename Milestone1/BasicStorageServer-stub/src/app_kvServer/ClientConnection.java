@@ -123,13 +123,6 @@ public class ClientConnection implements Runnable {
     {
         String[] parts = putMsg.getMsg().split(",");
 
-        if(parts.length != 3)
-        {
-            logger.error("Error! PUT FAILED: key or value " +
-                    "MUST NOT start with a comma (,)");
-            return;
-        }
-
         String key = parts[1];
         String value = parts[2].trim();//to remove \n\r after the <value>
 
@@ -155,7 +148,7 @@ public class ClientConnection implements Runnable {
 
             } catch (NoSuchAlgorithmException noAlgoEx) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
-                        + ":" + clientSocket.getLocalPort() + "> " + "key" + key + " not hashed");
+                        + ":" + clientSocket.getLocalPort() + "> " + "unable to hash key" + key);
                 putResponse = "PUT_ERROR";
                 fileLock.unlock();
 
@@ -171,7 +164,16 @@ public class ClientConnection implements Runnable {
             //Delete KV-pair from disk
             try {
                 fileLock.lock();
-                deleteFile(key);
+                if(deleteFile(key))
+                {
+                    putResponse = "DELETE_SUCCESS";
+                    logger.info("DELETE SUCCESSFUL: <key>: " + "<" + key + ">");
+                }
+                else
+                {
+                    putResponse = "DELETE_ERROR";
+                    logger.info("DELETE ERROR: <key>: " + "<" + key + "> DOES NOT exist");
+                }
                 fileLock.unlock();
 
                 if(this.kvCache != null)//evict this kv-pair from cache
@@ -181,12 +183,12 @@ public class ClientConnection implements Runnable {
                             "<" + clientSocket.getInetAddress().getHostAddress()
                             + ":" + clientSocket.getLocalPort() + "> ");
                 }
-                putResponse = "DELETE_SUCCESS";
-                logger.info("DELETE SUCCESSFUL: <key>: " + "<" + key + ">");
+
+
 
             } catch (NoSuchAlgorithmException noAlgoEx) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
-                        + ":" + clientSocket.getLocalPort() + "> " + "key" + key + " not hashed");
+                        + ":" + clientSocket.getLocalPort() + "> " + "unable to hash key" + key);
                 putResponse = "DELETE_ERROR";
                 fileLock.unlock();
 
@@ -232,7 +234,7 @@ public class ClientConnection implements Runnable {
         logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                 + ":" + clientSocket.getLocalPort() + ">\t" + "STORED: <" + key + "," + value + ">");
     }
-    public void deleteFile(String key) throws IOException, NoSuchAlgorithmException
+    public boolean deleteFile(String key) throws IOException, NoSuchAlgorithmException
     {
         //the <value> sent by the KVClient will be "null"
         String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
@@ -241,23 +243,19 @@ public class ClientConnection implements Runnable {
         {
             logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + "DELETED: <" + key + ">");
+            return true;
         }
         else
         {
             logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + ": " + key + " DOES NOT exist");
+            return false;
         }
     }
 
     public void handleGet(TextMessage getMsg)
     {
         String[] parts = getMsg.getMsg().split(",");
-
-        if(parts.length != 2)
-        {
-            logger.error("Error! GET FAILED: key MUST NOT start with a comma (,)");
-            return;
-        }
 
         String key = parts[1].trim();//to remove \n\r after the <value>
         String value;
