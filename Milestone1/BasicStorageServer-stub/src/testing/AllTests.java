@@ -15,12 +15,12 @@ public class AllTests {
 	static {
 		try {
 			new LogSetup("logs/testing/serverTest.log", Level.ALL);
-			new KVServer(9000, "ALL", 10, "LRU").start();//9000 ALL 10 LRU
+			new KVServer(9000, "ALL", 5, "LRU").start();//9000 ALL 10 LRU
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
-	
+
 	
 	public static Test suite() {
 		TestSuite clientSuite = new TestSuite("Basic Storage ServerTest-Suite");

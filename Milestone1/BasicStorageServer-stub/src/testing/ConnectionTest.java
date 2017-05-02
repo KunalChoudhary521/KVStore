@@ -14,7 +14,7 @@ public class ConnectionTest extends TestCase {
 
 	static {
 		try {
-			new LogSetup("logs/testing/connectionTest.log", Level.ALL);
+			new LogSetup("logs/testing/connectionTests.log", Level.ALL);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

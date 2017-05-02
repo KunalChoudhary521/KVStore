@@ -1,5 +1,7 @@
 package testing;
 
+import logger.LogSetup;
+import org.apache.log4j.Level;
 import org.junit.Test;
 
 import client.KVStore;
@@ -13,10 +15,12 @@ public class InteractionTest extends TestCase {
 	private KVStore kvClient;
 	
 	public void setUp() {
-		kvClient = new KVStore("localhost", 9000);
 		try {
+            new LogSetup("logs/testing/interactionTests.log", Level.ALL);
+            kvClient = new KVStore("127.0.0.1", 9000);
 			kvClient.connect();
 		} catch (Exception e) {
+
 		}
 	}
 
