@@ -14,7 +14,7 @@ import cache.KVCache;
 import common.md5;
 
 import org.apache.log4j.*;
-import server.TextMessage;
+import app_kvServer.TextMessage;
 
 /**
  * Represents a connection end point for a particular client that is 
