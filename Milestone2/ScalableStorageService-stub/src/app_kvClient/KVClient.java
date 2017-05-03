@@ -2,7 +2,7 @@ package app_kvClient;
 
 import client.KVStore;
 import client.ClientSocketListener;
-import client.TextMessage;
+import common.TextMessage;
 
 import common.messages.KVMessage;
 import logger.LogSetup;

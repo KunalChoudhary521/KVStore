@@ -1,5 +1,7 @@
 package client;
 
+import common.TextMessage;
+
 public interface ClientSocketListener {
 
 	public enum SocketStatus{CONNECTED, DISCONNECTED, CONNECTION_LOST};
