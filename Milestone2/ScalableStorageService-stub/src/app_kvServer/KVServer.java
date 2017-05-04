@@ -8,10 +8,14 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import logger.LogSetup;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class KVServer extends Thread
 {
@@ -21,7 +25,7 @@ public class KVServer extends Thread
     private int port;
     private ServerSocket serverSocket;
     private boolean running;
-    private String kvDirPath;
+    private Path kvDirPath;
     private KVCache cache;
 	
 	/**
@@ -38,17 +42,14 @@ public class KVServer extends Thread
 	{
 		this.port = port;
         setLogLevel(logLevel);
-
-        this.kvDirPath = String.valueOf(port);
-        if(cacheSize > 0)
-        {
+        if(cacheSize > 0) {
             setCacheType(cacheSize, strategy);
-        }
-        else
-        {
+        } else {
             this.cache = null;
             logger.error("Error! No caching enabled");
         }
+
+        this.kvDirPath = Paths.get(String.valueOf(port));
 }
 
     private void setCacheType(int cSize, String strat)
@@ -64,6 +65,7 @@ public class KVServer extends Thread
             logger.error("Error! No caching enabled");
         }
     }
+
     private String setLogLevel(String levelString) {
 
         if(levelString.equals(Level.ALL.toString())) {
@@ -92,6 +94,24 @@ public class KVServer extends Thread
         }
     }
 
+    /**
+     * Create a directory to store KV-pairs & metadata after
+     * accepting the first socket connection with KVClient or ECS
+     * @throws IOException
+     *                      unable create such directory
+     */
+    public void createDirectory() throws IOException
+    {
+        if (Files.notExists(this.kvDirPath))
+        {
+            Files.createDirectory(this.kvDirPath);
+
+            logger.info("KVServer on port" + "<" + serverSocket.getInetAddress().getHostAddress()
+                    + ":" + this.port + "> " + "New Directory: "
+                    + System.getProperty("user.dir") + File.separator + this.kvDirPath.toString());
+        }
+    }
+
     private boolean isRunning()
     {
         return this.running;
@@ -107,6 +127,15 @@ public class KVServer extends Thread
                 try
                 {
                     Socket client = serverSocket.accept();
+                    try {
+                        createDirectory();//create a directory to store KV-pairs & metadata
+                    } catch (IOException ex) {
+                        logger.error("Error! Unable to create Directory /" + this.kvDirPath
+                                + " for KVServer <" + serverSocket.getInetAddress().getHostAddress()
+                                + ":" + port + ">");
+                        this.running = false;
+                    }
+
                     ClientConnection connection = new ClientConnection(client, this.kvDirPath, this.cache);
                     new Thread(connection).start();
 
