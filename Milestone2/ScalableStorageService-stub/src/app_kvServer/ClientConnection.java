@@ -4,10 +4,17 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.locks.ReentrantLock;
 
 import cache.KVCache;
@@ -34,34 +41,22 @@ public class ClientConnection implements Runnable {
 	private Socket clientSocket;
 	private InputStream input;
 	private OutputStream output;
-	private String kvDirPath;
+	private Path kvDirPath;
 	private KVCache kvCache;
 	private static ReentrantLock fileLock = new ReentrantLock();//1 lock for all instances of ClientConnection
+    private boolean isWriteLocked;
+    private String startHash, endHash;
 	
 	/**
 	 * Constructs a new ClientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, String kvDir, KVCache cache)
+	public ClientConnection(Socket clientSocket, Path kvDir, KVCache cache)
     {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.kvDirPath = kvDir;
         this.kvCache = cache;
-		try
-        {
-            fileLock.lock();
-            createDirectory();
-            fileLock.unlock();
-        }
-        catch (Exception ex)
-        {
-            logger.info("Directory /" + this.kvDirPath + " for KVServer <" +
-                        clientSocket.getInetAddress().getHostAddress() + ":" +
-                        clientSocket.getLocalPort() + "> NOT CREATED!!");
-            this.isOpen = false;
-            fileLock.unlock();
-        }
 	}
 	
 	/**
@@ -80,14 +75,31 @@ public class ClientConnection implements Runnable {
 				try
                 {
 					TextMessage latestMsg = receiveMessage();
+                    String[] msgComponents = latestMsg.getMsg().split(",");
 
-                    if(latestMsg.getMsg().contains("PUT"))
+                    if(msgComponents[0].equals("PUT"))
                     {
                         handlePut(latestMsg);
                     }
-                    else if(latestMsg.getMsg().contains("GET"))
+                    else if(msgComponents[0].equals("GET"))
                     {
                         handleGet(latestMsg);
+                    }
+                    else if(msgComponents[0].equals("ECS"))
+                    {
+                        if(msgComponents[1].equals("LOCKWRITE")) {
+                            isWriteLocked = true;
+                            sendMessage(new TextMessage("SERVER_WRITE_LOCK"));
+                        } else if(msgComponents[1].equals("UNLOCKWRITE")) {
+                            isWriteLocked = false;
+                            sendMessage(new TextMessage("SERVER_WRITE_UNLOCK"));
+                        } else if(msgComponents[1].equals("METADATA")) {
+                            String[] metaDatalines = new String[msgComponents.length - 2];
+                            System.arraycopy(msgComponents,2,metaDatalines,
+                                        0,metaDatalines.length);
+                            storeMetadata(metaDatalines);
+                            storeHashRange(metaDatalines);
+                        }
                     }
 					
 				/* connection either terminated by the client or lost due to 
@@ -121,10 +133,38 @@ public class ClientConnection implements Runnable {
 
 	public void handlePut(TextMessage putMsg)
     {
-        String[] parts = putMsg.getMsg().split(",");
+        try {
+            if (isWriteLocked) {
+                sendMessage(new TextMessage("SERVER_WRITE_LOCK"));
+            }
+        } catch (IOException ex) {
+            logger.error("Error! Write Locked! at KVServer" +
+                    "<" + clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + "> ");
+            return;
+        }
 
+        String[] parts = putMsg.getMsg().split(",");
         String key = parts[1];
         String value = parts[2].trim();//to remove \n\r after the <value>
+
+        //Check if this is the server responsible for the (key,value)
+        try {
+            if(!checkKeyRange(key)) {
+                sendMessage(new TextMessage("SERVER_NOT_RESPONSIBLE"));
+
+                TextMessage requestForMetadata = receiveMessage();//part2 of this protocol
+                if(requestForMetadata.getMsg().equals("SEND_METADATA")) {
+                    String metaDataMsg = createMetadataMsg();
+                    sendMessage(new TextMessage(metaDataMsg));
+                }
+
+                return;
+            }
+        } catch (IOException ex) {
+            logger.error("Error! Unable to complete SERVER_NOT_RESPONSIBLE protocol for " + key);
+            return;
+        }
 
         String putResponse;
         if(!value.equals("null") && !value.isEmpty() && !value.equals(""))
@@ -208,32 +248,22 @@ public class ClientConnection implements Runnable {
         }
     }
 
-    public void createDirectory() throws IOException
-    {
-        if (Files.notExists(Paths.get(this.kvDirPath)))
-        {
-            Files.createDirectory(Paths.get(this.kvDirPath));
-
-        logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
-                + ":" + clientSocket.getLocalPort() + "> " + "New Directory: "
-                + System.getProperty("user.dir") + File.separator + this.kvDirPath);
-        }
-    }
     public void storeKVPair(String key, String value) throws IOException, NoSuchAlgorithmException
     {
         String kvPairInJSON = "{ \"key\":\"" + key + "\", \"value\":\"" + value + "\" }";
 
-        String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+        String filePath = this.kvDirPath.getFileName().toString() + File.separator + md5.HashInStr(key);
         Files.write(Paths.get(filePath),
                                 kvPairInJSON.getBytes("utf-8"));
 
         logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                 + ":" + clientSocket.getLocalPort() + ">\t" + "STORED: <" + key + "," + value + ">");
     }
+
     public boolean deleteFile(String key) throws IOException, NoSuchAlgorithmException
     {
         //the <value> sent by the KVClient will be "null"
-        String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+        String filePath = this.kvDirPath.getFileName().toString() + File.separator + md5.HashInStr(key);
 
         if(Files.deleteIfExists(Paths.get(filePath)))
         {
@@ -249,11 +279,73 @@ public class ClientConnection implements Runnable {
         }
     }
 
+    /**
+     * Assumption: key is hashed using md5 algorithm
+     * @param key   key to compare with start & end hash of this KVServer
+     * @return      true if hash is within range (inclusive) and false otherwise
+     */
+    public boolean checkKeyRange(String key)
+    {
+        try {
+            String keyHash = md5.HashInBI(key).toString(16);
+            if(keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(endHash) <= 0)
+            {
+                return true;
+            }
+        } catch (NoSuchAlgorithmException ex) {
+            logger.error("Unable to check if key is within range " +
+                            "because key was NOT hashed using MD5");
+        }
+
+        return false;
+    }
+
+    public String createMetadataMsg() throws IOException
+    {
+        StringBuilder createMsg = new StringBuilder();
+        Path metaDataFile = Paths.get(this.kvDirPath.getFileName().toString() + File.separator + "metadata");
+        if(Files.exists(metaDataFile))
+        {
+            ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(metaDataFile,
+                    StandardCharsets.UTF_8));
+
+            for(String line : metaData)
+            {
+                createMsg.append(line + ",");
+            }
+        }
+        else
+        {
+            createMsg.append("NO_METADATA");
+        }
+
+        return createMsg.toString();
+    }
+
     public void handleGet(TextMessage getMsg)
     {
         String[] parts = getMsg.getMsg().split(",");
 
         String key = parts[1].trim();//to remove \n\r after the <value>
+
+        //Check if this is the server responsible for the (key,value)
+        try {
+            if(!checkKeyRange(key)) {
+                sendMessage(new TextMessage("SERVER_NOT_RESPONSIBLE"));
+
+                TextMessage requestForMetadata = receiveMessage();//part2 of this protocol
+                if(requestForMetadata.getMsg().equals("SEND_METADATA")) {
+                    String metaDataMsg = createMetadataMsg();
+                    sendMessage(new TextMessage(metaDataMsg));
+                }
+
+                return;
+            }
+        } catch (IOException ex) {
+            logger.error("Error! Unable to complete SERVER_NOT_RESPONSIBLE protocol for " + key);
+            return;
+        }
+
         String value;
         try
         {
@@ -290,7 +382,7 @@ public class ClientConnection implements Runnable {
 
     public String getValueFromFile(String key) throws IOException, NoSuchAlgorithmException
     {
-        String filePath = this.kvDirPath + File.separator + md5.HashInStr(key);
+        String filePath = this.kvDirPath.getFileName().toString() + File.separator + md5.HashInStr(key);
         if(Files.exists(Paths.get(filePath)))
         {
             byte[] data = Files.readAllBytes(Paths.get(filePath));
@@ -308,6 +400,40 @@ public class ClientConnection implements Runnable {
             logger.error("Error! KVServer " + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + "key: " + key + " DOES NOT EXIST");
             return null;
+        }
+    }
+
+    public void storeMetadata(String[] lines)
+    {
+        Path metaDataFile = Paths.get("metadata");
+        try {
+            if(!Files.exists(metaDataFile))
+            {
+                Files.createDirectory(metaDataFile);
+            }
+
+            ArrayList<String> fileContents = new ArrayList<>(Arrays.asList(lines));
+            Files.write(metaDataFile, fileContents, StandardCharsets.UTF_8);
+
+        } catch (IOException ex) {
+            logger.error("Error! Unable to store meta data KVServer<" +
+                        clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + ">");
+        }
+    }
+
+    public void storeHashRange(String[] lines)
+    {
+        for(String line : lines)
+        {
+            String[] components = line.split(";");
+            if(components[0].equals(clientSocket.getInetAddress().getHostAddress())
+                    && Integer.parseInt(components[1]) == clientSocket.getLocalPort())
+            {
+                startHash = components[2];
+                endHash = components[3];
+                break;
+            }
         }
     }
 
