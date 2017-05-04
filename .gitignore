@@ -23,7 +23,9 @@ MileStone1/BasicStorageServer-stub/ms1-server.jar
 #	milestone2-specific ignores
 MileStone2/ScalableStorageService-stub/bin/*
 Milestone2/ScalableStorageService-stub/logs/*
-MileStone2/ScalableStorageService-stub/ms3-client.jar
-MileStone2/ScalableStorageService-stub/ms3-server.jar
-MileStone2/ScalableStorageService-stub/ms3-ecs.jar
+MileStone2/ScalableStorageService-stub/ms2-client.jar
+MileStone2/ScalableStorageService-stub/ms2-server.jar
+MileStone2/ScalableStorageService-stub/ms2-ecs.jar
+
+**/ecsmeta.config
 
