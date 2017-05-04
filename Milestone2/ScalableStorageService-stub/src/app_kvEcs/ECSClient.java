@@ -104,14 +104,16 @@ public class ECSClient
         }
         else if(tokens[0].equals("remove") && tokens.length == 3)
         {
-            response = this.ecsClient.removeServer(tokens[1], Integer.parseInt(tokens[2]));
+            response = this.ecsClient.removeNode(tokens[1], Integer.parseInt(tokens[2]));
             if(response.getStatus() == KVAdminMessage.StatusType.REMOVE_SUCCESS)
             {
-                //
+                logger.info("REMOVE NODE SUCCESSFUL: <" + response.getAddress() +
+                        ":" + response.getPort() + ">");
             }
             else if(response.getStatus() == KVAdminMessage.StatusType.REMOVE_ERROR)
             {
-                //
+                logger.info("REMOVE NODE FAILED: <" + response.getAddress() +
+                        ":" + response.getPort() + ">");
             }
         }
         else if(tokens[0].equals("logLevel") && tokens.length == 2)

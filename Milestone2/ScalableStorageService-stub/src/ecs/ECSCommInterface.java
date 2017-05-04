@@ -16,8 +16,8 @@ public interface ECSCommInterface
     public KVAdminMessage initService(int numberOfNodes, String logLevel, int cacheSize, String strategy);
 
     /**
-     * Starts the storage service by calling start() on all KVServer
-     * instances that participate in the service.
+     * Starts the storage service on all KVServer instances that
+     * participate in the service.
      */
     public KVAdminMessage start();
 
@@ -50,5 +50,5 @@ public interface ECSCommInterface
      * @param port
      *              port of the KVServer to be removed
      */
-    public KVAdminMessage removeServer(String address, int port);
+    public KVAdminMessage removeNode(String address, int port);
 }
