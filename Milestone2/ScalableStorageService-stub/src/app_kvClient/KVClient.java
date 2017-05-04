@@ -97,6 +97,10 @@ public class KVClient implements ClientSocketListener
                     {
                         logger.error("Error! DELETE FAILED: <key>: " + "<" + response.getKey() + ">");
                     }
+                    else if (response.getStatus() == KVMessage.StatusType.SERVER_WRITE_LOCK)
+                    {
+                        logger.error("Error! KVServer locked for put, only get allowed");
+                    }
                 }
                 catch (Exception ex) {
                     logger.error("Error! PUT NOT successful");

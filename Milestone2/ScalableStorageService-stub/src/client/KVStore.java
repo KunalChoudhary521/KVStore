@@ -1,6 +1,8 @@
 package client;
 
+import common.Metadata;
 import common.TextMessage;
+import common.md5;
 import common.messages.KVMessage;
 import common.messages.RespToClient;
 import org.apache.log4j.Logger;
@@ -8,7 +10,10 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
+import java.util.TreeMap;
 
 public class KVStore implements KVCommInterface
 {
@@ -22,6 +27,7 @@ public class KVStore implements KVCommInterface
     private Socket clientSocket;
     private OutputStream output;//to receive messages from KVServer
     private InputStream input;//to send messages to KVServer
+    private TreeMap<BigInteger, Metadata> hashRing;
 	
 	/**
 	 * Initialize KVStore with address and port of KVServer
@@ -100,6 +106,14 @@ public class KVStore implements KVCommInterface
         {
             return new RespToClient(key, null, KVMessage.StatusType.DELETE_ERROR);
         }
+        else if(putResponse.getMsg().equals("SERVER_WRITE_LOCK"))
+        {
+            return new RespToClient(key, null, KVMessage.StatusType.SERVER_WRITE_LOCK);
+        }
+        else if(putResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
+        {
+            return ResendRequest(key, value, "PUT");
+        }
         else
         {
             return new RespToClient(key, null, KVMessage.StatusType.PUT_ERROR);
@@ -126,9 +140,13 @@ public class KVStore implements KVCommInterface
         sendMessage(new TextMessage(msg));//marshalling of get message
 
         TextMessage getResponse = receiveMessage();
-        if(!getResponse.getMsg().trim().equals("GET_ERROR"))
+        if(!getResponse.getMsg().equals("GET_ERROR"))
         {
             return new RespToClient(key, getResponse.getMsg(), KVMessage.StatusType.GET_SUCCESS);
+        }
+        else if(getResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
+        {
+            return ResendRequest(key, null, "GET");
         }
         else
         {
@@ -138,6 +156,77 @@ public class KVStore implements KVCommInterface
             return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
         }
 	}
+
+    private KVMessage ResendRequest(String key, String value, String requestType) throws Exception
+    {
+        KVMessage.StatusType status;
+        if(value == null && requestType.equals("PUT")) {
+            status = KVMessage.StatusType.DELETE_ERROR;
+        } else if(requestType.equals("PUT")) {
+            status = KVMessage.StatusType.PUT_ERROR;
+        } else if(value == null && requestType.equals("GET")) {
+            status = KVMessage.StatusType.GET_ERROR;
+        } else {
+            status = null;
+        }
+
+        sendMessage(new TextMessage("SEND_METADATA"));//part2 of SERVER_NOT_RESPONSIBLE protocol
+
+        TextMessage metaData = receiveMessage();
+        if(metaData.getMsg().equals("NO_METADATA")) {
+            return new RespToClient(key, null, status);
+        } else {
+            //find the correct KVServer and re-send put request
+            hashRingFromMsg(metaData.getMsg());
+            Metadata serverInfo = findCorrectServer(key);
+            if(serverInfo == null) {
+                return new RespToClient(key, null, status);
+            } else {
+                disconnect();//disconnect from KVServer the client is currently connected to
+
+                this.serverAddress = serverInfo.address;
+                this.serverPort = serverInfo.port;
+
+                connect();//connect to the correct KVServer
+
+                //call the appropriate get or put function
+                return (requestType.equals("PUT") ? (put(key, value)) : get(key));
+            }
+        }
+    }
+
+    private void hashRingFromMsg(String metaDataMsg) throws IOException, NoSuchAlgorithmException
+    {
+        this.hashRing = new TreeMap<>();
+        String[] metaDataLines = metaDataMsg.split(",");
+
+        for (int i = 0; i < metaDataLines.length; i++)
+        {
+            String[] line = metaDataLines[i].split(";");
+            hashRing.put(md5.HashInBI(line[0] + ":" + line[1]),
+                    new Metadata(line[0], Integer.parseInt(line[1]),line[2], line[3]));
+        }
+    }
+
+    /**
+     * Find the correct KVServer's address & port for the given key
+     * @param key   the key used to find the correct KVServer
+     * @return      returns {address, port} if range is found, null otherwise
+     */
+    private Metadata findCorrectServer(String key) throws NoSuchAlgorithmException
+    {
+        BigInteger keyHash = md5.HashInBI(key);
+
+        if(hashRing.isEmpty()) { return null; }
+
+        /*
+            Return the server that has the next hash to the keyHash.
+            If keyHash has a hash higher than all KVServers, then return
+            the lowest hash (due to wrap-around).
+         */
+        return (hashRing.higherEntry(keyHash) != null) ?
+                        hashRing.higherEntry(keyHash).getValue() : hashRing.firstEntry().getValue();
+    }
 
     /**
      * Method sends a TextMessage using this socket.
