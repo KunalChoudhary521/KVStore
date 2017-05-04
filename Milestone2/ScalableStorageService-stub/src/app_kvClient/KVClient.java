@@ -208,13 +208,13 @@ public class KVClient implements ClientSocketListener
         sb.append(addSpace(19));
         sb.append("disconnects from the server \n");
 
-        sb.append(PROMPT).append("logLevel");
+        sb.append(PROMPT).append("logLevel <level>");
         sb.append(addSpace(21));
         sb.append("changes the logLevel ");
         sb.append("(ALL | DEBUG | INFO | WARN | ERROR | FATAL | OFF) \n");
 
-        sb.append(PROMPT).append("quit ");
-        sb.append(addSpace(24));
+        sb.append(PROMPT).append("quit");
+        sb.append(addSpace(25));
         sb.append("exits the program \n");
 
         sb.append(PROMPT);
