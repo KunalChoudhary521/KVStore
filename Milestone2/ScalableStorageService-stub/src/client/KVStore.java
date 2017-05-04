@@ -2,7 +2,7 @@ package client;
 
 import common.TextMessage;
 import common.messages.KVMessage;
-import common.messages.ResponseMsg;
+import common.messages.RespToClient;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
@@ -13,7 +13,6 @@ import java.net.Socket;
 public class KVStore implements KVCommInterface
 {
     private Logger logger = Logger.getRootLogger();
-    private boolean running;
 
     private static final int BUFFER_SIZE = 1024;
     private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
@@ -34,20 +33,11 @@ public class KVStore implements KVCommInterface
 	    this.serverAddress = address;
 	    this.serverPort = port;
 	}
-
-    public boolean isRunning() {
-        return this.running;
-    }
-
-    public void setRunning(boolean run) {
-        this.running = run;
-    }
 	
 	@Override
 	public void connect() throws Exception
     {
         this.clientSocket = new Socket(this.serverAddress,this.serverPort);
-        setRunning(true);
         output = this.clientSocket.getOutputStream();
         input = this.clientSocket.getInputStream();
         logger.info("Connection established");
@@ -60,7 +50,6 @@ public class KVStore implements KVCommInterface
 
         try
         {
-            setRunning(false);
             if (clientSocket != null)
             {
                 //input.close();
@@ -83,46 +72,38 @@ public class KVStore implements KVCommInterface
         {
             //key or value is beyond max length
             logger.error("Error! Max Key length = 20Bytes and Max Value length = 120Bytes");
-            return new ResponseMsg(key, null, KVMessage.StatusType.PUT_ERROR);
+            return new RespToClient(key, null, KVMessage.StatusType.PUT_ERROR);
         }
         else if (key.startsWith(",") || value.startsWith(","))
         {
             logger.error("Error! key and value MUST NOT start with a comma (,)");
-            return new ResponseMsg(key, value, KVMessage.StatusType.PUT_ERROR);
+            return new RespToClient(key, value, KVMessage.StatusType.PUT_ERROR);
         }
 
         String msg = "PUT," + key + "," + value;
-        TextMessage putRequest = new TextMessage(msg);//marshalling of put message
-        boolean isSent = sendMessage(putRequest);
+        sendMessage(new TextMessage(msg));//marshalling of put message
 
-        TextMessage putResponse;
-        if(isSent)
+        TextMessage putResponse = receiveMessage();
+        if(putResponse.getMsg().equals("PUT_SUCCESS"))
         {
-            putResponse = receiveMessage();
-            if(putResponse.getMsg().equals("PUT_SUCCESS"))
-            {
-                return new ResponseMsg(key, value, KVMessage.StatusType.PUT_SUCCESS);
-            }
-            else if(putResponse.getMsg().equals("PUT_ERROR"))
-            {
-                return new ResponseMsg(key, null, KVMessage.StatusType.PUT_ERROR);
-            }
-            else if(putResponse.getMsg().equals("DELETE_SUCCESS"))
-            {
-                return new ResponseMsg(key, null, KVMessage.StatusType.DELETE_SUCCESS);
-            }
-            else if(putResponse.getMsg().equals("DELETE_ERROR"))
-            {
-                return new ResponseMsg(key, null, KVMessage.StatusType.DELETE_ERROR);
-            }
+            return new RespToClient(key, value, KVMessage.StatusType.PUT_SUCCESS);
+        }
+        else if(putResponse.getMsg().equals("PUT_ERROR"))
+        {
+            return new RespToClient(key, null, KVMessage.StatusType.PUT_ERROR);
+        }
+        else if(putResponse.getMsg().equals("DELETE_SUCCESS"))
+        {
+            return new RespToClient(key, null, KVMessage.StatusType.DELETE_SUCCESS);
+        }
+        else if(putResponse.getMsg().equals("DELETE_ERROR"))
+        {
+            return new RespToClient(key, null, KVMessage.StatusType.DELETE_ERROR);
         }
         else
         {
-            logger.error("Error! PUT FAILED: key-value pair NOT SENT to KVServer: <" +
-                    clientSocket.getInetAddress().getHostAddress() + ":" +
-                    clientSocket.getLocalPort() + ">");
+            return new RespToClient(key, null, KVMessage.StatusType.PUT_ERROR);
         }
-        return new ResponseMsg(key, null, KVMessage.StatusType.PUT_ERROR);
 	}
 
 	@Override
@@ -132,42 +113,30 @@ public class KVStore implements KVCommInterface
         {
             //this key will NOT exist at any KVServer because it will not be stored in the first place
             logger.error("Error! Max Key length = 20Bytes");
-            return new ResponseMsg(key, null, KVMessage.StatusType.GET_ERROR);
+            return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
         }
         else if (key.startsWith(","))
         {
             //this key will NOT exist at any KVServer because it will not be stored in the first place
             logger.error("Error! key MUST NOT start with a comma (,)");
-            return new ResponseMsg(key, null, KVMessage.StatusType.GET_ERROR);
+            return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
         }
 
         String msg = "GET," + key;
-        TextMessage getRequest = new TextMessage(msg);//marshalling of get message
-        boolean isSent = sendMessage(getRequest);
+        sendMessage(new TextMessage(msg));//marshalling of get message
 
-        TextMessage getResponse;
-        if(isSent)
+        TextMessage getResponse = receiveMessage();
+        if(!getResponse.getMsg().trim().equals("GET_ERROR"))
         {
-            getResponse = receiveMessage();
-            if(!getResponse.getMsg().trim().equals("GET_ERROR"))
-            {
-                return new ResponseMsg(key, getResponse.getMsg(), KVMessage.StatusType.GET_SUCCESS);
-            }
-            else
-            {
-                logger.error("Error! GET FAILED from KVServer: <" +
-                        clientSocket.getInetAddress().getHostAddress() + ":" +
-                        clientSocket.getPort() + ">");
-            }
+            return new RespToClient(key, getResponse.getMsg(), KVMessage.StatusType.GET_SUCCESS);
         }
         else
         {
-            logger.error("Error! GET FAILED: key NOT SENT to KVServer: <" +
+            logger.error("Error! GET FAILED from KVServer: <" +
                     clientSocket.getInetAddress().getHostAddress() + ":" +
                     clientSocket.getPort() + ">");
+            return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
         }
-
-        return new ResponseMsg(key, null, KVMessage.StatusType.GET_ERROR);
 	}
 
     /**
@@ -175,26 +144,15 @@ public class KVStore implements KVCommInterface
      * @param msg the message that is to be sent.
      * @throws IOException some I/O error regarding the output stream
      */
-    //TODO make this sendMessage symmetric to sendMessage in ClientConnection.java
-    public boolean sendMessage(TextMessage msg)
-    {
-        try
-        {
-            byte[] msgBytes = msg.getMsgBytes();
-            output.write(msgBytes, 0, msgBytes.length);
-            output.flush();
-            logger.info("SENT TO \t<"
-                    + clientSocket.getInetAddress().getHostAddress() + ":"
-                    + clientSocket.getPort() + ">: '"
-                    + msg.getMsg() +"'");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            return false;
-        }
+    public void sendMessage(TextMessage msg) throws IOException {
+        byte[] msgBytes = msg.getMsgBytes();
+        output.write(msgBytes, 0, msgBytes.length);
+        output.flush();
+        logger.info("SENT TO \t<"
+                + clientSocket.getInetAddress().getHostAddress() + ":"
+                + clientSocket.getPort() + ">: '"
+                + msg.getMsg() +"'");
     }
-
 
     private TextMessage receiveMessage() throws IOException
     {
