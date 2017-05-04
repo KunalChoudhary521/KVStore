@@ -1,12 +1,12 @@
 package common.messages;
 
-public class ResponseMsg implements KVMessage
+public class RespToClient implements KVMessage
 {
     private String key;
     private String value;
     private StatusType type;
 
-    public ResponseMsg(String key, String value, StatusType type)
+    public RespToClient(String key, String value, StatusType type)
     {
         this.key = key;
         this.value = value;
