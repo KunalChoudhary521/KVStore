@@ -16,21 +16,21 @@ public interface ECSCommInterface
     public KVAdminMessage initService(int numberOfNodes, String logLevel, int cacheSize, String strategy);
 
     /**
-     * Starts the storage service on all KVServer instances that
-     * participate in the service.
+     * Starts the KVServer @ <address:port>, all client requests
+     * and all ECS requests are processed.
      */
-    public KVAdminMessage start();
+    public KVAdminMessage start(String address, int port);
 
     /**
-     * Stops the service; all participating KVServers are stopped for
-     * processing client requests but the processes remain running
+     * Stops the KVServer @ <address:port>, all client requests
+     * are rejected and only ECS requests are processed.
      */
-    public KVAdminMessage stop();
+    public KVAdminMessage stop(String address, int port);
 
     /**
-     * Stops all server instances and exits the KVServer processes.
+     * Stops KVServer @ <address:port> processes.
      */
-    public void shutDown();
+    public void shutDown(String address, int port);
 
     /**
      * Create a new KVServer at the next available address:port

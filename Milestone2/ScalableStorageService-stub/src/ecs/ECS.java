@@ -69,21 +69,39 @@ public class ECS implements ECSCommInterface
     }
 
     @Override
-    public KVAdminMessage start()
+    public KVAdminMessage start(String address, int port)
     {
+        //lock read(get) & write(put)
         return null;
     }
 
     @Override
-    public KVAdminMessage stop()
+    public KVAdminMessage stop(String address, int port)//TODO: need to lock read on KVServer-side
     {
+        //lock read(get) & write(put)
         return null;
     }
 
     @Override
-    public void shutDown()
+    public void shutDown(String address, int port)
     {
+        String msg = "ECS,SHUTDOWN";
+        TextMessage response;
+        try {
+            connect(address, port);
+            sendMessage(new TextMessage(msg));
 
+            response = receiveMessage();
+            disconnect();
+
+            if(response.getMsg().equals("SHUTDOWN_SUCCESS")) {
+                logger.info("KVServer <" + address + ":" + port + "> successfully shutdown");
+            }
+
+        } catch (Exception ex) {
+            logger.error("Error! Unable to shutdown KVServer <" +
+                            address + ":" + port + ">");
+        }
     }
 
     @Override
@@ -109,9 +127,7 @@ public class ECS implements ECSCommInterface
                 //4 Run a KVServer process on <serverAddress:serverPort>
                 //runServerProc(serverPort, logLevel, cacheSize, strategy);
 
-                /*5 lockWrite on KVServer so it doesn't server puts from KVClients
-                    (Maybe have KVServer lockWrite by default)
-                 */
+                //5 lockWrite on KVServer to be added(puts are denied, gets are allowed)
                 if(!setWriteStatus(serverAddress, serverPort,"LOCKWRITE"))
                 {
                     return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
@@ -277,6 +293,56 @@ public class ECS implements ECSCommInterface
     @Override
     public KVAdminMessage removeNode(String address, int port)
     {
+        try {
+            BigInteger serverHash =  md5.HashInBI(address + ":" + port);
+
+            if (hashRing.isEmpty() || !hashRing.containsKey(serverHash)) {
+                logger.error("KVServer<" + address + ":" + port + "> NOT in Hash Ring");
+                return new RespToECS(null, -1, KVAdminMessage.StatusType.REMOVE_ERROR);
+            }
+
+            //1 Remove node form the hashRing & update hashRange of successor node
+            Metadata successorInfo;
+
+            /*
+            successorServer: the server that has the next hash to the serverHash.
+            If serverHash has a hash higher than all KVServers, then it is the
+            KVServer with the lowest hash (due to wrap-around).
+             */
+            if(hashRing.higherKey(serverHash) == null) {
+                successorInfo = hashRing.firstEntry().getValue();
+            } else {
+                successorInfo = hashRing.higherEntry(serverHash).getValue();
+            }
+            successorInfo.startHash = hashRing.get(serverHash).startHash;
+            hashRing.remove(serverHash);//remove server to be deleted from hash ring
+
+            //2 Update Metadata file
+            updateMetaData();
+
+            //3 lockWrite on KVServer to be removed(puts are denied, gets are allowed)
+            if(!setWriteStatus(address, port,"LOCKWRITE"))
+            {
+                return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
+            }
+
+            //TODO: 4 Transfer all KV-pairs to the successor KVServer(send addr & port of successor)
+
+
+            //5 Shutdown (stopServer) the node to be removed
+            shutDown(address, port);
+
+            //6 Send updated Metadata file to all servers
+            if(!sendMetadata())
+            {
+                return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
+            }
+
+        } catch (NoSuchAlgorithmException ex) {
+            logger.error("Unable to hash KVServer<" + address + ":" + port + "> ");
+        } catch (IOException ex1) {
+            logger.error("Error! Unable to update Metadata");
+        }
 
         return null;
     }
