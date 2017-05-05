@@ -220,9 +220,9 @@ public class KVStore implements KVCommInterface
         if(hashRing.isEmpty()) { return null; }
 
         /*
-            Return the server that has the next hash to the keyHash.
+            Return the server that has the next highest hash to the keyHash.
             If keyHash has a hash higher than all KVServers, then return
-            the lowest hash (due to wrap-around).
+            the Metadata of KVServer with the lowest hash (due to wrap-around).
          */
         return (hashRing.higherEntry(keyHash) != null) ?
                         hashRing.higherEntry(keyHash).getValue() : hashRing.firstEntry().getValue();
