@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
-import java.math.BigInteger;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,7 +12,6 @@ import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.concurrent.locks.ReentrantLock;
 
 import cache.KVCache;
@@ -45,19 +42,24 @@ public class ClientConnection implements Runnable {
 	private KVCache kvCache;
 	private static ReentrantLock fileLock = new ReentrantLock();//1 lock for all instances of ClientConnection
     private boolean isWriteLocked;
+    private boolean isReadLocked;
     private String startHash, endHash;
+    private boolean isServerRunning;
 	
 	/**
 	 * Constructs a new ClientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, Path kvDir, KVCache cache)
+	public ClientConnection(Socket clientSocket, Path kvDir, KVCache cache, boolean isRunning)
     {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
 		this.kvDirPath = kvDir;
         this.kvCache = cache;
+        setServerState(isRunning);
 	}
+
+    private void setServerState(boolean state) { this.isServerRunning = state;}
 	
 	/**
 	 * Initializes and starts the client connection. 
@@ -87,7 +89,13 @@ public class ClientConnection implements Runnable {
                     }
                     else if(msgComponents[0].equals("ECS"))
                     {
-                        if(msgComponents[1].equals("LOCKWRITE")) {
+                        if(msgComponents[1].equals("LOCKREAD")) {
+                            //
+
+                        } else if(msgComponents[1].equals("UNLOCKREAD")) {
+                            //
+
+                        } else if(msgComponents[1].equals("LOCKWRITE")) {
                             isWriteLocked = true;
                             sendMessage(new TextMessage("SERVER_WRITE_LOCK"));
                         } else if(msgComponents[1].equals("UNLOCKWRITE")) {
@@ -99,6 +107,11 @@ public class ClientConnection implements Runnable {
                                         0,metaDatalines.length);
                             storeMetadata(metaDatalines);
                             storeHashRange(metaDatalines);
+                        } else if(msgComponents[1].equals("SHUTDOWN")) {
+                            isWriteLocked = true;
+                            isReadLocked = true;
+                            setServerState(false);
+                            sendMessage(new TextMessage("SHUTDOWN_SUCCESS"));
                         }
                     }
 					
@@ -281,6 +294,7 @@ public class ClientConnection implements Runnable {
 
     /**
      * Assumption: key is hashed using md5 algorithm
+     * Remember to handle the wrap-around hash case
      * @param key   key to compare with start & end hash of this KVServer
      * @return      true if hash is within range (inclusive) and false otherwise
      */
@@ -288,10 +302,24 @@ public class ClientConnection implements Runnable {
     {
         try {
             String keyHash = md5.HashInBI(key).toString(16);
-            if(keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(endHash) <= 0)
+            if(startHash.compareTo(endHash) <= 0)
             {
-                return true;
+                if (keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(endHash) <= 0)
+                {
+                    return true;
+                }
             }
+            else //wrap-around case
+            {
+                String minHash = new String(new char[32]).replace("\0", "0");//000...00
+                String maxHash = new String(new char[32]).replace("\0", "f");//fff...fff
+                if ((keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(maxHash) <= 0) &&
+                        (keyHash.compareTo(minHash) >= 0 && keyHash.compareTo(endHash) <= 0))
+                {
+                    return true;
+                }
+            }
+
         } catch (NoSuchAlgorithmException ex) {
             logger.error("Unable to check if key is within range " +
                             "because key was NOT hashed using MD5");
