@@ -127,16 +127,10 @@ public class KVServer extends Thread
                 try
                 {
                     Socket client = serverSocket.accept();
-                    try {
-                        createDirectory();//create a directory to store KV-pairs & metadata
-                    } catch (IOException ex) {
-                        logger.error("Error! Unable to create Directory /" + this.kvDirPath
-                                + " for KVServer <" + serverSocket.getInetAddress().getHostAddress()
-                                + ":" + port + ">");
-                        this.running = false;
-                    }
+                    createDirectory();
 
-                    ClientConnection connection = new ClientConnection(client, this.kvDirPath, this.cache);
+                    ClientConnection connection = new ClientConnection(client, this.kvDirPath,
+                                                    this.cache, this.running);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -149,6 +143,7 @@ public class KVServer extends Thread
             }
         }
         logger.info("Server stopped.");
+        stopServer();
     }
 
     private boolean initializeServer()
@@ -172,6 +167,8 @@ public class KVServer extends Thread
     public void stopServer()
     {
         running = false;
+        logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
+                    + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");
         try {
             serverSocket.close();
         } catch (IOException e) {
