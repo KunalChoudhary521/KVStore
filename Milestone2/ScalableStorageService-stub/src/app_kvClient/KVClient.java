@@ -101,6 +101,10 @@ public class KVClient implements ClientSocketListener
                     {
                         logger.error("Error! KVServer locked for put, only get allowed");
                     }
+                    else if (response.getStatus() == KVMessage.StatusType.SERVER_NOT_RESPONSIBLE)
+                    {
+                        logger.error("Error! KVServer Not responsible for <" + tokens[1] + ">");
+                    }
                 }
                 catch (Exception ex) {
                     logger.error("Error! PUT NOT successful");
@@ -132,6 +136,10 @@ public class KVClient implements ClientSocketListener
                     {
                         logger.info("GET FAILED, Server Stopped: " +
                                 "<key>: " + "<" + response.getKey() + ">");
+                    }
+                    else if (response.getStatus() == KVMessage.StatusType.SERVER_NOT_RESPONSIBLE)
+                    {
+                        logger.error("Error! KVServer Not responsible for <" + tokens[1] + ">");
                     }
                 }
                 catch (Exception ex) {

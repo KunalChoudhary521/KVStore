@@ -113,7 +113,7 @@ public class KVStore implements KVCommInterface
         else if(putResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
         {
             //return ResendRequest(key, value, "PUT");
-            return new RespToClient(key, null, KVMessage.StatusType.PUT_ERROR);
+            return new RespToClient(key, null, KVMessage.StatusType.SERVER_NOT_RESPONSIBLE);
         }
         else
         {
@@ -152,7 +152,7 @@ public class KVStore implements KVCommInterface
         else if(getResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
         {
             //return ResendRequest(key, null, "GET");
-            return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
+            return new RespToClient(key, null, KVMessage.StatusType.SERVER_NOT_RESPONSIBLE);
         }
         else if(getResponse.getMsg().equals("SERVER_STOPPED"))
         {

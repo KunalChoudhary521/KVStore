@@ -4,8 +4,8 @@ package common.messages;
 public interface KVAdminMessage
 {
     public enum StatusType {
-        INIT_SUCCESS,
-        INIT_ERROR,
+        INIT_ALL,           /*All KVServers were initialized*/
+        INIT_SOME,          /*1 or more KVServers were NOT initialized*/
         START_SUCCESS,
         START_ERROR,
         STOP_SUCCESS,
