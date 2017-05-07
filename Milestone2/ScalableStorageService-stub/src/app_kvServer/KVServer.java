@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -131,33 +132,6 @@ public class KVServer extends Thread
         }
     }
 
-    /**
-     * If there is a metadata file that already contains start & end
-     * hash ranges, then they are read when the first KVClient or ECS
-     * connection is made. This happens when KVServer is closed and
-     * reopened without clearing metadata file.
-     * @param address   KVServer address
-     * @param port      KVServer port
-     * @throws IOException  erro in reading metadata file
-     */
-    public void setHashRange(String address, int port) throws IOException
-    {
-        ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(sInfo.getmDataFile(),
-                StandardCharsets.UTF_8));
-
-        for(int i = 0; i < metaData.size(); i++)
-        {
-            String[] components = metaData.get(i).split(";");
-            if(components[0].equals(address) && Integer.parseInt(components[1]) == port)
-            {
-                sInfo.setStartHash(components[2]);
-                sInfo.setEndHash(components[3]);
-                logger.error("startHash & endHash set");
-                break;
-            }
-        }
-    }
-
     private boolean isRunning()
     {
         return sInfo.getRunning();
@@ -173,21 +147,21 @@ public class KVServer extends Thread
                 try
                 {
                     Socket client = serverSocket.accept();
-                    setHashRange(client.getInetAddress().getHostAddress(),client.getLocalPort());
 
-                    ClientConnection connection = new ClientConnection(client, sInfo);
+                    ClientConnection connection = new ClientConnection(client, sInfo, serverSocket);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
                             + client.getInetAddress().getHostName()
                             +  " on port " + client.getPort());
-                } catch (IOException e) {
+                } catch (SocketException e1) {
+                    stopServer();
+                } catch (IOException e2) {
                     logger.error("Error! " +
-                            "Unable to establish connection. \n", e);
+                            "Unable to establish connection. \n", e2);
                 }
             }
         }
-        logger.info("Server stopped.");
         stopServer();
     }
 
@@ -211,15 +185,16 @@ public class KVServer extends Thread
 
     public void stopServer()
     {
-        sInfo.setRunning(false);
         logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
                     + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");
+        /*
         try {
-            serverSocket.close();
+            //serverSocket.close();
+            //Files.deleteIfExists(sInfo.getmDataFile());//remove server's metadata file
         } catch (IOException e) {
             logger.error("Error! " +
                     "Unable to close socket on port: " + port, e);
-        }
+        }*/
     }
 
     public static void main(String[] args) {

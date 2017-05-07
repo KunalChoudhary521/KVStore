@@ -19,18 +19,6 @@ public class ServerInfo
         endHash = null;
     }
 
-    public ServerInfo(Path dirPath, Path mDFile, KVCache cache,
-                      String sHash, String eHash, Boolean runState)
-    {
-        this.kvDirPath = dirPath;
-        this.mDataFile = mDFile;
-        this.cache = cache;
-        this.startHash = sHash;
-        this.endHash = eHash;
-
-        this.running = runState;
-    }
-
     public void setKvDirPath(Path kvDirPath)
     {
         this.kvDirPath = kvDirPath;

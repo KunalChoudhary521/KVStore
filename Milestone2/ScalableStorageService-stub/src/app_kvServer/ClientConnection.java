@@ -4,17 +4,16 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
-import cache.KVCache;
 import common.md5;
 
 import org.apache.log4j.*;
@@ -38,35 +37,25 @@ public class ClientConnection implements Runnable {
 	private Socket clientSocket;
 	private InputStream input;
 	private OutputStream output;
-	private Path kvDirPath;//directory to store KV-pairs & metadata file
-    private Path mDataFile;//path to metadata file
-	private KVCache kvCache;
 	private static ReentrantLock fileLock = new ReentrantLock();
     private static boolean isWriteLocked;
     private static boolean isReadLocked;
-    private static String startHash, endHash;
-    private static Boolean isServerRunning;
+    private static ServerInfo kvServerInfo;
+    private static ServerSocket kvServerSock;
 	
 	/**
 	 * Constructs a new ClientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, ServerInfo sInfo)
+	public ClientConnection(Socket clientSocket, ServerInfo sInfo, ServerSocket serverSocket)
     {
-		this.clientSocket = clientSocket;
-		this.isOpen = true;
-		this.kvDirPath = sInfo.getKvDirPath();
-		this.mDataFile = sInfo.getmDataFile();
-        this.kvCache = sInfo.getCache();
-        setServerState(sInfo.getRunning());
-        startHash = sInfo.getStartHash();
-        endHash = sInfo.getEndHash();
-        isServerRunning = sInfo.getRunning();
+        this.isOpen = true;
+        this.clientSocket = clientSocket;
+		kvServerInfo = sInfo;
         isWriteLocked = false;
         isReadLocked = false;
+        kvServerSock = serverSocket;
 	}
-
-    private void setServerState(Boolean state) { isServerRunning = state;}
 	
 	/**
 	 * Initializes and starts the client connection. 
@@ -122,7 +111,9 @@ public class ClientConnection implements Runnable {
                         } else if(msgComponents[1].equals("SHUTDOWN")) {
                             isWriteLocked = true;
                             isReadLocked = true;
-                            setServerState(false);
+                            isOpen = false;
+                            kvServerInfo.setRunning(false);
+                            kvServerSock.close();
                             sendMessage(new TextMessage("SHUTDOWN_SUCCESS"));
                         }
                     }
@@ -177,7 +168,7 @@ public class ClientConnection implements Runnable {
         //Check if this is the server responsible for the (key,value)
         try {
             //handle the case where KVServer has no metadata file
-            if(startHash == null || endHash == null) {
+            if(kvServerInfo.getStartHash() == null || kvServerInfo.getEndHash() == null) {
                 logger.error("Error! start or end hash range not set");
                 sendMessage(new TextMessage("PUT_ERROR"));
                 return;
@@ -207,9 +198,9 @@ public class ClientConnection implements Runnable {
                 storeKVPair(key, value);
                 fileLock.unlock();
 
-                if(this.kvCache != null)//cache this kv-pair
+                if(kvServerInfo.getCache() != null)//cache this kv-pair
                 {
-                    this.kvCache.insertInCache(key, value);
+                    kvServerInfo.getCache().insertInCache(key, value);
                     logger.info("<" + key + "," + value + ">" + " cached at KVServer" +
                             "<" + clientSocket.getInetAddress().getHostAddress()
                             + ":" + clientSocket.getLocalPort() + "> ");
@@ -247,9 +238,9 @@ public class ClientConnection implements Runnable {
                 }
                 fileLock.unlock();
 
-                if(this.kvCache != null)//evict this kv-pair from cache
+                if(kvServerInfo.getCache() != null)//evict this kv-pair from cache
                 {
-                    this.kvCache.deleteFromCache(key);
+                    kvServerInfo.getCache().deleteFromCache(key);
                     logger.info("<" + key + "," + value + ">" + " evicted from cached at KVServer" +
                             "<" + clientSocket.getInetAddress().getHostAddress()
                             + ":" + clientSocket.getLocalPort() + "> ");
@@ -283,7 +274,8 @@ public class ClientConnection implements Runnable {
     {
         String kvPairInJSON = "{ \"key\":\"" + key + "\", \"value\":\"" + value + "\" }";
 
-        String filePath = this.kvDirPath.getFileName().toString() + File.separator + md5.HashInStr(key);
+        String filePath = kvServerInfo.getKvDirPath().getFileName().toString() +
+                            File.separator + md5.HashInStr(key);
         Files.write(Paths.get(filePath),
                                 kvPairInJSON.getBytes("utf-8"));
 
@@ -294,7 +286,8 @@ public class ClientConnection implements Runnable {
     public boolean deleteFile(String key) throws IOException, NoSuchAlgorithmException
     {
         //the <value> sent by the KVClient will be "null"
-        String filePath = this.kvDirPath.getFileName().toString() + File.separator + md5.HashInStr(key);
+        String filePath = kvServerInfo.getKvDirPath().getFileName().toString() +
+                        File.separator + md5.HashInStr(key);
 
         if(Files.deleteIfExists(Paths.get(filePath)))
         {
@@ -320,9 +313,10 @@ public class ClientConnection implements Runnable {
     {
         try {
             String keyHash = md5.HashInBI(key).toString(16);
-            if(startHash.compareTo(endHash) <= 0)
+            if(kvServerInfo.getStartHash().compareTo(kvServerInfo.getEndHash()) <= 0)
             {
-                if (keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(endHash) <= 0)
+                if (keyHash.compareTo(kvServerInfo.getStartHash()) >= 0 &&
+                        keyHash.compareTo(kvServerInfo.getEndHash()) <= 0)
                 {
                     return true;
                 }
@@ -331,8 +325,10 @@ public class ClientConnection implements Runnable {
             {
                 String minHash = new String(new char[32]).replace("\0", "0");//000...00
                 String maxHash = new String(new char[32]).replace("\0", "f");//fff...fff
-                if ((keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(maxHash) <= 0) ||
-                        (keyHash.compareTo(minHash) >= 0 && keyHash.compareTo(endHash) <= 0))
+                if ((keyHash.compareTo(kvServerInfo.getStartHash()) >= 0 &&
+                        keyHash.compareTo(maxHash) <= 0) ||
+                        (keyHash.compareTo(minHash) >= 0 &&
+                                keyHash.compareTo(kvServerInfo.getEndHash()) <= 0))
                 {
                     return true;
                 }
@@ -349,9 +345,9 @@ public class ClientConnection implements Runnable {
     public String createMetadataMsg() throws IOException
     {
         StringBuilder createMsg = new StringBuilder();
-        if(Files.exists(this.mDataFile))
+        if(Files.exists(kvServerInfo.getmDataFile()))
         {
-            ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(this.mDataFile,
+            ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(kvServerInfo.getmDataFile(),
                     StandardCharsets.UTF_8));
 
             for(String line : metaData)
@@ -387,7 +383,7 @@ public class ClientConnection implements Runnable {
 
         //Check if this is the server responsible for the (key,value)
         try {
-            if(startHash == null || endHash == null) {
+            if(kvServerInfo.getStartHash() == null || kvServerInfo.getEndHash() == null) {
                 logger.error("Error! start or end hash range not set");
                 sendMessage(new TextMessage("GET_ERROR"));
                 return;
@@ -412,11 +408,11 @@ public class ClientConnection implements Runnable {
         {
             //check the cache to get kv-pair and send it to KVClient
             //Design Decision: no lock when reading a file for performance reasons
-            if(this.kvCache == null)
+            if(kvServerInfo.getCache() == null)
             {
                 value = getValueFromFile(key);
             }
-            else if((value = this.kvCache.checkCache(key)) == null)
+            else if((value = kvServerInfo.getCache().checkCache(key)) == null)
             {
                 logger.info("Cache Miss!! <" + key + ">" + " at KVServer" +
                         "<" + clientSocket.getInetAddress().getHostAddress()
@@ -443,7 +439,8 @@ public class ClientConnection implements Runnable {
 
     public String getValueFromFile(String key) throws IOException, NoSuchAlgorithmException
     {
-        String filePath = this.kvDirPath.getFileName().toString() + File.separator + md5.HashInStr(key);
+        String filePath = kvServerInfo.getKvDirPath().getFileName().toString() +
+                        File.separator + md5.HashInStr(key);
         if(Files.exists(Paths.get(filePath)))
         {
             byte[] data = Files.readAllBytes(Paths.get(filePath));
@@ -468,7 +465,7 @@ public class ClientConnection implements Runnable {
     {
         try {
             ArrayList<String> fileContents = new ArrayList<>(Arrays.asList(lines));
-            Files.write(this.mDataFile, fileContents, StandardCharsets.UTF_8);
+            Files.write(kvServerInfo.getmDataFile(), fileContents, StandardCharsets.UTF_8);
 
         } catch (IOException ex) {
             logger.error("Error! Unable to store meta data KVServer<" +
@@ -485,8 +482,8 @@ public class ClientConnection implements Runnable {
             if(components[0].equals(clientSocket.getInetAddress().getHostAddress())
                     && Integer.parseInt(components[1]) == clientSocket.getLocalPort())
             {
-                startHash = components[2];
-                endHash = components[3];
+                kvServerInfo.setStartHash(components[2]);
+                kvServerInfo.setEndHash(components[3]);
                 logger.error("startHash & endHash set");
                 break;
             }
