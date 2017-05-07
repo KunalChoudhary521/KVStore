@@ -16,21 +16,21 @@ public interface ECSCommInterface
     public KVAdminMessage initService(int numberOfNodes, String logLevel, int cacheSize, String strategy);
 
     /**
-     * Starts the KVServer @ <address:port>, all client requests
+     * Starts all KVServer; all client requests
      * and all ECS requests are processed.
      */
-    public KVAdminMessage start(String address, int port);
+    public KVAdminMessage start();
 
     /**
-     * Stops the KVServer @ <address:port>, all client requests
-     * are rejected and only ECS requests are processed.
+     * Stops all KVServer; all client's get & put requests are rejected
+     * and only ECS requests are processed.
      */
-    public KVAdminMessage stop(String address, int port);
+    public KVAdminMessage stop();
 
     /**
-     * Stops KVServer @ <address:port> processes.
+     * Stops all KVServer processes.
      */
-    public void shutDown(String address, int port);
+    public void shutDown();
 
     /**
      * Create a new KVServer at the next available address:port
@@ -41,7 +41,8 @@ public interface ECSCommInterface
      * @param strategy
      *                  cache strategy (FIFO, LFU, LRU) of each KVServer
      */
-    public KVAdminMessage addNode(String logLevel, int cacheSize, String strategy);
+    public KVAdminMessage addNode(String logLevel, int cacheSize,
+                                  String strategy, boolean oneServer);
 
     /**
      * Remove a server from the storage service ring

@@ -33,7 +33,7 @@ public class ECS implements ECSCommInterface
     private static final String metaDataFile = "ecsmeta.config";
     private Socket ecsSocket;
     private TreeMap<BigInteger, Metadata> hashRing;
-
+    private Process serverProc;
 
     public ECS(String confFile)
     {
@@ -60,52 +60,160 @@ public class ECS implements ECSCommInterface
 
     }
 
+    public TreeMap<BigInteger, Metadata> getHashRing() { return this.hashRing; }
+
     @Override
     public KVAdminMessage initService(int numberOfNodes, String logLevel, int cacheSize,
                                       String strategy)
     {
         //call addNode <numberOfNodes> times
+
         return null;
     }
 
     @Override
-    public KVAdminMessage start(String address, int port)
+    public KVAdminMessage start()
     {
-        //lock read(get) & write(put)
-        return null;
-    }
-
-    @Override
-    public KVAdminMessage stop(String address, int port)//TODO: need to lock read on KVServer-side
-    {
-        //lock read(get) & write(put)
-        return null;
-    }
-
-    @Override
-    public void shutDown(String address, int port)
-    {
-        String msg = "ECS,SHUTDOWN";
-        TextMessage response;
-        try {
-            connect(address, port);
-            sendMessage(new TextMessage(msg));
-
-            response = receiveMessage();
-            disconnect();
-
-            if(response.getMsg().equals("SHUTDOWN_SUCCESS")) {
-                logger.info("KVServer <" + address + ":" + port + "> successfully shutdown");
+        //unlock read(get) & write(put)
+        Metadata temp = hashRing.firstEntry().getValue();
+        int startFails = 0;
+        for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet())
+        {
+            try {
+                temp = entry.getValue();
+                startNode(temp.address, temp.port);
+            } catch (IOException ex) {
+                logger.error("Error! Unable to start KVServer <" +
+                        temp.address + ":" + temp.port + ">");
+                startFails++;
             }
+        }
 
-        } catch (Exception ex) {
-            logger.error("Error! Unable to shutdown KVServer <" +
-                            address + ":" + port + ">");
+        if(startFails > 0) {
+            return new RespToECS(null, -1,KVAdminMessage.StatusType.START_ERROR);
+        } else {
+            return new RespToECS(null, -1,KVAdminMessage.StatusType.START_SUCCESS);
+        }
+    }
+
+    //TODO: startNode, stopNode, shutDownNode can be combined into 1 function
+    private void startNode(String address, int port) throws IOException
+    {
+        //unlock read(get) & write(put)
+        String msg = "ECS,START_SERVER";
+        TextMessage response;
+
+        connect(address, port);
+        sendMessage(new TextMessage(msg));
+
+        response = receiveMessage();
+        disconnect();
+
+        if(response.getMsg().equals("SERVER_STARTED")) {
+            logger.info("KVServer <" + address + ":" + port + "> STARTED!");
+        } else {
+            throw new IOException();
         }
     }
 
     @Override
-    public KVAdminMessage addNode(String logLevel, int cacheSize, String strategy)
+    public KVAdminMessage stop()
+    {
+        Metadata temp = hashRing.firstEntry().getValue();
+        int stopFails = 0;
+        for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet())
+        {
+            try {
+                temp = entry.getValue();
+                stopNode(temp.address, temp.port);
+            } catch (IOException ex) {
+                logger.error("Error! Unable to stop KVServer <" +
+                        temp.address + ":" + temp.port + ">");
+                stopFails++;
+            }
+        }
+        if(stopFails > 0) {
+            return new RespToECS(null, -1,KVAdminMessage.StatusType.STOP_ERROR);
+        } else {
+            return new RespToECS(null, -1,KVAdminMessage.StatusType.STOP_SUCCESS);
+        }
+    }
+    public void stopNode(String address, int port) throws IOException
+    {
+        //lock read(get) & write(put)
+        String msg = "ECS,STOP_SERVER";
+        TextMessage response;
+
+        connect(address, port);
+        sendMessage(new TextMessage(msg));
+
+        response = receiveMessage();
+        disconnect();
+
+        if(response.getMsg().equals("SERVER_STOPPED")) {
+            logger.info("KVServer <" + address + ":" + port + "> STOPPED!");
+        } else {
+            throw new IOException();
+        }
+    }
+
+    @Override
+    public void shutDown()
+    {
+        Metadata temp = hashRing.firstEntry().getValue();
+        for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet())
+        {
+            try {
+                temp = entry.getValue();
+                shutDownNode(temp.address, temp.port);
+            } catch (IOException ex) {
+                logger.error("Error! Unable to shutdown KVServer <" +
+                        temp.address + ":" + temp.port + ">");
+            }
+        }
+
+        hashRing.clear();//remove all KVServer from the ring
+        try {
+            resetECSFiles();
+        } catch (IOException ex) {
+            logger.error("Error! Unable to reset ECS's config files");
+        }
+
+    }
+    private void shutDownNode(String address, int port) throws IOException
+    {
+        String msg = "ECS,SHUTDOWN";
+        TextMessage response;
+
+        connect(address, port);
+        sendMessage(new TextMessage(msg));
+
+        response = receiveMessage();
+        disconnect();
+
+        if(response.getMsg().equals("SHUTDOWN_SUCCESS")) {
+            logger.info("KVServer <" + address + ":" + port + "> successfully shutdown");
+        } else {
+            throw new IOException();
+        }
+    }
+
+    /**
+     * Design Decision: If initService calls this function, then
+     * multiple KVServer are required to be initialized. In that case,
+     * the following 3 actions are taken ONLY ONCE AFTER calling
+     * this function <numOfNodes> times to reduce # of message being
+     * passed between ECS & KVServers:
+     * 1    Writing meta data to to ecsmeta.config
+     * 2    sending meta data to all KVServers
+     * 3    starting KVServers
+     *
+     * If this function is called via "add" command via ECSClient,
+     * then the actions above are taken per function call as usual.
+     */
+    @Override
+    public KVAdminMessage addNode(String logLevel, int cacheSize,
+                                  String strategy, boolean addOneNode)
     {
         String serverAddress;//use address to run SSH session
         int serverPort;
@@ -122,30 +230,25 @@ public class ECS implements ECSCommInterface
                 addToRing(serverAddress,serverPort);
 
                 //3 Update Metadata file
-                updateMetaData();
-
-                //4 Run a KVServer process on <serverAddress:serverPort>
-                //runServerProc(serverPort, logLevel, cacheSize, strategy);
-
-                //5 lockWrite on KVServer to be added(puts are denied, gets are allowed)
-                if(!setWriteStatus(serverAddress, serverPort,"LOCKWRITE"))
-                {
-                    return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
+                if(addOneNode) {
+                    WriteMetaDataToFile();
                 }
+                //4 Run a KVServer process on <serverAddress:serverPort>
+                runServerProc(serverPort, logLevel, cacheSize, strategy);
+
+                //5 stop KVServer (put & get is denied because this server doesn't have metadata)
+                stopNode(serverAddress,serverPort);
 
                 //TODO: 6 Transfer affected KV-pairs to the new KVServer(send addr & port of successor)
 
 
                 //7 Send updated Metadata file to all servers (including the new one)
-                if(!sendMetadata())
-                {
-                    return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
-                }
+                if(addOneNode) {
+                    sendMetadata();
 
-                //8 unlockWrite on this KVServer and remove KV-pairs from old KVServer
-                if(!setWriteStatus(serverAddress, serverPort, "UNLOCKWRITE"))
-                {
-                    return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
+                    //8 start KVServer (put & get is allowed)
+                    startNode(serverAddress,serverPort);
+
                 }
 
                 return new RespToECS(serverAddress, serverPort,KVAdminMessage.StatusType.ADD_SUCCESS);
@@ -157,9 +260,7 @@ public class ECS implements ECSCommInterface
 
         } catch (IOException ex1) {
             logger.error("Error! Unable to run KVServer");
-        } catch (NullPointerException ex2) {
-            logger.error("Error! No KVServer available in ecs.config");
-        } catch (NoSuchAlgorithmException ex3) {
+        }  catch (NoSuchAlgorithmException ex3) {
             logger.error("Error! Unable to add KVServer to the hash ring");
         }
 
@@ -200,7 +301,7 @@ public class ECS implements ECSCommInterface
         hashRing.put(currEndHash, temp);//add in the hash ring
     }
 
-    public void updateMetaData() throws IOException
+    public void WriteMetaDataToFile() throws IOException
     {
         ArrayList<String> fileContent = new ArrayList<>();
 
@@ -214,6 +315,41 @@ public class ECS implements ECSCommInterface
         Files.write(mDataFile, fileContent, StandardCharsets.UTF_8);
     }
 
+    public void resetECSFiles() throws IOException
+    {
+        //Reset ecs's metadata file
+        Files.deleteIfExists(mDataFile);
+        Files.createFile(mDataFile);
+
+        //Reset ecs's config file by writing "A" (for available) for each KVServer in it
+        ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(configFile,
+                StandardCharsets.UTF_8));
+
+        for (int i = 0; i < fileContent.size(); i++)
+        {
+            String[] line = fileContent.get(i).split(",");
+            fileContent.set(i, line[0] + "," + line[1] + "," + "A");
+        }
+
+        Files.write(configFile, fileContent, StandardCharsets.UTF_8);
+    }
+
+    public void UpdateConfigFile(String address, int port) throws IOException
+    {
+        ArrayList<String> fileContent = new ArrayList<>(Files.readAllLines(configFile,
+                StandardCharsets.UTF_8));
+
+        for (int i = 0; i < fileContent.size(); i++)
+        {
+            String[] line = fileContent.get(i).split(",");
+            if(line[0].equals(address) && Integer.parseInt(line[1]) == port) {
+                fileContent.set(i, line[0] + "," + line[1] + "," + "A");
+            }
+        }
+
+        Files.write(configFile, fileContent, StandardCharsets.UTF_8);
+    }
+
     /**
      * Send ecsmeta.config file to all running KVServer. the config file's
      * contents can be derived from hashRing data structure or be read from
@@ -222,7 +358,7 @@ public class ECS implements ECSCommInterface
      * @throws IOException
      *                      unable to send metadata file to KVServer(s) <address:port>
      */
-    public boolean sendMetadata() throws IOException
+    public void sendMetadata() throws IOException
     {
         StringBuilder createMsg = new StringBuilder();
         createMsg.append("ECS,METADATA,");
@@ -240,33 +376,26 @@ public class ECS implements ECSCommInterface
         TextMessage response;
         String address, metadatMsg = createMsg.toString();
         int port;
-        try {
-            for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
-            {
-                temp = entry.getValue();
-                address = temp.address;
-                port = temp.port;
+        for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
+        {
+            temp = entry.getValue();
+            address = temp.address;
+            port = temp.port;
 
-                connect(address, port);
-                sendMessage(new TextMessage(metadatMsg));
+            connect(address, port);
+            sendMessage(new TextMessage(metadatMsg));
 
-                response = receiveMessage();
-                disconnect();
+            response = receiveMessage();
+            disconnect();
 
-                if (response.getMsg().equals("RECEIVED_METADATA")) {
-                    logger.info("Metadata received by KVServer <" + address + ":" + port + ">");
-                }
-                else {
-                    logger.error("Error! Unable to send metadata to KVServer <" +
-                                    address + ":" + port + ">");
-                }
+            if (response.getMsg().equals("RECEIVED_METADATA")) {
+                logger.info("Metadata received by KVServer <" + address + ":" + port + ">");
             }
-            return true;
-
-        } catch (Exception ex) {
-            logger.error("Error! Unable to send metadata");
+            else {
+                logger.error("Error! Unable to send metadata to KVServer <" +
+                                address + ":" + port + ">");
+            }
         }
-        return false;
     }
 
     /**
@@ -293,6 +422,7 @@ public class ECS implements ECSCommInterface
     @Override
     public KVAdminMessage removeNode(String address, int port)
     {
+        Metadata successorInfo;
         try {
             BigInteger serverHash =  md5.HashInBI(address + ":" + port);
 
@@ -302,8 +432,6 @@ public class ECS implements ECSCommInterface
             }
 
             //1 Remove node form the hashRing & update hashRange of successor node
-            Metadata successorInfo;
-
             /*
             successorServer: the server that has the next hash to the serverHash.
             If serverHash has a hash higher than all KVServers, then it is the
@@ -317,34 +445,36 @@ public class ECS implements ECSCommInterface
             successorInfo.startHash = hashRing.get(serverHash).startHash;
             hashRing.remove(serverHash);//remove server to be deleted from hash ring
 
-            //2 Update Metadata file
-            updateMetaData();
+            //2 Update both ECS Config files
+            WriteMetaDataToFile();
+            UpdateConfigFile(address, port);
 
             //3 lockWrite on KVServer to be removed(puts are denied, gets are allowed)
             if(!setWriteStatus(address, port,"LOCKWRITE"))
             {
-                return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
+                return new RespToECS(null, -1,KVAdminMessage.StatusType.REMOVE_ERROR);
             }
 
             //TODO: 4 Transfer all KV-pairs to the successor KVServer(send addr & port of successor)
 
 
             //5 Shutdown (stopServer) the node to be removed
-            shutDown(address, port);
+            shutDownNode(address, port);
 
             //6 Send updated Metadata file to all servers
-            if(!sendMetadata())
-            {
-                return new RespToECS(null, -1,KVAdminMessage.StatusType.ADD_ERROR);
-            }
+            sendMetadata();
 
-        } catch (NoSuchAlgorithmException ex) {
+            //No need to unlock KVServer that is going to be removed
+
+        } catch (NoSuchAlgorithmException ex1) {
             logger.error("Unable to hash KVServer<" + address + ":" + port + "> ");
-        } catch (IOException ex1) {
+        } catch (IOException ex2) {
             logger.error("Error! Unable to update Metadata");
+        } catch (Exception ex3) {
+            logger.error("Error! Unable to shutdown KVServer<" + address + ":" + port + ">");
         }
 
-        return null;
+        return new RespToECS(address, port,KVAdminMessage.StatusType.REMOVE_SUCCESS);
     }
 	
 	private boolean setWriteStatus(String address, int port, String status)
@@ -368,7 +498,7 @@ public class ECS implements ECSCommInterface
                 logger.error("Error! " + status + " FAILED on KVServer <" + address + ":" + port + ">");
             }
 
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             logger.error("Error! Unable to set write status on KVServer <" + address + ":" + port + ">");
         }
         return false;
@@ -399,29 +529,30 @@ public class ECS implements ECSCommInterface
     }
 
     //TODO use SSH
-    private void runServerProc(int port, String logLevel,
+    public void runServerProc(int port, String logLevel,
                                int cacheSize, String strategy) throws IOException
     {
-        Process proc;
-
         //java -jar ms2-server.jar 9000 ALL 10 LRU
         String runCmd = "java -jar ms2-server.jar " + port + " "
                         + logLevel + " " + cacheSize + " " + strategy;
         Runtime run = Runtime.getRuntime();
 
-        proc = run.exec(runCmd);
+        this.serverProc = run.exec(runCmd);
 
+        logger.info("Waiting For KVServer process to begin ...");
         try {
             Thread.sleep(3000);//wait (in ms) for KVServer to run
         } catch (InterruptedException ex) {
             logger.error("Error! Thread unable to sleep after running KVServer process");
         }
+
+        logger.info("KVServer process running!!");
     }
 
     /**
      * Connect to KVServer @ <address:port>
      */
-    public void connect(String address, int port) throws Exception
+    public void connect(String address, int port) throws IOException
     {
         this.ecsSocket = new Socket(address,port);
         //output = this.ecsSocket.getOutputStream();
