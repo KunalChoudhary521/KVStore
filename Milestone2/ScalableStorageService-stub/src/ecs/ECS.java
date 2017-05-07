@@ -33,7 +33,6 @@ public class ECS implements ECSCommInterface
     private static final String metaDataFile = "ecsmeta.config";
     private Socket ecsSocket;
     private TreeMap<BigInteger, Metadata> hashRing;
-    private Process serverProc;
 
     public ECS(String confFile)
     {
@@ -66,9 +65,32 @@ public class ECS implements ECSCommInterface
     public KVAdminMessage initService(int numberOfNodes, String logLevel, int cacheSize,
                                       String strategy)
     {
-        //call addNode <numberOfNodes> times
+        KVAdminMessage addResp, initResp = null;
 
-        return null;
+        //call addNode <numberOfNodes> times
+        for(int i = 0; i < numberOfNodes; i++)
+        {
+            addResp = addNode(logLevel,cacheSize,strategy,false);
+            if(addResp.getStatus() == KVAdminMessage.StatusType.ADD_ERROR) {
+                initResp = new RespToECS("",-1, KVAdminMessage.StatusType.INIT_SOME);
+            }
+        }
+
+        try {
+            WriteMetaDataToFile();//written to disk ONCE all KVServers are in the ring
+            sendMetadata();//metadata is sent to all KVServers ONCE
+
+            start();//allow get & put requests
+        } catch (IOException ex1) {
+            logger.error("Error! Unable to complete InitService");
+        }
+
+        //If initResp is still null here then all addNode calls were successful
+        if(initResp == null) {
+            initResp = new RespToECS("",-1, KVAdminMessage.StatusType.INIT_ALL);
+        }
+
+        return initResp;
     }
 
     @Override
@@ -180,7 +202,7 @@ public class ECS implements ECSCommInterface
         }
 
     }
-    private void shutDownNode(String address, int port) throws IOException
+    public void shutDownNode(String address, int port) throws IOException
     {
         String msg = "ECS,SHUTDOWN";
         TextMessage response;
@@ -240,7 +262,7 @@ public class ECS implements ECSCommInterface
                 stopNode(serverAddress,serverPort);
 
                 //TODO: 6 Transfer affected KV-pairs to the new KVServer(send addr & port of successor)
-
+                //(don't transfer if init called addNode)
 
                 //7 Send updated Metadata file to all servers (including the new one)
                 if(addOneNode) {
@@ -537,11 +559,11 @@ public class ECS implements ECSCommInterface
                         + logLevel + " " + cacheSize + " " + strategy;
         Runtime run = Runtime.getRuntime();
 
-        this.serverProc = run.exec(runCmd);
+        Process serverProc = run.exec(runCmd);
 
         logger.info("Waiting For KVServer process to begin ...");
         try {
-            Thread.sleep(3000);//wait (in ms) for KVServer to run
+            Thread.sleep(2000);//wait (in ms) for KVServer to run
         } catch (InterruptedException ex) {
             logger.error("Error! Thread unable to sleep after running KVServer process");
         }

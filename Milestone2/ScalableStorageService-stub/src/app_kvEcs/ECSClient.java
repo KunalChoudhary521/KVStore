@@ -51,11 +51,11 @@ public class ECSClient
         {
             response = this.ecsClient.initService(Integer.parseInt(tokens[1]), tokens[2],
                                         Integer.parseInt(tokens[3]),tokens[4]);
-            if(response.getStatus() == KVAdminMessage.StatusType.INIT_SUCCESS)
+            if(response.getStatus() == KVAdminMessage.StatusType.INIT_ALL)
             {
                 //
             }
-            else if(response.getStatus() == KVAdminMessage.StatusType.INIT_ERROR)
+            else if(response.getStatus() == KVAdminMessage.StatusType.INIT_SOME)
             {
                 //
             }
