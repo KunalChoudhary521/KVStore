@@ -121,8 +121,17 @@ public class KVClient implements ClientSocketListener
                     KVMessage response = kvClient.get(tokens[1]);
                     if (response.getStatus() == KVMessage.StatusType.GET_SUCCESS)
                     {
-                        logger.info("GET SUCCESSFUL: <key,value>: " + "<" + response.getKey()
-                                + "," + response.getValue() + ">");
+                        logger.info("GET SUCCESSFUL: <key,value>: " + "<"
+                                + response.getKey() + "," + response.getValue() + ">");
+                    }
+                    else if (response.getStatus() == KVMessage.StatusType.GET_ERROR)
+                    {
+                        logger.info("GET FAILED: <key>: " + "<" + response.getKey() + ">");
+                    }
+                    else if (response.getStatus() == KVMessage.StatusType.SERVER_STOPPED)
+                    {
+                        logger.info("GET FAILED, Server Stopped: " +
+                                "<key>: " + "<" + response.getKey() + ">");
                     }
                 }
                 catch (Exception ex) {

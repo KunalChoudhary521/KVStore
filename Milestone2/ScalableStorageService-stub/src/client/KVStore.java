@@ -112,7 +112,8 @@ public class KVStore implements KVCommInterface
         }
         else if(putResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
         {
-            return ResendRequest(key, value, "PUT");
+            //return ResendRequest(key, value, "PUT");
+            return new RespToClient(key, null, KVMessage.StatusType.PUT_ERROR);
         }
         else
         {
@@ -140,20 +141,26 @@ public class KVStore implements KVCommInterface
         sendMessage(new TextMessage(msg));//marshalling of get message
 
         TextMessage getResponse = receiveMessage();
-        if(!getResponse.getMsg().equals("GET_ERROR"))
-        {
-            return new RespToClient(key, getResponse.getMsg(), KVMessage.StatusType.GET_SUCCESS);
-        }
-        else if(getResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
-        {
-            return ResendRequest(key, null, "GET");
-        }
-        else
+        if(getResponse.getMsg().equals("GET_ERROR"))
         {
             logger.error("Error! GET FAILED from KVServer: <" +
                     clientSocket.getInetAddress().getHostAddress() + ":" +
                     clientSocket.getPort() + ">");
             return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
+
+        }
+        else if(getResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
+        {
+            //return ResendRequest(key, null, "GET");
+            return new RespToClient(key, null, KVMessage.StatusType.GET_ERROR);
+        }
+        else if(getResponse.getMsg().equals("SERVER_STOPPED"))
+        {
+            return new RespToClient(key, null, KVMessage.StatusType.SERVER_STOPPED);
+        }
+        else
+        {
+            return new RespToClient(key, getResponse.getMsg(), KVMessage.StatusType.GET_SUCCESS);
         }
 	}
 
