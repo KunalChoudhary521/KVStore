@@ -13,9 +13,10 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 
 public class KVServer extends Thread
 {
@@ -24,10 +25,8 @@ public class KVServer extends Thread
 
     private int port;
     private ServerSocket serverSocket;
-    private boolean running;
-    private Path kvDirPath;
-    private KVCache cache;
-	
+    private ServerInfo sInfo;
+
 	/**
 	 * Start KV Server at given port
 	 * @param port given port for storage server to operate
@@ -41,29 +40,41 @@ public class KVServer extends Thread
 	public KVServer(int port, String logLevel, int cacheSize, String strategy)
 	{
 		this.port = port;
+        sInfo = new ServerInfo();
         setLogLevel(logLevel);
+
         if(cacheSize > 0) {
-            setCacheType(cacheSize, strategy);
+            sInfo.setCache(setCacheType(cacheSize, strategy));
         } else {
-            this.cache = null;
+            sInfo.setCache(null);
             logger.error("Error! No caching enabled");
         }
 
-        this.kvDirPath = Paths.get(String.valueOf(port));
+        sInfo.setKvDirPath(Paths.get(String.valueOf(port)));
+        sInfo.setmDataFile(Paths.get(sInfo.getKvDirPath().getFileName().toString() +
+                File.separator + "metadata.txt"));
+        try {
+            createStorageObjects();
+        } catch (IOException ex) {
+            logger.error("Error! Unable to create directory /" + port);
+            sInfo.setRunning(false);//terminate KVServer
+        }
 }
 
-    private void setCacheType(int cSize, String strat)
+    private KVCache setCacheType(int cSize, String strat)
     {
+        KVCache temp;
         if(strat.equals("FIFO")) {
-            this.cache = new FIFOCache(cSize);
+            temp = new FIFOCache(cSize);
         } else if(strat.equals("LFU")) {
-            this.cache = new LFUCache(cSize);
+            temp = new LFUCache(cSize);
         } else if(strat.equals("LRU")) {
-            this.cache = new LRUCache(cSize);
+            temp = new LRUCache(cSize);
         } else {
-            this.cache = null;
             logger.error("Error! No caching enabled");
+            temp = null;
         }
+        return temp;
     }
 
     private String setLogLevel(String levelString) {
@@ -95,31 +106,66 @@ public class KVServer extends Thread
     }
 
     /**
-     * Create a directory to store KV-pairs & metadata after
-     * accepting the first socket connection with KVClient or ECS
-     * @throws IOException
-     *                      unable create such directory
+     * Creates a directory to store KV-pairs and a file
+     * to store metadata
+     * @throws IOException unable create such directory
      */
-    public void createDirectory() throws IOException
+    public void createStorageObjects() throws IOException
     {
-        if (Files.notExists(this.kvDirPath))
+        if (Files.notExists(sInfo.getKvDirPath()))
         {
-            Files.createDirectory(this.kvDirPath);
+            Files.createDirectory(sInfo.getKvDirPath());
 
-            logger.info("KVServer on port" + "<" + serverSocket.getInetAddress().getHostAddress()
-                    + ":" + this.port + "> " + "New Directory: "
-                    + System.getProperty("user.dir") + File.separator + this.kvDirPath.toString());
+            logger.info("KVServer on port <" + this.port + "> " + "New Directory: "
+                    + System.getProperty("user.dir") + File.separator +
+                    sInfo.getKvDirPath().toString());
+        }
+
+        if (Files.notExists(sInfo.getmDataFile()))
+        {
+            Files.createFile(sInfo.getmDataFile());
+
+            logger.info("KVServer on port <" + this.port + "> " + "Metadata file Path: "
+                    + System.getProperty("user.dir") + File.separator +
+                    sInfo.getmDataFile().toString());
+        }
+    }
+
+    /**
+     * If there is a metadata file that already contains start & end
+     * hash ranges, then they are read when the first KVClient or ECS
+     * connection is made. This happens when KVServer is closed and
+     * reopened without clearing metadata file.
+     * @param address   KVServer address
+     * @param port      KVServer port
+     * @throws IOException  erro in reading metadata file
+     */
+    public void setHashRange(String address, int port) throws IOException
+    {
+        ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(sInfo.getmDataFile(),
+                StandardCharsets.UTF_8));
+
+        for(int i = 0; i < metaData.size(); i++)
+        {
+            String[] components = metaData.get(i).split(";");
+            if(components[0].equals(address) && Integer.parseInt(components[1]) == port)
+            {
+                sInfo.setStartHash(components[2]);
+                sInfo.setEndHash(components[3]);
+                logger.error("startHash & endHash set");
+                break;
+            }
         }
     }
 
     private boolean isRunning()
     {
-        return this.running;
+        return sInfo.getRunning();
     }
 
     public void run()
     {
-        this.running = initializeServer();
+        sInfo.setRunning(initializeServer());
         if(serverSocket != null)
         {
             while(isRunning())
@@ -127,10 +173,9 @@ public class KVServer extends Thread
                 try
                 {
                     Socket client = serverSocket.accept();
-                    createDirectory();
+                    setHashRange(client.getInetAddress().getHostAddress(),client.getLocalPort());
 
-                    ClientConnection connection = new ClientConnection(client, this.kvDirPath,
-                                                    this.cache, this.running);
+                    ClientConnection connection = new ClientConnection(client, sInfo);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -166,7 +211,7 @@ public class KVServer extends Thread
 
     public void stopServer()
     {
-        running = false;
+        sInfo.setRunning(false);
         logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
                     + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");
         try {

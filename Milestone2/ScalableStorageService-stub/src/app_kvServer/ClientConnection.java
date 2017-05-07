@@ -38,28 +38,35 @@ public class ClientConnection implements Runnable {
 	private Socket clientSocket;
 	private InputStream input;
 	private OutputStream output;
-	private Path kvDirPath;
+	private Path kvDirPath;//directory to store KV-pairs & metadata file
+    private Path mDataFile;//path to metadata file
 	private KVCache kvCache;
-	private static ReentrantLock fileLock = new ReentrantLock();//1 lock for all instances of ClientConnection
-    private boolean isWriteLocked;
-    private boolean isReadLocked;
-    private String startHash, endHash;
-    private boolean isServerRunning;
+	private static ReentrantLock fileLock = new ReentrantLock();
+    private static boolean isWriteLocked;
+    private static boolean isReadLocked;
+    private static String startHash, endHash;
+    private static Boolean isServerRunning;
 	
 	/**
 	 * Constructs a new ClientConnection object for a given TCP socket.
 	 * @param clientSocket the Socket object for the client connection.
 	 */
-	public ClientConnection(Socket clientSocket, Path kvDir, KVCache cache, boolean isRunning)
+	public ClientConnection(Socket clientSocket, ServerInfo sInfo)
     {
 		this.clientSocket = clientSocket;
 		this.isOpen = true;
-		this.kvDirPath = kvDir;
-        this.kvCache = cache;
-        setServerState(isRunning);
+		this.kvDirPath = sInfo.getKvDirPath();
+		this.mDataFile = sInfo.getmDataFile();
+        this.kvCache = sInfo.getCache();
+        setServerState(sInfo.getRunning());
+        startHash = sInfo.getStartHash();
+        endHash = sInfo.getEndHash();
+        isServerRunning = sInfo.getRunning();
+        isWriteLocked = false;
+        isReadLocked = false;
 	}
 
-    private void setServerState(boolean state) { this.isServerRunning = state;}
+    private void setServerState(Boolean state) { isServerRunning = state;}
 	
 	/**
 	 * Initializes and starts the client connection. 
@@ -89,13 +96,17 @@ public class ClientConnection implements Runnable {
                     }
                     else if(msgComponents[0].equals("ECS"))
                     {
-                        if(msgComponents[1].equals("LOCKREAD")) {
-                            //
-
-                        } else if(msgComponents[1].equals("UNLOCKREAD")) {
-                            //
-
+                        //KVServer is stopped when it is being added to the ring
+                        if(msgComponents[1].equals("START_SERVER")) {
+                            isReadLocked = false;
+                            isWriteLocked = false;
+                            sendMessage(new TextMessage("SERVER_STARTED"));
+                        } if(msgComponents[1].equals("STOP_SERVER")) {
+                            isReadLocked = true;
+                            isWriteLocked = true;
+                            sendMessage(new TextMessage("SERVER_STOPPED"));
                         } else if(msgComponents[1].equals("LOCKWRITE")) {
+                            //KVServer's write is locked ONLY while it is being removed
                             isWriteLocked = true;
                             sendMessage(new TextMessage("SERVER_WRITE_LOCK"));
                         } else if(msgComponents[1].equals("UNLOCKWRITE")) {
@@ -106,7 +117,8 @@ public class ClientConnection implements Runnable {
                             System.arraycopy(msgComponents,2,metaDatalines,
                                         0,metaDatalines.length);
                             storeMetadata(metaDatalines);
-                            storeHashRange(metaDatalines);
+                            setHashRange(metaDatalines);
+                            sendMessage(new TextMessage("RECEIVED_METADATA"));
                         } else if(msgComponents[1].equals("SHUTDOWN")) {
                             isWriteLocked = true;
                             isReadLocked = true;
@@ -117,9 +129,9 @@ public class ClientConnection implements Runnable {
 					
 				/* connection either terminated by the client or lost due to 
 				 * network problems*/	
-				} catch (IOException ioe) {
+				} catch (Exception ioe) {
 					logger.error("Error! Connection lost!");
-					isOpen = false;
+					isOpen = false;//ClientConnection Thread closes
 				}				
 			}
 			
@@ -131,6 +143,7 @@ public class ClientConnection implements Runnable {
 			try {
 				if (clientSocket != null)
 				{
+				    //TODO: log in (server.log) mentions KVClient disconnected even though ECS disconnected
                     logger.info("KVClient <" + clientSocket.getInetAddress().getHostAddress() + ":" +
                             clientSocket.getPort() + "> Disconnected!");
 					input.close();
@@ -163,7 +176,12 @@ public class ClientConnection implements Runnable {
 
         //Check if this is the server responsible for the (key,value)
         try {
-            if(!checkKeyRange(key)) {
+            //handle the case where KVServer has no metadata file
+            if(startHash == null || endHash == null) {
+                logger.error("Error! start or end hash range not set");
+                sendMessage(new TextMessage("PUT_ERROR"));
+                return;
+            } else if(!isKeyInRange(key)) {
                 sendMessage(new TextMessage("SERVER_NOT_RESPONSIBLE"));
 
                 TextMessage requestForMetadata = receiveMessage();//part2 of this protocol
@@ -298,7 +316,7 @@ public class ClientConnection implements Runnable {
      * @param key   key to compare with start & end hash of this KVServer
      * @return      true if hash is within range (inclusive) and false otherwise
      */
-    public boolean checkKeyRange(String key)
+    public boolean isKeyInRange(String key)
     {
         try {
             String keyHash = md5.HashInBI(key).toString(16);
@@ -313,7 +331,7 @@ public class ClientConnection implements Runnable {
             {
                 String minHash = new String(new char[32]).replace("\0", "0");//000...00
                 String maxHash = new String(new char[32]).replace("\0", "f");//fff...fff
-                if ((keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(maxHash) <= 0) &&
+                if ((keyHash.compareTo(startHash) >= 0 && keyHash.compareTo(maxHash) <= 0) ||
                         (keyHash.compareTo(minHash) >= 0 && keyHash.compareTo(endHash) <= 0))
                 {
                     return true;
@@ -331,10 +349,9 @@ public class ClientConnection implements Runnable {
     public String createMetadataMsg() throws IOException
     {
         StringBuilder createMsg = new StringBuilder();
-        Path metaDataFile = Paths.get(this.kvDirPath.getFileName().toString() + File.separator + "metadata");
-        if(Files.exists(metaDataFile))
+        if(Files.exists(this.mDataFile))
         {
-            ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(metaDataFile,
+            ArrayList<String> metaData = new ArrayList<>(Files.readAllLines(this.mDataFile,
                     StandardCharsets.UTF_8));
 
             for(String line : metaData)
@@ -352,13 +369,29 @@ public class ClientConnection implements Runnable {
 
     public void handleGet(TextMessage getMsg)
     {
+        try {
+            if (isReadLocked) {
+                sendMessage(new TextMessage("SERVER_STOPPED"));
+            }
+        } catch (IOException ex) {
+            logger.error("Error! KVServer" +
+                    "<" + clientSocket.getInetAddress().getHostAddress()
+                    + ":" + clientSocket.getLocalPort() + "> STOPPED. No get " +
+                    "or put allowed");
+            return;
+        }
+
         String[] parts = getMsg.getMsg().split(",");
 
         String key = parts[1].trim();//to remove \n\r after the <value>
 
         //Check if this is the server responsible for the (key,value)
         try {
-            if(!checkKeyRange(key)) {
+            if(startHash == null || endHash == null) {
+                logger.error("Error! start or end hash range not set");
+                sendMessage(new TextMessage("GET_ERROR"));
+                return;
+            } else if(!isKeyInRange(key)) {
                 sendMessage(new TextMessage("SERVER_NOT_RESPONSIBLE"));
 
                 TextMessage requestForMetadata = receiveMessage();//part2 of this protocol
@@ -433,15 +466,9 @@ public class ClientConnection implements Runnable {
 
     public void storeMetadata(String[] lines)
     {
-        Path metaDataFile = Paths.get("metadata");
         try {
-            if(!Files.exists(metaDataFile))
-            {
-                Files.createDirectory(metaDataFile);
-            }
-
             ArrayList<String> fileContents = new ArrayList<>(Arrays.asList(lines));
-            Files.write(metaDataFile, fileContents, StandardCharsets.UTF_8);
+            Files.write(this.mDataFile, fileContents, StandardCharsets.UTF_8);
 
         } catch (IOException ex) {
             logger.error("Error! Unable to store meta data KVServer<" +
@@ -450,7 +477,7 @@ public class ClientConnection implements Runnable {
         }
     }
 
-    public void storeHashRange(String[] lines)
+    public void setHashRange(String[] lines)
     {
         for(String line : lines)
         {
@@ -460,6 +487,7 @@ public class ClientConnection implements Runnable {
             {
                 startHash = components[2];
                 endHash = components[3];
+                logger.error("startHash & endHash set");
                 break;
             }
         }
