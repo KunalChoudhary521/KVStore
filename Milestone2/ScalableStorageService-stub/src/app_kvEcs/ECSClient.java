@@ -90,7 +90,8 @@ public class ECSClient
         }
         else if(tokens[0].equals("add") && tokens.length == 4)
         {
-            response = this.ecsClient.addNode(tokens[1], Integer.parseInt(tokens[2]),tokens[3]);
+            response = this.ecsClient.addNode(tokens[1], Integer.parseInt(tokens[2]),
+                                                tokens[3],true);
             if(response.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS)
             {
                 logger.info("ADD NODE SUCCESSFUL: <" + response.getAddress() +
@@ -233,7 +234,6 @@ public class ECSClient
             //ECSClient ecsApp = new ECSClient(args[0]);  ecsApp.run();
 
             ECS test = new ECS("ecs.config");
-            test.addNode("ALL",10,"LRU");
             /*test.addNode("ALL",10,"LRU");
             test.addNode("ALL",10,"LRU");
             test.addNode("ALL",10,"LRU");
