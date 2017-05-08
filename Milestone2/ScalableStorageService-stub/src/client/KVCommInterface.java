@@ -2,6 +2,8 @@ package client;
 
 import common.messages.KVMessage;
 
+import java.io.IOException;
+
 public interface KVCommInterface {
 
 	/**
@@ -10,7 +12,7 @@ public interface KVCommInterface {
 	 * @throws Exception
 	 *             if connection could not be established.
 	 */
-	public void connect() throws Exception;
+	public void connect() throws IOException;
 
 	/**
 	 * disconnects the client from the currently connected server.

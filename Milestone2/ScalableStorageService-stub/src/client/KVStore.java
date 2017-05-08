@@ -41,7 +41,7 @@ public class KVStore implements KVCommInterface
 	}
 	
 	@Override
-	public void connect() throws Exception
+	public void connect() throws IOException
     {
         this.clientSocket = new Socket(this.serverAddress,this.serverPort);
         output = this.clientSocket.getOutputStream();
@@ -112,8 +112,8 @@ public class KVStore implements KVCommInterface
         }
         else if(putResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
         {
-            //return ResendRequest(key, value, "PUT");
-            return new RespToClient(key, null, KVMessage.StatusType.SERVER_NOT_RESPONSIBLE);
+            return ResendRequest(key, value, "PUT");
+            //return new RespToClient(key, null, KVMessage.StatusType.SERVER_NOT_RESPONSIBLE);
         }
         else
         {
@@ -151,8 +151,8 @@ public class KVStore implements KVCommInterface
         }
         else if(getResponse.getMsg().equals("SERVER_NOT_RESPONSIBLE"))
         {
-            //return ResendRequest(key, null, "GET");
-            return new RespToClient(key, null, KVMessage.StatusType.SERVER_NOT_RESPONSIBLE);
+            return ResendRequest(key, null, "GET");
+            //return new RespToClient(key, null, KVMessage.StatusType.SERVER_NOT_RESPONSIBLE);
         }
         else if(getResponse.getMsg().equals("SERVER_STOPPED"))
         {
@@ -184,7 +184,7 @@ public class KVStore implements KVCommInterface
             return new RespToClient(key, null, status);
         } else {
             //find the correct KVServer and re-send put request
-            hashRingFromMsg(metaData.getMsg());
+            createHashRing(metaData.getMsg());
             Metadata serverInfo = findCorrectServer(key);
             if(serverInfo == null) {
                 return new RespToClient(key, null, status);
@@ -202,7 +202,7 @@ public class KVStore implements KVCommInterface
         }
     }
 
-    private void hashRingFromMsg(String metaDataMsg) throws IOException, NoSuchAlgorithmException
+    private void createHashRing(String metaDataMsg) throws IOException, NoSuchAlgorithmException
     {
         this.hashRing = new TreeMap<>();
         String[] metaDataLines = metaDataMsg.split(",");

@@ -300,7 +300,6 @@ public class ClientConnection implements Runnable {
         String filePath = kvServerInfo.getKvDirPath().getFileName().toString() +
                             File.separator + md5.HashInStr(key);
 
-        Files.createFile(Paths.get(filePath));
         Files.write(Paths.get(filePath), kvPairFormat.getBytes("utf-8"));
 
         logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
@@ -528,7 +527,7 @@ public class ClientConnection implements Runnable {
                 byte[] data = Files.readAllBytes(Paths.get(keyHash));
                 String kvPair = new String(data, "UTF-8");
                 fileContent.append(kvPair + ",");
-                //Files.deleteIfExists(path);//delete KVPairs that were sent from srcServer
+                Files.deleteIfExists(path);//delete KVPairs that were sent from srcServer
             }
         }
 

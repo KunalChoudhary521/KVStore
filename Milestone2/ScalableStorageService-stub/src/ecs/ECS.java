@@ -632,10 +632,7 @@ public class ECS implements ECSCommInterface
         } catch (InterruptedException ex) {
             logger.error("Error! Thread unable to sleep after running KVServer process");
         }
-
-
         logger.info("KVServer process running!!");
-
     }
 
     /**
