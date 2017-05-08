@@ -220,10 +220,9 @@ public class AdditionalTestM2 extends TestCase {
         KVMessage resToClient = null;
         KVStore kvClient;
         Metadata firstServer;
-        int kvPairs = 10;
+        int kvPairs = 10;//TODO: a lot of puts & gets cause KVServer to hang if logLevel is NOT OFF
 
         try {
-            //a lot of puts & gets cause KVServer to hang if logLevel is NOT OFF
             resToECS = testEcs.addNode("OFF",10,"LRU", true);
         } catch (Exception e) {
             ex1 = e;
@@ -245,7 +244,7 @@ public class AdditionalTestM2 extends TestCase {
         }
 
         try {
-            resToECS = testEcs.addNode("INFO",10,"LRU", true);
+            resToECS = testEcs.addNode("OFF",10,"LRU", true);
         } catch (Exception e) {
             ex3 = e;
         }
@@ -265,14 +264,71 @@ public class AdditionalTestM2 extends TestCase {
 
     }
 
+    /**
+     * ***Specific to KVServers: <127.0.0.1:9000> & <127.0.0.1:9001>
+     * ***Specific to KVPairs: (k1,v1)
+     * Scenario: KVServer @ <127.0.0.1:9000> & <127.0.0.1:9001> are running.
+     * KVClient connects to KVServer<127.0.0.1:9000> and tries to put("k1","v1").
+     * KVServer<127.0.0.1:9000> sends SERVER_NOT_RESPONSIBLE to KVClient. Then,
+     * KVStore get lastest metadata from KVServer<127.0.0.1:9000>, finds the
+     * address & port of correct KVServer (<127.0.0.1:9001>) and calls
+     * put("k1","v1") and receives PUT_SUCCESS from KVServer <127.0.0.1:9001>.
+     */
     public void testPutAtWrongServer()
     {
+        int numOfNodes = 2;
+        Exception ex = null;
+        KVAdminMessage resToECS;
 
+        resToECS = testEcs.initService(numOfNodes,"ALL",10,"LRU");
+
+        KVStore kvClient;
+        KVMessage resToClient = null;
+        try {
+            kvClient = new KVStore("127.0.0.1", 9000);
+            kvClient.connect();
+            resToClient = kvClient.put("k1", "v1");//correct server is <127.0.0.1:9001>
+
+            kvClient.disconnect();
+        } catch (Exception e) {
+            ex = e;
+        }
+
+        assertTrue(ex == null && resToECS.getStatus() == KVAdminMessage.StatusType.INIT_ALL
+                    && resToClient.getStatus() == KVMessage.StatusType.PUT_SUCCESS);
     }
 
+    /**
+     * Same as testPutFromWrongServer(), but get is tested, instead of put.
+     */
     public void testGetFromWrongServer()
     {
+        int numOfNodes = 2;
+        Exception ex = null;
+        KVAdminMessage resToECS;
 
+        resToECS = testEcs.initService(numOfNodes,"ALL",10,"LRU");
+
+        String key = "k1", value = "v1";
+        KVStore kvClient;
+        KVMessage resToClient = null;
+        try {
+            kvClient = new KVStore("127.0.0.1", 9001);
+            kvClient.connect();
+            resToClient = kvClient.put(key,value);
+            kvClient.disconnect();
+
+            kvClient = new KVStore("127.0.0.1", 9000);//connect to wrong server
+            kvClient.connect();
+            resToClient = kvClient.get("k1");//correct server is <127.0.0.1:9001>
+            kvClient.disconnect();
+        } catch (Exception e) {
+            ex = e;
+        }
+
+        assertTrue(ex == null && resToECS.getStatus() == KVAdminMessage.StatusType.INIT_ALL
+                && resToClient.getStatus() == KVMessage.StatusType.GET_SUCCESS
+                && resToClient.getValue().equals(value));
     }
 
     public void testPutWhileSeverStop()
@@ -289,7 +345,7 @@ public class AdditionalTestM2 extends TestCase {
     {
         Exception ex = null;
         try {
-            //make sure the server is running first
+            //Make sure the server is running first
             testEcs.shutDownNode("127.0.0.1", 9000);
         }
         catch (Exception e) {
