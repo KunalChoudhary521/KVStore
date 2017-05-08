@@ -52,8 +52,6 @@ public class ClientConnection implements Runnable {
         this.isOpen = true;
         this.clientSocket = clientSocket;
 		kvServerInfo = sInfo;
-        isWriteLocked = false;
-        isReadLocked = false;
         kvServerSock = serverSocket;
 	}
 	
@@ -153,6 +151,7 @@ public class ClientConnection implements Runnable {
         try {
             if (isWriteLocked) {
                 sendMessage(new TextMessage("SERVER_WRITE_LOCK"));
+                return;
             }
         } catch (IOException ex) {
             logger.error("Error! Write Locked! at KVServer" +
@@ -368,6 +367,7 @@ public class ClientConnection implements Runnable {
         try {
             if (isReadLocked) {
                 sendMessage(new TextMessage("SERVER_STOPPED"));
+                return;
             }
         } catch (IOException ex) {
             logger.error("Error! KVServer" +

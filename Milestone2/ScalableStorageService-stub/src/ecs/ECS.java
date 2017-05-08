@@ -182,6 +182,7 @@ public class ECS implements ECSCommInterface
     @Override
     public void shutDown()
     {
+
         Metadata temp = hashRing.firstEntry().getValue();
         for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet())
         {
@@ -499,7 +500,7 @@ public class ECS implements ECSCommInterface
         return new RespToECS(address, port,KVAdminMessage.StatusType.REMOVE_SUCCESS);
     }
 	
-	private boolean setWriteStatus(String address, int port, String status)
+	public boolean setWriteStatus(String address, int port, String status)
     {
         String msg = "ECS," + status;
         TextMessage response;
