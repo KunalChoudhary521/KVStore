@@ -7,13 +7,17 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
+import client.KVStore;
+import common.Metadata;
 import common.md5;
 
 import org.apache.log4j.*;
@@ -71,6 +75,7 @@ public class ClientConnection implements Runnable {
 				try
                 {
 					TextMessage latestMsg = receiveMessage();
+					//TODO: declare a static var. msgSeparator = "," in here & ECS class
                     String[] msgComponents = latestMsg.getMsg().split(",");
 
                     if(msgComponents[0].equals("PUT"))
@@ -80,6 +85,14 @@ public class ClientConnection implements Runnable {
                     else if(msgComponents[0].equals("GET"))
                     {
                         handleGet(latestMsg);
+                    }
+                    else if(msgComponents[0].equals("KVPAIR"))
+                    {
+                        for(int i = 1; i < msgComponents.length; i++)
+                        {
+                            String[] kvPair = msgComponents[i].split(";");//key;value
+                            storeKVPair(kvPair[0], kvPair[1]);
+                        }
                     }
                     else if(msgComponents[0].equals("ECS"))
                     {
@@ -106,6 +119,9 @@ public class ClientConnection implements Runnable {
                             storeMetadata(metaDatalines);
                             setHashRange(metaDatalines);
                             sendMessage(new TextMessage("RECEIVED_METADATA"));
+                        } else if(msgComponents[1].equals("TRANSFER")) {
+                            sendKVPairs(msgComponents[2]);
+                            sendMessage(new TextMessage("TRANSFER_DONE"));
                         } else if(msgComponents[1].equals("SHUTDOWN")) {
                             isWriteLocked = true;
                             isReadLocked = true;
@@ -121,6 +137,9 @@ public class ClientConnection implements Runnable {
 				} catch (Exception ioe) {
 					logger.error("Error! Connection lost!");
 					isOpen = false;//ClientConnection Thread closes
+
+                    //general error message to ECS if KVServer fails to perform a task given by ECS
+                    sendMessage(new TextMessage("ERROR"));
 				}				
 			}
 			
@@ -166,12 +185,14 @@ public class ClientConnection implements Runnable {
 
         //Check if this is the server responsible for the (key,value)
         try {
+            String keyHash = md5.HashInBI(key).toString(16);
+
             //handle the case where KVServer has no metadata file
             if(kvServerInfo.getStartHash() == null || kvServerInfo.getEndHash() == null) {
                 logger.error("Error! start or end hash range not set");
                 sendMessage(new TextMessage("PUT_ERROR"));
                 return;
-            } else if(!isKeyInRange(key)) {
+            } else if(!isKeyInRange(keyHash,kvServerInfo.getStartHash(),kvServerInfo.getEndHash())) {
                 sendMessage(new TextMessage("SERVER_NOT_RESPONSIBLE"));
 
                 TextMessage requestForMetadata = receiveMessage();//part2 of this protocol
@@ -184,6 +205,9 @@ public class ClientConnection implements Runnable {
             }
         } catch (IOException ex) {
             logger.error("Error! Unable to complete SERVER_NOT_RESPONSIBLE protocol for " + key);
+            return;
+        } catch (NoSuchAlgorithmException ex) {
+            logger.error("Unable to hash key using MD5");
             return;
         }
 
@@ -271,12 +295,13 @@ public class ClientConnection implements Runnable {
 
     public void storeKVPair(String key, String value) throws IOException, NoSuchAlgorithmException
     {
-        String kvPairInJSON = "{ \"key\":\"" + key + "\", \"value\":\"" + value + "\" }";
+        String kvPairFormat = key + ";" + value;
 
         String filePath = kvServerInfo.getKvDirPath().getFileName().toString() +
                             File.separator + md5.HashInStr(key);
-        Files.write(Paths.get(filePath),
-                                kvPairInJSON.getBytes("utf-8"));
+
+        Files.createFile(Paths.get(filePath));
+        Files.write(Paths.get(filePath), kvPairFormat.getBytes("utf-8"));
 
         logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                 + ":" + clientSocket.getLocalPort() + ">\t" + "STORED: <" + key + "," + value + ">");
@@ -304,40 +329,32 @@ public class ClientConnection implements Runnable {
 
     /**
      * Assumption: key is hashed using md5 algorithm
-     * Remember to handle the wrap-around hash case
-     * @param key   key to compare with start & end hash of this KVServer
-     * @return      true if hash is within range (inclusive) and false otherwise
+     *
+     * @param keyHash   hash of a key to compare with start & end hash
+     * @param sHash   start hash (may or may not be of this KVServer)
+     * @param eHash   end hash (may or may not be of this KVServer)
+     * @return      true if keyHash is within range (inclusive) and false otherwise
      */
-    public boolean isKeyInRange(String key)
+    public boolean isKeyInRange(String keyHash, String sHash, String eHash)
     {
-        try {
-            String keyHash = md5.HashInBI(key).toString(16);
-            if(kvServerInfo.getStartHash().compareTo(kvServerInfo.getEndHash()) <= 0)
+        if(sHash.compareTo(eHash) <= 0)
+        {
+            if (keyHash.compareTo(sHash) >= 0 && keyHash.compareTo(eHash) <= 0)
             {
-                if (keyHash.compareTo(kvServerInfo.getStartHash()) >= 0 &&
-                        keyHash.compareTo(kvServerInfo.getEndHash()) <= 0)
-                {
-                    return true;
-                }
+                return true;
             }
-            else //wrap-around case
-            {
-                String minHash = new String(new char[32]).replace("\0", "0");//000...00
-                String maxHash = new String(new char[32]).replace("\0", "f");//fff...fff
-                if ((keyHash.compareTo(kvServerInfo.getStartHash()) >= 0 &&
-                        keyHash.compareTo(maxHash) <= 0) ||
-                        (keyHash.compareTo(minHash) >= 0 &&
-                                keyHash.compareTo(kvServerInfo.getEndHash()) <= 0))
-                {
-                    return true;
-                }
-            }
-
-        } catch (NoSuchAlgorithmException ex) {
-            logger.error("Unable to check if key is within range " +
-                            "because key was NOT hashed using MD5");
         }
+        else //wrap-around case
+        {
+            String minHash = new String(new char[32]).replace("\0", "0");//000...00
+            String maxHash = new String(new char[32]).replace("\0", "f");//fff...fff
 
+            if ((keyHash.compareTo(sHash) >= 0 && keyHash.compareTo(maxHash) <= 0) ||
+                    (keyHash.compareTo(minHash) >= 0 && keyHash.compareTo(eHash) <= 0))
+            {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -383,11 +400,12 @@ public class ClientConnection implements Runnable {
 
         //Check if this is the server responsible for the (key,value)
         try {
+            String keyHash = md5.HashInBI(key).toString(16);
             if(kvServerInfo.getStartHash() == null || kvServerInfo.getEndHash() == null) {
                 logger.error("Error! start or end hash range not set");
                 sendMessage(new TextMessage("GET_ERROR"));
                 return;
-            } else if(!isKeyInRange(key)) {
+            } else if(!isKeyInRange(keyHash,kvServerInfo.getStartHash(),kvServerInfo.getEndHash())) {
                 sendMessage(new TextMessage("SERVER_NOT_RESPONSIBLE"));
 
                 TextMessage requestForMetadata = receiveMessage();//part2 of this protocol
@@ -400,6 +418,9 @@ public class ClientConnection implements Runnable {
             }
         } catch (IOException ex) {
             logger.error("Error! Unable to complete SERVER_NOT_RESPONSIBLE protocol for " + key);
+            return;
+        } catch (NoSuchAlgorithmException ex) {
+            logger.error("Unable to hash key using MD5");
             return;
         }
 
@@ -444,14 +465,9 @@ public class ClientConnection implements Runnable {
         if(Files.exists(Paths.get(filePath)))
         {
             byte[] data = Files.readAllBytes(Paths.get(filePath));
-            String kvPairInJSON = new String(data, "UTF-8");
+            String kvPairFormat = new String(data, "UTF-8");
 
-            String valueField = kvPairInJSON.split(",")[1];//get value object
-
-            String rawValue = valueField.split(":")[1];
-            String value = rawValue.substring(1,rawValue.length()-3);//ignore characters <" }>
-
-            return value;
+            return kvPairFormat.split(";")[1];//get value object
         }
         else
         {
@@ -488,6 +504,38 @@ public class ClientConnection implements Runnable {
                 break;
             }
         }
+    }
+
+    public void sendKVPairs(String dstServerInfo) throws IOException
+    {
+        String[] info = dstServerInfo.split(";");
+        Metadata dstServer = new Metadata(info[0], Integer.parseInt(info[1]),info[2], info[3]);
+
+        //get a list of all the KVPair files (ignore metadata file)
+        String keyHash;
+        StringBuilder fileContent = new StringBuilder();
+        DirectoryStream<Path> stream = Files.newDirectoryStream(kvServerInfo.getKvDirPath());
+        for(Path path : stream) {
+            if(path.toString().contains("metadata.txt"))//ignore metadata file
+            {
+                logger.info("Ignoring metadata file: " + path.toString());
+                continue;
+            }
+            //if keyHash (file name) is in dstServer's range, read the file contents and sendMessage
+            keyHash = path.toString();
+            if(isKeyInRange(keyHash,dstServer.startHash,dstServer.endHash))
+            {
+                byte[] data = Files.readAllBytes(Paths.get(keyHash));
+                String kvPair = new String(data, "UTF-8");
+                fileContent.append(kvPair + ",");
+                //Files.deleteIfExists(path);//delete KVPairs that were sent from srcServer
+            }
+        }
+
+        KVStore tempClient = new KVStore(dstServer.address,dstServer.port);
+        tempClient.connect();
+        tempClient.sendMessage(new TextMessage("KVPAIR," + fileContent.toString()));
+        tempClient.disconnect();
     }
 
 	/**
@@ -542,8 +590,11 @@ public class ClientConnection implements Runnable {
 			} 
 			
 			/* only read valid characters, i.e. letters and constants */
-			bufferBytes[index] = read;
-			index++;
+            if((read > 31 && read < 127)) {
+                bufferBytes[index] = read;
+                index++;
+            }
+            //bufferBytes[index] = read;index++;
 			
 			/* stop reading is DROP_SIZE is reached */
 			if(msgBytes != null && msgBytes.length + index >= DROP_SIZE) {
