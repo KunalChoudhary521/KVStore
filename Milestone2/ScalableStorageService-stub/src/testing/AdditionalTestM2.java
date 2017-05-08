@@ -15,7 +15,9 @@ import org.junit.Test;
 import junit.framework.TestCase;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 public class AdditionalTestM2 extends TestCase {
 
@@ -43,7 +45,7 @@ public class AdditionalTestM2 extends TestCase {
     /**
      * Add 3 servers to the ring and check if they are indeed in the ring
      */
-    @Test
+
     public void testAddServersToRing() {
         String[] address = {"127.0.0.1", "192.168.0.10", "128.0.10.11" };
         int[] port = {9000, 30_000, 50_000};
@@ -78,7 +80,7 @@ public class AdditionalTestM2 extends TestCase {
     public void testAddOneNode()
     {
         String k ="key1", v = "value1";
-        Exception ex = null;
+        Exception ex1 = null, ex2 = null;
         KVAdminMessage resToECS = null;
         KVMessage resToClient = null;
         KVStore kvClient;
@@ -87,9 +89,8 @@ public class AdditionalTestM2 extends TestCase {
             resToECS = testEcs.addNode("ALL",10,"LRU", true);
         }
         catch (Exception e) {
-            ex = e;
+            ex1 = e;
         }
-        assertTrue(ex == null && resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS);
 
         //connect a KVClient. Put (k,v) and try to retrieve it
         try {
@@ -104,10 +105,11 @@ public class AdditionalTestM2 extends TestCase {
             kvClient.disconnect();
         }
         catch (Exception e) {
-            ex = e;
+            ex2 = e;
         }
 
-        assertTrue(ex == null && resToClient.getValue().equals(v));
+        assertTrue(ex1 == null && resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS
+                         && ex2 == null && resToClient.getValue().equals(v));
     }
 
     public void testInitWith3()
@@ -116,13 +118,7 @@ public class AdditionalTestM2 extends TestCase {
         Exception ex = null;
         KVAdminMessage resToECS = null;
 
-        try {
-            resToECS = testEcs.initService(numOfNodes,"ALL",10,"LRU");
-        } catch (Exception e) {
-            ex = e;
-        }
-
-        assertTrue(ex == null && resToECS.getStatus() == KVAdminMessage.StatusType.INIT_ALL);
+        resToECS = testEcs.initService(numOfNodes,"ALL",10,"LRU");
 
         int connectionsMade = 0;
         KVStore kvClient;
@@ -142,18 +138,76 @@ public class AdditionalTestM2 extends TestCase {
             ex = e;
         }
 
-        assertTrue(ex == null && connectionsMade == numOfNodes);
+        assertTrue(ex == null && resToECS.getStatus() == KVAdminMessage.StatusType.INIT_ALL
+                    && connectionsMade == numOfNodes);
     }
 
     public void testRemoveNode()
     {
+        //Add 2 nodes, remove 1st node, check range of 2nd node (startHash = endHash + 1)
+        int numOfNodes = 2;//add 2 KVServers
+        Exception ex = null;
+        KVAdminMessage resToECS1, resToECS2;
 
+        //Add 2 KVServers
+        resToECS1 = testEcs.initService(numOfNodes,"ALL",10,"LRU");
+
+        Metadata[] servers = testEcs.getHashRing().values()
+                                    .toArray(new Metadata[testEcs.getHashRing().size()]);
+        Metadata firstS = servers[0];
+
+        //remove one of them
+        resToECS2 = testEcs.removeNode(firstS.address, firstS.port);
+
+
+        servers = testEcs.getHashRing().values().toArray(new Metadata[testEcs.getHashRing().size()]);
+        Metadata secondS = servers[0];
+
+        //check range of 2nd node (startHash = endHash + 1)
+        BigInteger sHash = new BigInteger(secondS.startHash,16);
+        BigInteger eHash = new BigInteger(secondS.endHash,16);
+
+        assertTrue(resToECS1.getStatus() == KVAdminMessage.StatusType.INIT_ALL
+                && resToECS2.getStatus() == KVAdminMessage.StatusType.REMOVE_SUCCESS
+                && sHash.equals(eHash.add((BigInteger.ONE))));
     }
 
     //try to put from KVClient at a KVServer while write is locked
     public void testPutWhileWriteLock()
     {
+        boolean result = false;
+        String k ="k1", v = "v1";
+        Exception ex1 = null, ex2 = null;
+        KVAdminMessage resToECS = null;
+        KVMessage resToClient = null;
+        KVStore kvClient;
+        Metadata firstServer;
+        try {
+            resToECS = testEcs.addNode("ALL",10,"LRU", true);
+            result = testEcs.setWriteStatus("127.0.0.1", 9000, "LOCKWRITE");
+        }
+        catch (Exception e) {
+            ex1 = e;
+        }
 
+        //connect a KVClient. Try to put (k,v)
+        try {
+            firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+
+            kvClient = new KVStore(firstServer.address, firstServer.port);
+            kvClient.connect();
+
+            resToClient = kvClient.put(k, v);
+
+            kvClient.disconnect();
+        }
+        catch (Exception e) {
+            ex2 = e;
+        }
+
+        assertTrue(ex1 == null && ex2 == null && result == true
+                && resToClient.getStatus() == KVMessage.StatusType.SERVER_WRITE_LOCK
+                && resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS);
     }
 
     public void testPutAtWrongServer()
