@@ -1,5 +1,6 @@
 package testing;
 
+import app_kvServer.KVServer;
 import client.KVStore;
 import common.Metadata;
 import common.md5;
@@ -10,14 +11,11 @@ import logger.LogSetup;
 import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 
 import junit.framework.TestCase;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.Set;
 
 public class AdditionalTestM2 extends TestCase {
 
@@ -208,6 +206,63 @@ public class AdditionalTestM2 extends TestCase {
         assertTrue(ex1 == null && ex2 == null && result == true
                 && resToClient.getStatus() == KVMessage.StatusType.SERVER_WRITE_LOCK
                 && resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS);
+    }
+
+    /**   1 Add 1st server
+          2 Add a few KVpairs (ex. 10)
+          3 Add 2nd server
+          4 Check if the keys transferred fall in range of respective KVServers
+     */
+    public void testTransferKVPair1()
+    {
+        Exception ex1 = null, ex2 = null, ex3 = null;
+        KVAdminMessage resToECS = null;
+        KVMessage resToClient = null;
+        KVStore kvClient;
+        Metadata firstServer;
+        int kvPairs = 10;
+
+        try {
+            //a lot of puts & gets cause KVServer to hang if logLevel is NOT OFF
+            resToECS = testEcs.addNode("OFF",10,"LRU", true);
+        } catch (Exception e) {
+            ex1 = e;
+        }
+
+        try {
+            firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+
+            kvClient = new KVStore(firstServer.address, firstServer.port);
+            kvClient.connect();
+
+            for(int i = 1; i < kvPairs; i++) {
+                resToClient = kvClient.put("k" + i, "v" + i);//(k1,v1); (k2,v2); ...
+            }
+
+            kvClient.disconnect();
+        } catch (Exception e) {
+            ex2 = e;
+        }
+
+        try {
+            resToECS = testEcs.addNode("INFO",10,"LRU", true);
+        } catch (Exception e) {
+            ex3 = e;
+        }
+
+        assertTrue(ex1 == null && ex2 == null && ex3 == null &&
+                    resToClient.getStatus() == KVMessage.StatusType.PUT_SUCCESS &&
+                    resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS);
+    }
+
+    /**  1 Add 2 servers
+         2 Add a few KVpairs (ex. 10) (fix SERVER_NOT_RESPONSIBLE)
+         3 Remove 1 server
+         4 Check if the keys transferred fall in range of respective KVServers
+     */
+    public void testTransferKVPair2()
+    {
+
     }
 
     public void testPutAtWrongServer()
