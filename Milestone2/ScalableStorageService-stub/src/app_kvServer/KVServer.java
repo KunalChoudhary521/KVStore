@@ -42,10 +42,9 @@ public class KVServer extends Thread
         sInfo = new ServerInfo();
         setLogLevel(logLevel);
 
-        if(cacheSize > 0) {
-            sInfo.setCache(setCacheType(cacheSize, strategy));
-        } else {
-            sInfo.setCache(null);
+        sInfo.setCache(setCacheType(cacheSize, strategy));
+        if(sInfo.getCache() == null)
+        {
             logger.error("Error! No caching enabled");
         }
 
@@ -63,14 +62,15 @@ public class KVServer extends Thread
     private KVCache setCacheType(int cSize, String strat)
     {
         KVCache temp;
-        if(strat.equals("FIFO")) {
+        if(cSize <= 0) {
+            temp = null;
+        } else if(strat.equals("FIFO")) {
             temp = new FIFOCache(cSize);
         } else if(strat.equals("LFU")) {
             temp = new LFUCache(cSize);
         } else if(strat.equals("LRU")) {
             temp = new LRUCache(cSize);
         } else {
-            logger.error("Error! No caching enabled");
             temp = null;
         }
         return temp;
@@ -144,6 +144,7 @@ public class KVServer extends Thread
             {
                 try
                 {
+                    //TODO: clean up KVServer ShutDown protocol
                     Socket client = serverSocket.accept();
 
                     ClientConnection connection = new ClientConnection(client, sInfo, serverSocket);
@@ -183,16 +184,15 @@ public class KVServer extends Thread
 
     public void stopServer()
     {
-        logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
-                    + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");
-        /*
+        /*logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
+                    + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");*/
         try {
             //serverSocket.close();
-            //Files.deleteIfExists(sInfo.getmDataFile());//remove server's metadata file
+            Files.deleteIfExists(sInfo.getmDataFile());//remove server's metadata file
         } catch (IOException e) {
             logger.error("Error! " +
                     "Unable to close socket on port: " + port, e);
-        }*/
+        }
     }
 
     public static void main(String[] args) {
