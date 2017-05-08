@@ -1,5 +1,6 @@
 package ecs;
 
+import app_kvServer.KVServer;
 import common.Metadata;
 import common.TextMessage;
 import common.md5;
@@ -182,6 +183,7 @@ public class ECS implements ECSCommInterface
     @Override
     public void shutDown()
     {
+        if(hashRing.isEmpty()) {return;}
 
         Metadata temp = hashRing.firstEntry().getValue();
         for (Map.Entry<BigInteger, Metadata> entry : hashRing.entrySet())
@@ -240,6 +242,8 @@ public class ECS implements ECSCommInterface
     {
         String serverAddress;//use address to run SSH session
         int serverPort;
+        Metadata currServer, successorServer;
+        BigInteger currHash, successorHash;
         try
         {
             //1 Choose one of the available KVServers
@@ -262,12 +266,21 @@ public class ECS implements ECSCommInterface
                 //5 stop KVServer (put & get is denied because this server doesn't have metadata)
                 stopNode(serverAddress,serverPort);
 
-                //TODO: 6 Transfer affected KV-pairs to the new KVServer(send addr & port of successor)
-                //(don't transfer if init called addNode)
-
-                //7 Send updated Metadata file to all servers (including the new one)
-                if(addOneNode) {
+                //6 Send updated Metadata file to all servers (including the new one)
+                if(addOneNode)
+                {
                     sendMetadata();
+
+                    //7 Transfer affected KV-pairs from successor to current KVServer
+                    currHash =  md5.HashInBI(serverAddress + ":" + serverPort);
+                    successorHash = findSuccessor(currHash);
+
+                    if(successorHash != null && !currHash.equals(successorHash))//don't transfer otherwise
+                    {
+                        currServer = this.hashRing.get(currHash);
+                        successorServer = this.hashRing.get(successorHash);
+                        TransferKVPairs(successorServer, currServer);//parameters are opposite in removeNode
+                    }
 
                     //8 start KVServer (put & get is allowed)
                     startNode(serverAddress,serverPort);
@@ -373,6 +386,58 @@ public class ECS implements ECSCommInterface
         Files.write(configFile, fileContent, StandardCharsets.UTF_8);
     }
 
+    public void TransferKVPairs(Metadata srcServer, Metadata dstServer)
+    {
+        String msg = "ECS,TRANSFER," + dstServer.address + ";" + dstServer.port + ";"
+                    + dstServer.startHash + ";" + dstServer.endHash;
+        TextMessage response;
+        try {
+            connect(srcServer.address,srcServer.port);
+            sendMessage(new TextMessage(msg));
+
+            response = receiveMessage();
+            disconnect();
+
+            if(response.getMsg().equals("TRANSFER_DONE")) {
+                logger.info("KVPair transfer SUCCESSFUL!!");
+            } else {
+                logger.info("KVPair transfer FAILED!!");
+            }
+
+        } catch (IOException ex) {
+            logger.error("Error! Unable to transfer KVPairs from <" + srcServer.address + ":" +
+                    srcServer.port + "> to <" + dstServer.address + ":" + dstServer.port);
+        }
+    }
+
+    /**
+     * Finds the server that has the next highest hash to the currentServer.
+     * If currentServer has a hash higher than all KVServers, then return the
+     * KVServer with the lowest hash (due to wrap-around).
+     *
+     * @param currentServer
+     *                      hash of server whose successor is to be found
+     * @return  hash of successor server in the hash ring
+     */
+    public BigInteger findSuccessor(BigInteger currentServer)
+    {
+        BigInteger successor;
+        if(this.hashRing.size() <= 1 || !this.hashRing.containsKey(currentServer))
+        {
+            successor = null;
+        }
+        else
+        {
+            if(hashRing.higherKey(currentServer) == null) {
+                successor = hashRing.firstEntry().getKey();
+            } else {
+                successor = hashRing.higherEntry(currentServer).getKey();
+            }
+        }
+
+        return successor;
+    }
+
     /**
      * Send ecsmeta.config file to all running KVServer. the config file's
      * contents can be derived from hashRing data structure or be read from
@@ -445,28 +510,22 @@ public class ECS implements ECSCommInterface
     @Override
     public KVAdminMessage removeNode(String address, int port)
     {
-        Metadata successorInfo;
+        Metadata currServer, successorServer;
+        BigInteger currHash, successorHash;
         try {
-            BigInteger serverHash =  md5.HashInBI(address + ":" + port);
-
-            if (hashRing.isEmpty() || !hashRing.containsKey(serverHash)) {
-                logger.error("KVServer<" + address + ":" + port + "> NOT in Hash Ring");
-                return new RespToECS(null, -1, KVAdminMessage.StatusType.REMOVE_ERROR);
-            }
+            currHash =  md5.HashInBI(address + ":" + port);
+            currServer = this.hashRing.get(currHash);
 
             //1 Remove node form the hashRing & update hashRange of successor node
-            /*
-            successorServer: the server that has the next hash to the serverHash.
-            If serverHash has a hash higher than all KVServers, then it is the
-            KVServer with the lowest hash (due to wrap-around).
-             */
-            if(hashRing.higherKey(serverHash) == null) {
-                successorInfo = hashRing.firstEntry().getValue();
-            } else {
-                successorInfo = hashRing.higherEntry(serverHash).getValue();
+            successorHash = findSuccessor(currHash);
+
+            if(successorHash == null) {
+              return new RespToECS(null, -1, KVAdminMessage.StatusType.REMOVE_ERROR);
             }
-            successorInfo.startHash = hashRing.get(serverHash).startHash;
-            hashRing.remove(serverHash);//remove server to be deleted from hash ring
+
+            successorServer = this.hashRing.get(successorHash);
+            successorServer.startHash = hashRing.get(currHash).startHash;
+            hashRing.remove(currHash);//remove server to be deleted from hash ring
 
             //2 Update both ECS Config files
             WriteMetaDataToFile();
@@ -478,14 +537,17 @@ public class ECS implements ECSCommInterface
                 return new RespToECS(null, -1,KVAdminMessage.StatusType.REMOVE_ERROR);
             }
 
-            //TODO: 4 Transfer all KV-pairs to the successor KVServer(send addr & port of successor)
-
-
-            //5 Shutdown (stopServer) the node to be removed
-            shutDownNode(address, port);
-
-            //6 Send updated Metadata file to all servers
+            //4 Send updated Metadata file to all servers
             sendMetadata();
+
+            //5 Transfer all KV-pairs to the successor KVServer
+            if(!currHash.equals(successorHash))//No need to transfer if there is ONLY 1 server running
+            {
+                TransferKVPairs(currServer, successorServer);//parameters are opposite in addNode
+            }
+
+            //6 Shutdown (stopServer) the node to be removed
+            shutDownNode(address, port);
 
             //No need to unlock KVServer that is going to be removed
 
@@ -555,6 +617,8 @@ public class ECS implements ECSCommInterface
     public void runServerProc(int port, String logLevel,
                                int cacheSize, String strategy) throws IOException
     {
+        //new KVServer(port, logLevel, cacheSize, strategy).start();//for debugging only
+
         //java -jar ms2-server.jar 9000 ALL 10 LRU
         String runCmd = "java -jar ms2-server.jar " + port + " "
                         + logLevel + " " + cacheSize + " " + strategy;
@@ -569,7 +633,9 @@ public class ECS implements ECSCommInterface
             logger.error("Error! Thread unable to sleep after running KVServer process");
         }
 
+
         logger.info("KVServer process running!!");
+
     }
 
     /**
