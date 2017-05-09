@@ -2,32 +2,41 @@ package testing;
 
 import java.io.IOException;
 
+import common.messages.KVAdminMessage;
+import ecs.ECS;
 import org.apache.log4j.Level;
 
-import app_kvServer.KVServer;
-import junit.framework.Test;
-import junit.framework.TestSuite;
 import logger.LogSetup;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
-
+@RunWith(Suite.class)
+@Suite.SuiteClasses({ ConnectionTest.class, InteractionTest.class,AdditionalTest.class })
 public class AllTests {
 
-	static {
-		try {
-			new LogSetup("logs/testing/serverTest.log", Level.ALL);
-			new KVServer(9000, "ALL", 5, "LRU").start();//9000 ALL 10 LRU
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+    private static ECS testEcs;
 
-	
-	public static Test suite() {
-		TestSuite clientSuite = new TestSuite("Basic Storage ServerTest-Suite");
-		clientSuite.addTestSuite(ConnectionTest.class);
-		clientSuite.addTestSuite(InteractionTest.class);
-		clientSuite.addTestSuite(AdditionalTest.class);
-		return clientSuite;
-	}
-	
+    //Called ONCE before all test classes in @Suite.SuiteClasses() have run
+    @BeforeClass
+    public static void setUp()
+    {
+        try {
+            new LogSetup("logs/testing/AllTests.log", Level.ALL);
+            //new KVServer(9000, "ALL", 5, "LRU").start();//9000 ALL 10 LRU
+            testEcs = new ECS("ecs.config");
+            KVAdminMessage resToECS = testEcs.initService(1,"OFF",20,"LRU");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    //Called ONCE after all test classes in @Suite.SuiteClasses() have run
+    @AfterClass
+    public static void tearDown()
+    {
+        testEcs.shutDown();
+    }
 }
