@@ -236,6 +236,7 @@ public class ECS implements ECSCommInterface
      * If this function is called via "add" command via ECSClient,
      * then the actions above are taken per function call as usual.
      */
+    //TODO: KVServer logger hangs if logLevel is NOT OFF when nodes are added via addNode
     @Override
     public KVAdminMessage addNode(String logLevel, int cacheSize,
                                   String strategy, boolean addOneNode)
@@ -744,8 +745,8 @@ public class ECS implements ECSCommInterface
         TextMessage msg = new TextMessage(msgBytes);
         logger.info("RECEIVED FROM \t<"
                 + ecsSocket.getInetAddress().getHostAddress() + ":"
-                + ecsSocket.getPort() + ">: '"
-                + msg.getMsg().trim() + "'");
+                + ecsSocket.getPort() + ">");
+                //+ msg.getMsg().trim() + "'");
         return msg;
     }
 }

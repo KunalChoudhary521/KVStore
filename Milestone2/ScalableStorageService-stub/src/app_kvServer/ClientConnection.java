@@ -619,8 +619,8 @@ public class ClientConnection implements Runnable {
 		TextMessage msg = new TextMessage(msgBytes);
 		logger.info("RECEIVED FROM \t<"
 				+ clientSocket.getInetAddress().getHostAddress() + ":" 
-				+ clientSocket.getPort() + ">: '"
-				+ msg.getMsg().trim() + "'");
+				+ clientSocket.getPort() + ">:");
+				//+ msg.getMsg().trim() + "'");
 		return msg;
     }
 }
