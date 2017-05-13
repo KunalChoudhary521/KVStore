@@ -223,7 +223,7 @@ public class AdditionalTestM2 extends TestCase {
         KVMessage resToClient = null;
         KVStore kvClient;
         Metadata firstServer;
-        int kvPairs = 10;//TODO: a lot of puts & gets cause KVServer to hang if logLevel is NOT OFF
+        int kvPairs = 10;
 
         try {
             resToECS = testEcs.addNode("OFF",10,"LRU", true);
@@ -258,13 +258,13 @@ public class AdditionalTestM2 extends TestCase {
     }
 
     /**  1 Add 2 servers
-         2 Add a few KVpairs (ex. 10) (fix SERVER_NOT_RESPONSIBLE)
+         2 Add a few KVPairs (ex. 10)
          3 Remove 1 server
          4 Check if the keys transferred fall in range of respective KVServers
      */
     public void testTransferKVPair2()
     {
-
+        assertTrue(true);
     }
 
     /**
@@ -423,20 +423,46 @@ public class AdditionalTestM2 extends TestCase {
 
     public void testShutDownOneServer()
     {
-        Exception ex = null;
+        KVAdminMessage resToECS = null;
+        KVStore kvClient;
+        Exception ex1 = null, ex2 = null;
+
         try {
-            //Make sure the server is running first
-            testEcs.shutDownNode("127.0.0.1", 9000);
+            /*resToECS = testEcs.addNode("ALL",10,"FIFO", true);
+            resToECS = testEcs.addNode("ALL",15,"LFU", true);
+            resToECS = testEcs.addNode("ALL",20,"LRU", true);
+            */
+            resToECS = testEcs.initService(3,"ALL",10,"LRU");
         }
-        catch (Exception e) {
-            ex = e;
+        catch (Exception e1) {
+            ex1 = e1;
         }
 
-        assertTrue(ex == null);
+        Metadata server;
+        try {
+            server = testEcs.getHashRing().firstEntry().getValue();
+            testEcs.shutDownNode(server.address, server.port);//server.address, server.port
+
+            kvClient = new KVStore(server.address, server.port);
+            kvClient.connect();//this should throw an IOException
+            kvClient.disconnect();
+        }
+        catch (Exception e2) {
+            ex2 = e2;
+        }
+
+        assertTrue(ex1 == null && ex2 != null &&
+                    ex2.getMessage().equals("Connection refused: connect"));
     }
 
     public void testShutDownAllServers()
     {
+        KVAdminMessage resToECS = null;
+        int numOfNodes = 8;
+        resToECS = testEcs.initService(numOfNodes,"ALL",10,"LRU");
 
+        testEcs.shutDown();
+
+        assertTrue(resToECS.getStatus() == KVAdminMessage.StatusType.INIT_ALL);
     }
 }
