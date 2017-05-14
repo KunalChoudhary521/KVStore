@@ -34,6 +34,7 @@ public class ECS implements ECSCommInterface
     private static final String metaDataFile = "ecsmeta.config";
     private Socket ecsSocket;
     private TreeMap<BigInteger, Metadata> hashRing;
+    Process serverProc;
 
     public ECS(String confFile)
     {
@@ -621,14 +622,17 @@ public class ECS implements ECSCommInterface
         //new KVServer(port, logLevel, cacheSize, strategy).start();//for debugging only
 
         //java -jar ms2-server.jar 9000 ALL 10 LRU
-        String runCmd = "java -jar ms2-server.jar " + port + " "
-                        + logLevel + " " + cacheSize + " " + strategy;
-        Runtime run = Runtime.getRuntime();
+        String runCmd = "java -jar ms2-server.jar " + port + " " + logLevel + " "
+                        + cacheSize + " " + strategy ;
 
-        Process serverProc = run.exec(runCmd);
+        //http://stackoverflow.com/a/11014951 (WINDOWS specific ONLY)
+        String setStdStreams = " > nul 2>&1";//redirect the stdout and stderr streams to nul
+
+        Runtime run = Runtime.getRuntime();
 
         logger.info("Waiting For KVServer process to begin ...");
         try {
+            serverProc = run.exec("cmd /c " + runCmd + setStdStreams);
             Thread.sleep(2000);//wait (in ms) for KVServer to run
         } catch (InterruptedException ex) {
             logger.error("Error! Thread unable to sleep after running KVServer process");
@@ -745,8 +749,8 @@ public class ECS implements ECSCommInterface
         TextMessage msg = new TextMessage(msgBytes);
         logger.info("RECEIVED FROM \t<"
                 + ecsSocket.getInetAddress().getHostAddress() + ":"
-                + ecsSocket.getPort() + ">");
-                //+ msg.getMsg().trim() + "'");
+                + ecsSocket.getPort() + ">"
+                + msg.getMsg().trim() + "'");
         return msg;
     }
 }
