@@ -41,7 +41,7 @@ public class ClientConnection implements Runnable {
 	private Socket clientSocket;
 	private InputStream input;
 	private OutputStream output;
-	private static ReentrantLock fileLock = new ReentrantLock();
+	//private static ReentrantLock fileLock = new ReentrantLock();
     private static boolean isWriteLocked;
     private static boolean isReadLocked;
     private static ServerInfo kvServerInfo;
@@ -217,9 +217,7 @@ public class ClientConnection implements Runnable {
             //Store KV-pair to disk
             try
             {
-                fileLock.lock();
                 storeKVPair(key, value);
-                fileLock.unlock();
 
                 if(kvServerInfo.getCache() != null)//cache this kv-pair
                 {
@@ -235,20 +233,17 @@ public class ClientConnection implements Runnable {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "unable to hash key" + key);
                 putResponse = "PUT_ERROR";
-                fileLock.unlock();
 
             } catch (IOException ex) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to STORE KV-pair to disk");
                 putResponse = "PUT_ERROR";
-                fileLock.unlock();
             }
         }
         else
         {
             //Delete KV-pair from disk
             try {
-                fileLock.lock();
                 if(deleteFile(key))
                 {
                     putResponse = "DELETE_SUCCESS";
@@ -257,13 +252,13 @@ public class ClientConnection implements Runnable {
                 else
                 {
                     putResponse = "DELETE_ERROR";
-                    logger.info("DELETE ERROR: <key>: " + "<" + key + "> DOES NOT exist");
+                    logger.error("DELETE ERROR: <key>: " + "<" + key + "> DOES NOT exist");
                 }
-                fileLock.unlock();
 
-                if(kvServerInfo.getCache() != null)//evict this kv-pair from cache
+
+                if(kvServerInfo.getCache() != null && kvServerInfo.getCache().deleteFromCache(key))
                 {
-                    kvServerInfo.getCache().deleteFromCache(key);
+                    //evict this kv-pair from cache
                     logger.info("<" + key + "," + value + ">" + " evicted from cached at KVServer" +
                             "<" + clientSocket.getInetAddress().getHostAddress()
                             + ":" + clientSocket.getLocalPort() + "> ");
@@ -272,13 +267,11 @@ public class ClientConnection implements Runnable {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "unable to hash key" + key);
                 putResponse = "DELETE_ERROR";
-                fileLock.unlock();
 
             } catch (IOException ex1) {
                 logger.error("Error! KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                         + ":" + clientSocket.getLocalPort() + "> " + "UNABLE to DELETE KV-pair from disk");
                 putResponse = "DELETE_ERROR";
-                fileLock.unlock();
             }
         }
 
@@ -302,7 +295,7 @@ public class ClientConnection implements Runnable {
 
         Files.write(Paths.get(filePath), kvPairFormat.getBytes("utf-8"));
 
-        logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
+        logger.info("KVServer " + "<" + clientSocket.getInetAddress().getHostAddress()
                 + ":" + clientSocket.getLocalPort() + ">\t" + "STORED: <" + key + "," + value + ">");
     }
 
@@ -312,16 +305,20 @@ public class ClientConnection implements Runnable {
         String filePath = kvServerInfo.getKvDirPath().getFileName().toString() +
                         File.separator + md5.HashInStr(key);
 
-        if(Files.deleteIfExists(Paths.get(filePath)))
+        boolean isDeleted = Files.deleteIfExists(Paths.get(filePath));
+
+        if(isDeleted)//true if the file was deleted
         {
             logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + "DELETED: <" + key + ">");
+
             return true;
         }
-        else
+        else//false if the file WASN'T deleted because it did not exist
         {
             logger.info("KVServer" + "<" + clientSocket.getInetAddress().getHostAddress()
                     + ":" + clientSocket.getLocalPort() + "> " + ": " + key + " DOES NOT exist");
+
             return false;
         }
     }
@@ -499,7 +496,8 @@ public class ClientConnection implements Runnable {
             {
                 kvServerInfo.setStartHash(components[2]);
                 kvServerInfo.setEndHash(components[3]);
-                logger.error("startHash & endHash set");
+                logger.info("KVServer <" + clientSocket.getInetAddress().getHostAddress() +
+                        ":" + clientSocket.getLocalPort() + ">\t" + "startHash & endHash set");
                 break;
             }
         }
@@ -619,8 +617,8 @@ public class ClientConnection implements Runnable {
 		TextMessage msg = new TextMessage(msgBytes);
 		logger.info("RECEIVED FROM \t<"
 				+ clientSocket.getInetAddress().getHostAddress() + ":" 
-				+ clientSocket.getPort() + ">:");
-				//+ msg.getMsg().trim() + "'");
+				+ clientSocket.getPort() + ">:"
+				+ msg.getMsg().trim() + "'");
 		return msg;
     }
 }
