@@ -74,7 +74,7 @@ public class LRUCache implements KVCache
     }
 
     @Override
-    public void deleteFromCache(String k)
+    public boolean deleteFromCache(String k)
     {
         //this function does nothing if key, k, is not found
         if (this.maxCacheSize>0) {
@@ -83,9 +83,13 @@ public class LRUCache implements KVCache
                 if ((!this.lruQueue.isEmpty()) && (this.lruQueue.contains(ndToDelete))) {
                     this.lruQueue.remove(ndToDelete);//remove from queue
                     this.keyMap.remove(ndToDelete.getKey());//remove from map
+
+                    return true;
                 }
             }
         }
+
+        return false;
     }
 
     public void printCacheState()

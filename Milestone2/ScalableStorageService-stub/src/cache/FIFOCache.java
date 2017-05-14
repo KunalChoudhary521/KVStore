@@ -63,7 +63,7 @@ public class FIFOCache implements KVCache
     }
 
     @Override
-    public void deleteFromCache(String k)
+    public boolean deleteFromCache(String k)
     {
         //this function does nothing if key, k, is not found
         if (this.maxCacheSize>0) {
@@ -72,9 +72,11 @@ public class FIFOCache implements KVCache
                 if ((!this.fifoQueue.isEmpty()) && (this.fifoQueue.contains(ndToDelete))) {
                     this.fifoQueue.remove(ndToDelete);
                     this.keyMap.remove(ndToDelete.getKey());
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     public void printCacheState()
