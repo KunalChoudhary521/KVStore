@@ -66,10 +66,13 @@ public class KVServer extends Thread
             temp = null;
         } else if(strat.equals("FIFO")) {
             temp = new FIFOCache(cSize);
+            logger.info("FIFO cache selected on KVServer @ port <" + this.port + ">");
         } else if(strat.equals("LFU")) {
             temp = new LFUCache(cSize);
+            logger.info("LFU cache selected on KVServer @ port <" + this.port + ">");
         } else if(strat.equals("LRU")) {
             temp = new LRUCache(cSize);
+            logger.info("LRU cache selected on KVServer @ port <" + this.port + ">");
         } else {
             temp = null;
         }
