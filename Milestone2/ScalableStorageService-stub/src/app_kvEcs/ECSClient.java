@@ -53,11 +53,11 @@ public class ECSClient
                                         Integer.parseInt(tokens[3]),tokens[4]);
             if(response.getStatus() == KVAdminMessage.StatusType.INIT_ALL)
             {
-                //
+                logger.info("ALL " + tokens[1] + " KVServers were initialized by ECS");
             }
             else if(response.getStatus() == KVAdminMessage.StatusType.INIT_SOME)
             {
-                //
+                logger.info("1 or more KVServers were FAILED to be initialized by ECS");
             }
         }
         else if(tokens[0].equals("start"))
@@ -65,11 +65,12 @@ public class ECSClient
             response = this.ecsClient.start();
             if(response.getStatus() == KVAdminMessage.StatusType.START_SUCCESS)
             {
-                //
+                logger.info("ALL KVServers started (GET & PUT ALLOWED) by ECS");
             }
             else if(response.getStatus() == KVAdminMessage.StatusType.START_ERROR)
             {
-                //
+                logger.info("1 ore more KVServers FAILED to be started " +
+                            "(GET & PUT ALLOWED) by ECS");
             }
         }
         else if(tokens[0].equals("stop"))
@@ -77,11 +78,12 @@ public class ECSClient
             response = this.ecsClient.stop();
             if(response.getStatus() == KVAdminMessage.StatusType.STOP_SUCCESS)
             {
-                //
+                logger.info("ALL KVServers stopped (GET & PUT DISALLOWED) by ECS");
             }
             else if(response.getStatus() == KVAdminMessage.StatusType.STOP_ERROR)
             {
-                //
+                logger.info("1 ore more KVServers FAILED to be stopped " +
+                        "(GET & PUT DISALLOWED) by ECS");
             }
         }
         else if(tokens[0].equals("shutdown"))
@@ -231,13 +233,10 @@ public class ECSClient
     {
         try {
             new LogSetup("logs/ecs.log", Level.ALL);
-            //ECSClient ecsApp = new ECSClient(args[0]);  ecsApp.run();
+            ECSClient ecsApp = new ECSClient(args[0]);  ecsApp.run();
 
-            ECS test = new ECS("ecs.config");
-            /*test.addNode("ALL",10,"LRU");
-            test.addNode("ALL",10,"LRU");
-            test.addNode("ALL",10,"LRU");
-            test.addNode("ALL",10,"LRU");*/
+            //ECS test = new ECS("ecs.config");
+            //test.addNode("ALL",10,"LRU");
             System.out.println("Done");
 
         } catch (IOException e) {
