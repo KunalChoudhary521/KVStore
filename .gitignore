@@ -29,3 +29,10 @@ MileStone2/ScalableStorageService-stub/ms2-ecs.jar
 
 **/ecsmeta.config
 
+#	milestone2-specific ignores
+MileStone3/ScalableStorageService-stub/bin/*
+Milestone3/ScalableStorageService-stub/logs/*
+MileStone3/ScalableStorageService-stub/ms3-client.jar
+MileStone3/ScalableStorageService-stub/ms3-server.jar
+MileStone3/ScalableStorageService-stub/ms3-ecs.jar
+
