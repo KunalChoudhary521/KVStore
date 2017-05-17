@@ -12,7 +12,9 @@ import org.junit.After;
 import org.junit.Before;
 
 import junit.framework.TestCase;
+import org.junit.runner.RunWith;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Map;
 
@@ -465,4 +467,124 @@ public class AdditionalTestM2 extends TestCase {
 
         assertTrue(resToECS.getStatus() == KVAdminMessage.StatusType.INIT_ALL);
     }
+
+    //put a lot of KVPairs at 1 KVServer from 1 KVClient
+    public void testPut100()
+    {
+        Exception ex1 = null, ex2 = null;
+        KVAdminMessage resToECS = null;
+        KVMessage resToClient = null;
+        KVStore kvClient;
+        Metadata firstServer;
+        int kvPairs = 1000;
+
+        try {
+            resToECS = testEcs.addNode("ALL",10,"LRU", true);
+        } catch (Exception e) {
+            ex1 = e;
+        }
+
+        try {
+            firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+
+            kvClient = new KVStore(firstServer.address, firstServer.port);
+            kvClient.connect();
+
+            for(int i = 1; i <= kvPairs; i++) {
+                resToClient = kvClient.put("key" + i, "value"+ i/**/);//(k1,v1); (k2,v2); ...
+            }
+
+            kvClient.disconnect();
+        } catch (Exception e) {
+            ex2 = e;
+        }
+
+        assertTrue(ex1 == null && ex2 == null &&
+                        resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS &&
+                        resToClient.getStatus() == KVMessage.StatusType.PUT_SUCCESS);
+    }
+
+    /**
+     *  1   Run 1 KVServer
+     *  2   Have 2 KVClients put the same key (different value) at this KVServer
+     *  3   The file (with kv-pair) should have value #1 or #2
+     */
+
+    public void testFileLockPut()
+    {
+        Exception ex1 = null, ex2 = null, ex3 = null;
+        KVAdminMessage resToECS = null;
+        KVMessage resToClient3 = null;
+        KVStore kvClient3;
+        Metadata firstServer;
+
+        try {
+            resToECS = testEcs.addNode("ALL",10,"LFU", true);
+        } catch (Exception e) {
+            ex1 = e;
+        }
+
+        try {
+            Thread t1 = new Thread(new Runnable() {
+                public void run() {
+                    Metadata firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+                    KVStore kvClient1;
+                    KVMessage resToClient = null;
+                    kvClient1 = new KVStore(firstServer.address, firstServer.port);
+                    try {
+                        kvClient1.connect();
+                        resToClient = kvClient1.put("key", "value1");
+
+                        kvClient1.disconnect();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            Thread t2 = new Thread(new Runnable() {
+                public void run() {
+                    KVStore kvClient2;
+                    KVMessage resToClient = null;
+                    Metadata firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+                    kvClient2 = new KVStore(firstServer.address, firstServer.port);
+                    try {
+                        kvClient2.connect();
+                        resToClient = kvClient2.put("key", "value2");
+
+                        kvClient2.disconnect();
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            t1.start();
+            t2.start();
+
+
+            t1.join();
+            t2.join();
+
+            firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+            kvClient3 = new KVStore(firstServer.address, firstServer.port);
+            kvClient3.connect();
+
+            resToClient3 = kvClient3.get("key");
+
+            kvClient3.disconnect();
+
+        } catch (InterruptedException e) {
+            ex2 = e;
+        } catch (Exception e) {
+            ex3 = e;
+        }
+
+
+        assertTrue(ex1 == null && ex2 == null && ex3 == null &&
+                resToECS.getStatus() == KVAdminMessage.StatusType.ADD_SUCCESS &&
+                (resToClient3.getValue().equals("value1") ||
+                        resToClient3.getValue().equals("value2")));
+    }
+
 }
