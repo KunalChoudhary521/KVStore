@@ -1,6 +1,5 @@
 package ecs;
 
-import app_kvServer.KVServer;
 import common.Metadata;
 import common.TextMessage;
 import common.md5;
@@ -28,13 +27,13 @@ public class ECS implements ECSCommInterface
 
     private static final int BUFFER_SIZE = 1024;
     private static final int DROP_SIZE = 1024 * BUFFER_SIZE;
+    private static final String msgSeparator = ",";
 
     private Path configFile;//path to ecs.config
     private Path mDataFile;//path to ecsMetaData
     private static final String metaDataFile = "ecsmeta.config";
     private Socket ecsSocket;
     private TreeMap<BigInteger, Metadata> hashRing;
-    Process serverProc;
 
     public ECS(String confFile)
     {
@@ -124,7 +123,7 @@ public class ECS implements ECSCommInterface
     private void startNode(String address, int port) throws IOException
     {
         //unlock read(get) & write(put)
-        String msg = "ECS,START_SERVER";
+        String msg = "ECS" + msgSeparator + "START_SERVER";
         TextMessage response;
 
         connect(address, port);
@@ -165,7 +164,7 @@ public class ECS implements ECSCommInterface
     public void stopNode(String address, int port) throws IOException
     {
         //lock read(get) & write(put)
-        String msg = "ECS,STOP_SERVER";
+        String msg = "ECS" + msgSeparator + "STOP_SERVER";
         TextMessage response;
 
         connect(address, port);
@@ -208,7 +207,7 @@ public class ECS implements ECSCommInterface
     }
     public void shutDownNode(String address, int port) throws IOException
     {
-        String msg = "ECS,SHUTDOWN";
+        String msg = "ECS" + msgSeparator + "SHUTDOWN";
         TextMessage response;
 
         connect(address, port);
@@ -227,17 +226,16 @@ public class ECS implements ECSCommInterface
     /**
      * Design Decision: If initService calls this function, then
      * multiple KVServer are required to be initialized. In that case,
-     * the following 3 actions are taken ONLY ONCE AFTER calling
+     * the following actions are taken ONLY ONCE AFTER calling
      * this function <numOfNodes> times to reduce # of message being
      * passed between ECS & KVServers:
-     * 1    Writing meta data to to ecsmeta.config
+     * 1    Writing meta data to ecsmeta.config
      * 2    sending meta data to all KVServers
-     * 3    starting KVServers
+     * 3    starting (allowing get & put) KVServers
      *
-     * If this function is called via "add" command via ECSClient,
+     * If this function is called via "add" command from ECSClient,
      * then the actions above are taken per function call as usual.
      */
-    //TODO: KVServer logger hangs if logLevel is NOT OFF when nodes are added via addNode
     @Override
     public KVAdminMessage addNode(String logLevel, int cacheSize,
                                   String strategy, boolean addOneNode)
@@ -390,7 +388,8 @@ public class ECS implements ECSCommInterface
 
     public void TransferKVPairs(Metadata srcServer, Metadata dstServer)
     {
-        String msg = "ECS,TRANSFER," + dstServer.address + ";" + dstServer.port + ";"
+        String msg = "ECS"+ msgSeparator +"TRANSFER" + msgSeparator
+                    + dstServer.address + ";" + dstServer.port + ";"
                     + dstServer.startHash + ";" + dstServer.endHash;
         TextMessage response;
         try {
@@ -423,21 +422,20 @@ public class ECS implements ECSCommInterface
      */
     public BigInteger findSuccessor(BigInteger currentServer)
     {
-        BigInteger successor;
-        if(this.hashRing.size() <= 1 || !this.hashRing.containsKey(currentServer))
-        {
-            successor = null;
-        }
-        else
-        {
-            if(hashRing.higherKey(currentServer) == null) {
-                successor = hashRing.firstEntry().getKey();
-            } else {
-                successor = hashRing.higherEntry(currentServer).getKey();
-            }
-        }
+        if (currentServer == null)
+            return null;
 
-        return successor;
+        return (hashRing.higherKey(currentServer) == null) ?
+                hashRing.firstEntry().getKey() : hashRing.higherEntry(currentServer).getKey();
+    }
+
+    public BigInteger findPredecessor(BigInteger currentServer)
+    {
+        if (currentServer == null)
+            return null;
+
+        return (hashRing.lowerKey(currentServer) == null) ?
+                hashRing.lastEntry().getKey() : hashRing.lowerEntry(currentServer).getKey() ;
     }
 
     /**
@@ -451,14 +449,14 @@ public class ECS implements ECSCommInterface
     public void sendMetadata() throws IOException
     {
         StringBuilder createMsg = new StringBuilder();
-        createMsg.append("ECS,METADATA,");
+        createMsg.append("ECS"+ msgSeparator + "METADATA" + msgSeparator);
         Metadata temp;
 
         for(Map.Entry<BigInteger,Metadata> entry : hashRing.entrySet())
         {
             temp = entry.getValue();
             String dataLine = temp.address + ";" + temp.port + ";" +
-                    temp.startHash + ";" + temp.endHash + ",";//comma(,) for string.split on KVServer-side
+                    temp.startHash + ";" + temp.endHash + ":";//comma(:) for string.split on KVServer-side
             createMsg.append(dataLine);
         }
 
@@ -566,7 +564,7 @@ public class ECS implements ECSCommInterface
 	
 	public boolean setWriteStatus(String address, int port, String status)
     {
-        String msg = "ECS," + status;
+        String msg = "ECS" + msgSeparator + status;
         TextMessage response;
         try {
             connect(address, port);
@@ -621,8 +619,8 @@ public class ECS implements ECSCommInterface
     {
         //new KVServer(port, logLevel, cacheSize, strategy).start();//for debugging only
 
-        //java -jar ms2-server.jar 9000 ALL 10 LRU
-        String runCmd = "java -jar ms2-server.jar " + port + " " + logLevel + " "
+        //java -jar ms3-server.jar 9001 ALL 10 LRU
+        String runCmd = "java -jar ms3-server.jar " + port + " " + logLevel + " "
                         + cacheSize + " " + strategy ;
 
         //http://stackoverflow.com/a/11014951 (WINDOWS specific ONLY)
@@ -632,7 +630,7 @@ public class ECS implements ECSCommInterface
 
         logger.info("Waiting For KVServer process to begin ...");
         try {
-            serverProc = run.exec("cmd /c " + runCmd + setStdStreams);
+            run.exec("cmd /c " + runCmd + setStdStreams);
             Thread.sleep(2000);//wait (in ms) for KVServer to run
         } catch (InterruptedException ex) {
             logger.error("Error! Thread unable to sleep after running KVServer process");
