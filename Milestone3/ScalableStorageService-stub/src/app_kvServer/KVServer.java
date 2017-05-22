@@ -4,18 +4,22 @@ import cache.FIFOCache;
 import cache.KVCache;
 import cache.LFUCache;
 import cache.LRUCache;
+import common.Metadata;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import logger.LogSetup;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.TreeMap;
 
 public class KVServer extends Thread
 {
@@ -24,7 +28,90 @@ public class KVServer extends Thread
 
     private int port;
     private ServerSocket serverSocket;
-    private ServerInfo sInfo;
+    private Path kvDirPath;
+    private Path mDataFile;
+    private KVCache cache;
+    private String startHash, endHash;
+    private Boolean running;
+    private Metadata[] replicas;
+    private static final int REPLICA_LIMIT = 2;//can be set to zero so that M3 = M2
+    private TreeMap<BigInteger, Metadata> hashRing;//updated whenever updated Metadata is received
+
+    public int getPort()
+    {
+        return port;
+    }
+
+    public void setPort(int port)
+    {
+        this.port = port;
+    }
+
+    public ServerSocket getServerSocket()
+    {
+        return serverSocket;
+    }
+
+    public Path getKvDirPath()
+    {
+        return kvDirPath;
+    }
+
+    public Path getmDataFile()
+    {
+        return mDataFile;
+    }
+
+    public KVCache getCache()
+    {
+        return cache;
+    }
+
+    public String getStartHash()
+    {
+        return startHash;
+    }
+
+    public void setStartHash(String startHash)
+    {
+        this.startHash = startHash;
+    }
+
+    public String getEndHash()
+    {
+        return endHash;
+    }
+
+    public void setEndHash(String endHash)
+    {
+        this.endHash = endHash;
+    }
+
+    public Boolean getRunning()
+    {
+        return running;
+    }
+
+    public void setRunning(Boolean running)
+    {
+        this.running = running;
+    }
+
+    public Metadata[] getReplicas()
+    {
+        return replicas;
+    }
+
+    public void setReplicas(Metadata replica, int index)
+    {
+        this.replicas[index] = replica;
+    }
+
+    public TreeMap<BigInteger, Metadata> getHashRing()
+    {
+        return hashRing;
+    }
+
 
 	/**
 	 * Start KV Server at given port
@@ -39,23 +126,26 @@ public class KVServer extends Thread
 	public KVServer(int port, String logLevel, int cacheSize, String strategy)
 	{
 		this.port = port;
-        sInfo = new ServerInfo();
         setLogLevel(logLevel);
 
-        sInfo.setCache(setCacheType(cacheSize, strategy));
-        if(sInfo.getCache() == null)
+        this.cache = setCacheType(cacheSize, strategy);
+        if(this.cache == null)
         {
             logger.error("Error! No caching enabled");
         }
 
-        sInfo.setKvDirPath(Paths.get(String.valueOf(port)));
-        sInfo.setmDataFile(Paths.get(sInfo.getKvDirPath().getFileName().toString() +
-                File.separator + "metadata.txt"));
+        this.kvDirPath = Paths.get(String.valueOf(port));
+        this.mDataFile = Paths.get(this.kvDirPath.getFileName().toString() +
+                                        File.separator + "metadata.txt");
+
+        replicas = new Metadata[REPLICA_LIMIT];
+        hashRing = new TreeMap<>();
+
         try {
             createStorageObjects();
         } catch (IOException ex) {
             logger.error("Error! Unable to create directory /" + port);
-            sInfo.setRunning(false);//terminate KVServer
+            this.running = false;//terminate KVServer
         }
 }
 
@@ -114,43 +204,41 @@ public class KVServer extends Thread
      */
     public void createStorageObjects() throws IOException
     {
-        if (Files.notExists(sInfo.getKvDirPath()))
+        if (Files.notExists(this.kvDirPath))
         {
-            Files.createDirectory(sInfo.getKvDirPath());
+            Files.createDirectory(this.kvDirPath);
 
             logger.info("KVServer on port <" + this.port + "> " + "New Directory: "
                     + System.getProperty("user.dir") + File.separator +
-                    sInfo.getKvDirPath().toString());
+                    this.kvDirPath.toString());
         }
 
-        if (Files.notExists(sInfo.getmDataFile()))
+        if (Files.notExists(this.mDataFile))
         {
-            Files.createFile(sInfo.getmDataFile());
+            Files.createFile(this.mDataFile);
 
             logger.info("KVServer on port <" + this.port + "> " + "Metadata file Path: "
-                    + System.getProperty("user.dir") + File.separator +
-                    sInfo.getmDataFile().toString());
+                    + System.getProperty("user.dir") + File.separator + this.mDataFile.toString());
         }
     }
 
     private boolean isRunning()
     {
-        return sInfo.getRunning();
+        return this.running;
     }
 
     public void run()
     {
-        sInfo.setRunning(initializeServer());
+        this.running = initializeServer();
         if(serverSocket != null)
         {
             while(isRunning())
             {
                 try
                 {
-                    //TODO: clean up KVServer ShutDown protocol
                     Socket client = serverSocket.accept();
 
-                    ClientConnection connection = new ClientConnection(client, sInfo, serverSocket);
+                    ClientConnection connection = new ClientConnection(client, this);
                     new Thread(connection).start();
 
                     logger.info("Connected to "
@@ -187,11 +275,12 @@ public class KVServer extends Thread
 
     public void stopServer()
     {
-        /*logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
-                    + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");*/
+        logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
+                    + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");
+        this.running = false;
         try {
-            //serverSocket.close();
-            Files.deleteIfExists(sInfo.getmDataFile());//remove server's metadata file
+            serverSocket.close();
+            Files.deleteIfExists(this.mDataFile);//remove server's metadata file
         } catch (IOException e) {
             logger.error("Error! " +
                     "Unable to close socket on port: " + port, e);
