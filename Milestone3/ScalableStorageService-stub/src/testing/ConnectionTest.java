@@ -23,7 +23,7 @@ public class ConnectionTest extends TestCase {
 		
 		Exception ex = null;
 		
-		KVStore kvClient = new KVStore("localhost", 9000);
+		KVStore kvClient = new KVStore("localhost", 9001);
 		try {
 			kvClient.connect();
 		} catch (Exception e) {
@@ -36,7 +36,7 @@ public class ConnectionTest extends TestCase {
 	
 	public void testUnknownHost() {
 		Exception ex = null;
-		KVStore kvClient = new KVStore("unknown", 9000);
+		KVStore kvClient = new KVStore("unknown", 9001);
 		
 		try {
 			kvClient.connect();

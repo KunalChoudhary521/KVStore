@@ -16,7 +16,7 @@ public class AdditionalTest extends TestCase {
     public void setUp() {
         try {
             new LogSetup("logs/testing/additionalTests.log", Level.ALL);
-            kvClient = new KVStore("127.0.0.1", 9000);
+            kvClient = new KVStore("127.0.0.1", 9001);
             kvClient.connect();
         } catch (Exception e) {
 
@@ -119,7 +119,7 @@ public class AdditionalTest extends TestCase {
 
         KVStore client2;
         try {
-            client2 = new KVStore("127.0.0.1", 9000);
+            client2 = new KVStore("127.0.0.1", 9001);
             client2.connect();
 
             response = client2.get(key);

@@ -12,9 +12,6 @@ import org.junit.After;
 import org.junit.Before;
 
 import junit.framework.TestCase;
-import org.junit.runner.RunWith;
-
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Map;
 
@@ -44,7 +41,6 @@ public class AdditionalTestM2 extends TestCase {
     /**
      * Add 3 servers to the ring and check if they are indeed in the ring
      */
-
     public void testAddServersToRing() {
         String[] address = {"127.0.0.1", "192.168.0.10", "128.0.10.11" };
         int[] port = {9000, 30_000, 50_000};
@@ -187,7 +183,8 @@ public class AdditionalTestM2 extends TestCase {
         Metadata firstServer;
         try {
             resToECS = testEcs.addNode("ALL",10,"LRU", true);
-            result = testEcs.setWriteStatus("127.0.0.1", 9000, "LOCKWRITE");
+            firstServer = testEcs.getHashRing().get(testEcs.getHashRing().firstKey());
+            result = testEcs.setWriteStatus(firstServer.address, firstServer.port, "LOCKWRITE");
         }
         catch (Exception e) {
             ex1 = e;
@@ -290,7 +287,7 @@ public class AdditionalTestM2 extends TestCase {
         KVStore kvClient;
         KVMessage resToClient = null;
         try {
-            kvClient = new KVStore("127.0.0.1", 9000);
+            kvClient = new KVStore("127.0.0.1", 9001);
             kvClient.connect();
             resToClient = kvClient.put("k1", "v1");//correct server is <127.0.0.1:9001>
 
@@ -323,7 +320,7 @@ public class AdditionalTestM2 extends TestCase {
             resToClient = kvClient.put(key,value);
             kvClient.disconnect();
 
-            kvClient = new KVStore("127.0.0.1", 9000);//connect to wrong server
+            kvClient = new KVStore("127.0.0.1", 9022);//connect to wrong server
             kvClient.connect();
             resToClient = kvClient.get("k1");//correct server is <127.0.0.1:9001>
             kvClient.disconnect();
@@ -430,10 +427,6 @@ public class AdditionalTestM2 extends TestCase {
         Exception ex1 = null, ex2 = null;
 
         try {
-            /*resToECS = testEcs.addNode("ALL",10,"FIFO", true);
-            resToECS = testEcs.addNode("ALL",15,"LFU", true);
-            resToECS = testEcs.addNode("ALL",20,"LRU", true);
-            */
             resToECS = testEcs.initService(3,"ALL",10,"LRU");
         }
         catch (Exception e1) {

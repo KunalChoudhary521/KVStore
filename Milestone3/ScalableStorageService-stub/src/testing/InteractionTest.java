@@ -17,7 +17,7 @@ public class InteractionTest extends TestCase {
 	public void setUp() {
 		try {
             new LogSetup("logs/testing/interactionTests.log", Level.ALL);
-            kvClient = new KVStore("127.0.0.1", 9000);
+            kvClient = new KVStore("127.0.0.1", 9001);
 			kvClient.connect();
 		} catch (Exception e) {
 

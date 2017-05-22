@@ -26,7 +26,7 @@ public class AllTests {
             new LogSetup("logs/testing/AllTests.log", Level.ALL);
             //new KVServer(9000, "ALL", 5, "LRU").start();//9000 ALL 10 LRU
             testEcs = new ECS("ecs.config");
-            KVAdminMessage resToECS = testEcs.initService(1,"OFF",20,"LRU");
+            KVAdminMessage resToECS = testEcs.initService(1,"ALL",20,"LRU");
         } catch (IOException e) {
             e.printStackTrace();
         }
