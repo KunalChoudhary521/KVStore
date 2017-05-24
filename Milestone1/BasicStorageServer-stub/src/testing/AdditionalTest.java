@@ -12,11 +12,14 @@ public class AdditionalTest extends TestCase {
 	
 	//add your test cases, at least 3
     private KVStore kvClient;
+    private final String address = "127.0.0.1";
+    private final int port = 9000;
+
 
     public void setUp() {
         try {
             new LogSetup("logs/testing/additionalTests.log", Level.ALL);
-            kvClient = new KVStore("127.0.0.1", 9000);
+            kvClient = new KVStore(address, port);
             kvClient.connect();
         } catch (Exception e) {
 
@@ -119,7 +122,7 @@ public class AdditionalTest extends TestCase {
 
         KVStore client2;
         try {
-            client2 = new KVStore("127.0.0.1", 9000);
+            client2 = new KVStore(address, port);
             client2.connect();
 
             response = client2.get(key);
@@ -142,5 +145,25 @@ public class AdditionalTest extends TestCase {
 	public void testCacheMiss() {
         //
 		assertTrue(true);
+    }
+
+    //put multiple KV-pairs on the KVServer by 1 KVClient
+    @Test
+    public void testPut50()
+    {
+        Exception ex1 = null;
+        KVMessage resToClient = null;
+        int kvPairs = 50;
+
+        try {
+
+            for(int i = 1; i <= kvPairs; i++) {
+                resToClient = kvClient.put("k" + i, "v" + i);//(k1,v1); (k2,v2); ...
+            }
+        } catch (Exception e) {
+            ex1 = e;
+        }
+
+        assertTrue(ex1 == null && resToClient.getStatus() == KVMessage.StatusType.PUT_SUCCESS );
     }
 }
