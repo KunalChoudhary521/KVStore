@@ -103,7 +103,7 @@ public class LFUCache implements KVCache
     }
 
     @Override
-    public void deleteFromCache(String k)
+    public boolean deleteFromCache(String k)
     {
 
         //this function does nothing if key, k, is not found
@@ -122,10 +122,13 @@ public class LFUCache implements KVCache
                         if (this.freqMap.isEmpty()) {
                             this.freqMap.remove(ndToDelete.getNodeFrq());
                         }
+
+                        return true;
                     }
                 }
             }
         }
+        return false;
     }
 
     public void printCacheState()

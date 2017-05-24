@@ -8,10 +8,14 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import logger.LogSetup;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class KVServer extends Thread
 {
@@ -21,7 +25,7 @@ public class KVServer extends Thread
     private int port;
     private ServerSocket serverSocket;
     private boolean running;
-    private String kvDirPath;
+    private Path kvDirPath;
     private KVCache cache;
 	
 	/**
@@ -39,31 +43,42 @@ public class KVServer extends Thread
 		this.port = port;
         setLogLevel(logLevel);
 
-        this.kvDirPath = String.valueOf(port);
-        if(cacheSize > 0)
+        this.kvDirPath = Paths.get(String.valueOf(port));
+        this.cache = setCacheType(cacheSize, strategy);
+        if(this.cache == null)
         {
-            setCacheType(cacheSize, strategy);
-        }
-        else
-        {
-            this.cache = null;
             logger.error("Error! No caching enabled");
+        }
+
+        try {
+            createStorageObjects();
+        }
+        catch (Exception ex) {
+            logger.error("Error! Unable to create directory /" + port);
+            this.running = false;//terminate KVServer
         }
 }
 
-    private void setCacheType(int cSize, String strat)
+    private KVCache setCacheType(int cSize, String strat)
     {
-        if(strat.equals("FIFO")) {
-            this.cache = new FIFOCache(cSize);
+        KVCache temp;
+        if(cSize <= 0) {
+            temp = null;
+        } else if(strat.equals("FIFO")) {
+            temp = new FIFOCache(cSize);
+            logger.info("FIFO cache selected on KVServer @ port <" + this.port + ">");
         } else if(strat.equals("LFU")) {
-            this.cache = new LFUCache(cSize);
+            temp = new LFUCache(cSize);
+            logger.info("LFU cache selected on KVServer @ port <" + this.port + ">");
         } else if(strat.equals("LRU")) {
-            this.cache = new LRUCache(cSize);
+            temp = new LRUCache(cSize);
+            logger.info("LRU cache selected on KVServer @ port <" + this.port + ">");
         } else {
-            this.cache = null;
-            logger.error("Error! No caching enabled");
+            temp = null;
         }
+        return temp;
     }
+
     private String setLogLevel(String levelString) {
 
         if(levelString.equals(Level.ALL.toString())) {
@@ -89,6 +104,18 @@ public class KVServer extends Thread
             return Level.OFF.toString();
         } else {
             return LogSetup.UNKNOWN_LEVEL;
+        }
+    }
+
+    public void createStorageObjects() throws IOException
+    {
+        if (Files.notExists(this.kvDirPath))
+        {
+            Files.createDirectory(this.kvDirPath);
+
+            logger.info("KVServer on port <" + this.port + "> " + "New Directory: "
+                    + System.getProperty("user.dir") + File.separator +
+                    this.kvDirPath.toString());
         }
     }
 
@@ -119,7 +146,7 @@ public class KVServer extends Thread
                 }
             }
         }
-        logger.info("Server stopped.");
+        stopServer();
     }
 
     private boolean initializeServer()
@@ -142,6 +169,8 @@ public class KVServer extends Thread
 
     public void stopServer()
     {
+        logger.info("KVServer<" + serverSocket.getInetAddress().getHostAddress() + ":"
+                + serverSocket.getLocalPort() + "> SHUTTING DOWN!!");
         running = false;
         try {
             serverSocket.close();
