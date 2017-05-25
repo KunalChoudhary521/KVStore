@@ -65,15 +65,15 @@ public class ClientConnection implements Runnable {
 				try
                 {
 					TextMessage latestMsg = receiveMessage();
-                    String[] msgComponents = latestMsg.getMsg().split(msgSeparator);
+                    String[] msgComponents = latestMsg.getMsg().trim().split(msgSeparator);
 
                     if(msgComponents[0].equals("PUT"))
                     {
-                        handlePut(latestMsg);
+                        handlePut(msgComponents[1],msgComponents[2]);
                     }
                     else if(msgComponents[0].equals("GET"))
                     {
-                        handleGet(latestMsg);
+                        handleGet(msgComponents[1]);
                     }
 					
 				/* connection either terminated by the client or lost due to 
@@ -105,13 +105,8 @@ public class ClientConnection implements Runnable {
 		}
 	}
 
-	public void handlePut(TextMessage putMsg)
+	public void handlePut(String key, String value)
     {
-        String[] parts = putMsg.getMsg().split(msgSeparator);
-
-        String key = parts[1];
-        String value = parts[2].trim();//to remove \n\r after the <value>
-
         String putResponse;
         if(!value.equals("null") && !value.isEmpty() && !value.equals(""))
         {
@@ -215,11 +210,8 @@ public class ClientConnection implements Runnable {
         }
     }
 
-    public void handleGet(TextMessage getMsg)
+    public void handleGet(String key)
     {
-        String[] parts = getMsg.getMsg().split(msgSeparator);
-
-        String key = parts[1].trim();//to remove \n\r after the <value>
         String value;
         try
         {
