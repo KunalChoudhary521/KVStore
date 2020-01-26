@@ -22,4 +22,4 @@ Full Implementation of Key-Value store is separated into 3 Milestones:
 3. __Milestone #3:__ Key-value pairs are replicated across 2 additional servers to increases their availability.
                  Each server acts as a co-ordinator and 2 servers that follow act as replicas to it. Replication is
                  only performed by the co-ordinator; however, any client can retrieve a value from either the
-                 replica or the co-orinator.
+                 replica or the co-ordinator.
